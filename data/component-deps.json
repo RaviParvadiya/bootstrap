@@ -1,0 +1,84 @@
+{
+  "components": {
+    "terminal": {
+      "description": "Terminal emulators",
+      "options": ["alacritty", "kitty"],
+      "default": "kitty",
+      "packages": {
+        "arch": ["alacritty", "kitty"],
+        "ubuntu": ["alacritty", "kitty"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": []
+    },
+    "shell": {
+      "description": "Shell configuration",
+      "packages": {
+        "arch": ["zsh", "starship"],
+        "ubuntu": ["zsh", "starship"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": ["configure_shell"]
+    },
+    "editor": {
+      "description": "Text editors",
+      "options": ["neovim", "vscode"],
+      "packages": {
+        "arch": ["neovim", "code"],
+        "ubuntu": ["neovim", "code"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": ["configure_editor"]
+    },
+    "wm": {
+      "description": "Window manager and desktop environment",
+      "packages": {
+        "arch": ["hyprland", "waybar", "wofi", "grim", "slurp", "swaync"],
+        "ubuntu": ["waybar", "wofi", "grim", "slurp", "mako-notifier"]
+      },
+      "dependencies": ["terminal", "shell"],
+      "conflicts": ["gnome", "kde", "xfce"],
+      "post_install": ["configure_hyprland", "configure_waybar"]
+    },
+    "dev-tools": {
+      "description": "Development tools and languages",
+      "packages": {
+        "arch": ["git", "docker", "nodejs", "python", "rust", "go"],
+        "ubuntu": ["git", "docker.io", "nodejs", "python3", "rustc", "golang-go"]
+      },
+      "dependencies": ["editor"],
+      "conflicts": [],
+      "post_install": ["configure_git", "configure_docker"]
+    },
+    "hardware": {
+      "description": "Hardware-specific configurations",
+      "packages": {
+        "arch": [],
+        "ubuntu": []
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "conditional": true,
+      "post_install": ["detect_hardware", "configure_hardware"]
+    }
+  },
+  "hardware_profiles": {
+    "nvidia": {
+      "packages": {
+        "arch": ["nvidia-dkms", "nvidia-utils", "lib32-nvidia-utils"],
+        "ubuntu": ["nvidia-driver-535", "nvidia-settings"]
+      },
+      "configs": ["nvidia_modeset", "nvidia_drm"]
+    },
+    "asus_tuf": {
+      "packages": {
+        "arch": ["asusctl", "supergfxctl", "optimus-manager"],
+        "ubuntu": []
+      },
+      "configs": ["asus_keyboard", "asus_power"]
+    }
+  }
+}

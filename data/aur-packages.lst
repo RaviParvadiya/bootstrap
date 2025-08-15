@@ -1,0 +1,44 @@
+# AUR (Arch User Repository) package list
+# These packages are only available on Arch Linux through AUR
+# Comments start with #
+
+# --- AUR Helpers ---
+yay
+paru
+
+# --- Development Tools ---
+visual-studio-code-bin
+google-chrome
+discord
+spotify
+
+# --- System Utilities ---
+optimus-manager|nvidia
+optimus-manager-qt|nvidia
+asusctl|asus
+supergfxctl|asus
+rog-control-center|asus
+
+# --- Fonts ---
+ttf-jetbrains-mono
+ttf-fira-code
+nerd-fonts-complete
+
+# --- Themes and Customization ---
+catppuccin-gtk-theme-mocha
+papirus-icon-theme
+bibata-cursor-theme
+
+# --- Gaming ---
+steam
+lutris
+heroic-games-launcher-bin
+
+# --- Multimedia ---
+obs-studio-git
+davinci-resolve
+
+# --- Productivity ---
+notion-app
+obsidian
+todoist-nativefier

@@ -1,0 +1,214 @@
+#!/bin/bash
+
+# Modular Install Framework
+# Main entry point for the installation system
+# Supports Arch Linux and Ubuntu distributions
+
+set -euo pipefail
+
+# Script directory and paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$SCRIPT_DIR/core"
+DISTROS_DIR="$SCRIPT_DIR/distros"
+COMPONENTS_DIR="$SCRIPT_DIR/components"
+CONFIGS_DIR="$SCRIPT_DIR/configs"
+DATA_DIR="$SCRIPT_DIR/data"
+TESTS_DIR="$SCRIPT_DIR/tests"
+
+# Global variables
+DRY_RUN=false
+VM_MODE=false
+VERBOSE=false
+SELECTED_COMPONENTS=()
+DETECTED_DISTRO=""
+
+# Source core utilities
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/validator.sh"
+source "$CORE_DIR/menu.sh"
+
+# Display usage information
+show_usage() {
+    cat << EOF
+Modular Install Framework
+
+Usage: $0 [OPTIONS] [COMMAND]
+
+OPTIONS:
+    -h, --help          Show this help message
+    -v, --verbose       Enable verbose output
+    -d, --dry-run       Show what would be done without executing
+    -t, --test          Run in test mode (VM-safe)
+    -c, --components    Comma-separated list of components to install
+
+COMMANDS:
+    install             Run interactive installation (default)
+    restore             Restore from backup
+    validate            Validate current installation
+    backup              Create system backup
+    list                List available components
+
+EXAMPLES:
+    $0                                  # Interactive installation
+    $0 --dry-run install               # Preview installation
+    $0 --components terminal,shell      # Install specific components
+    $0 validate                        # Validate installation
+
+EOF
+}
+
+# Parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            -v|--verbose)
+                VERBOSE=true
+                shift
+                ;;
+            -d|--dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            -t|--test)
+                VM_MODE=true
+                shift
+                ;;
+            -c|--components)
+                IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
+                shift 2
+                ;;
+            install|restore|validate|backup|list)
+                COMMAND="$1"
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Default command
+    COMMAND="${COMMAND:-install}"
+}
+
+# Main installation orchestrator
+main() {
+    # Initialize logging
+    init_logger
+    
+    log_info "Starting Modular Install Framework"
+    
+    # Parse command line arguments
+    parse_arguments "$@"
+    
+    # Set global flags
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "Running in DRY-RUN mode - no changes will be made"
+    fi
+    
+    if [[ "$VM_MODE" == "true" ]]; then
+        log_info "Running in VM mode - hardware-specific configs will be skipped"
+    fi
+    
+    # Detect distribution first
+    log_info "Detecting Linux distribution..."
+    DETECTED_DISTRO=$(detect_distro)
+    if [[ -z "$DETECTED_DISTRO" ]]; then
+        log_error "Failed to detect Linux distribution"
+        exit 1
+    fi
+    log_info "Detected distribution: $DETECTED_DISTRO"
+    
+    # Validate system prerequisites
+    log_info "Validating system requirements..."
+    validate_system || {
+        log_error "System validation failed"
+        exit 1
+    }
+    
+    # Execute command
+    case "$COMMAND" in
+        install)
+            run_installation
+            ;;
+        restore)
+            run_restoration
+            ;;
+        validate)
+            run_validation
+            ;;
+        backup)
+            run_backup
+            ;;
+        list)
+            list_components
+            ;;
+        *)
+            log_error "Unknown command: $COMMAND"
+            exit 1
+            ;;
+    esac
+    
+    log_success "Operation completed successfully"
+}
+
+# Run installation process
+run_installation() {
+    log_info "Starting installation process..."
+    
+    # Component selection
+    if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
+        log_info "Opening component selection menu..."
+        select_components
+    else
+        log_info "Using pre-selected components: ${SELECTED_COMPONENTS[*]}"
+    fi
+    
+    # Route to distribution-specific handler
+    case "$DETECTED_DISTRO" in
+        "arch")
+            source "$DISTROS_DIR/arch/arch-main.sh"
+            run_arch_installation
+            ;;
+        "ubuntu")
+            source "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
+            run_ubuntu_installation
+            ;;
+        *)
+            log_error "Unsupported distribution: $DETECTED_DISTRO"
+            exit 1
+            ;;
+    esac
+}
+
+# Placeholder functions for other commands
+run_restoration() {
+    log_info "Restoration functionality not yet implemented"
+}
+
+run_validation() {
+    log_info "Validation functionality not yet implemented"
+}
+
+run_backup() {
+    log_info "Backup functionality not yet implemented"
+}
+
+list_components() {
+    log_info "Component listing functionality not yet implemented"
+}
+
+# Error handling
+trap 'log_error "Script interrupted"; exit 1' INT TERM
+
+# Execute main function if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

@@ -1,0 +1,55 @@
+# Arch Linux package list
+# Format: package_name or package_name|condition
+# Comments start with #
+
+# --- Base System ---
+git
+curl
+wget
+vim
+nano
+htop
+tree
+unzip
+zip
+
+# --- Development Tools ---
+gcc
+make
+cmake
+nodejs
+npm
+python
+python-pip
+rust
+go
+
+# --- Terminal and Shell ---
+zsh
+fish
+tmux
+alacritty
+kitty
+
+# --- Window Manager (Wayland) ---
+hyprland
+waybar
+wofi
+grim
+slurp
+wl-clipboard
+
+# --- Graphics and Multimedia ---
+gimp
+vlc
+ffmpeg
+imagemagick
+
+# --- Hardware Specific ---
+nvidia-dkms|nvidia
+nvidia-utils|nvidia
+lib32-nvidia-utils|nvidia
+
+# --- Virtual Machine ---
+qemu-guest-agent|vm
+spice-vdagent|vm
