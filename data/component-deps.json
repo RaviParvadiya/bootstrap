@@ -1,84 +1,234 @@
 {
   "components": {
-    "terminal": {
-      "description": "Terminal emulators",
-      "options": ["alacritty", "kitty"],
-      "default": "kitty",
+    "hyprland": {
+      "name": "Hyprland Window Manager",
+      "description": "Wayland compositor with advanced features",
+      "category": "window_manager",
       "packages": {
-        "arch": ["alacritty", "kitty"],
-        "ubuntu": ["alacritty", "kitty"]
+        "arch": ["hyprland", "xdg-desktop-portal-hyprland", "qt5-wayland", "qt6-wayland"],
+        "ubuntu": ["build-essential", "cmake", "meson", "ninja-build", "libwayland-dev", "wayland-protocols", "libdrm-dev", "libegl1-mesa-dev", "libgles2-mesa-dev", "libgbm-dev", "libinput-dev", "libxkbcommon-dev", "libudev-dev", "libpixman-1-dev", "libseat-dev", "libxcb-dri3-dev", "libxcb-present-dev", "libxcb-composite0-dev", "libxcb-render-util0-dev", "libxcb-ewmh-dev", "libxcb-icccm4-dev", "libxcb-res0-dev", "libxcb-xinput-dev", "libtomlplusplus-dev", "libzip-dev", "librsvg2-dev", "libmagic-dev"]
       },
       "dependencies": [],
-      "conflicts": [],
-      "post_install": []
-    },
-    "shell": {
-      "description": "Shell configuration",
-      "packages": {
-        "arch": ["zsh", "starship"],
-        "ubuntu": ["zsh", "starship"]
-      },
-      "dependencies": [],
-      "conflicts": [],
-      "post_install": ["configure_shell"]
-    },
-    "editor": {
-      "description": "Text editors",
-      "options": ["neovim", "vscode"],
-      "packages": {
-        "arch": ["neovim", "code"],
-        "ubuntu": ["neovim", "code"]
-      },
-      "dependencies": [],
-      "conflicts": [],
-      "post_install": ["configure_editor"]
-    },
-    "wm": {
-      "description": "Window manager and desktop environment",
-      "packages": {
-        "arch": ["hyprland", "waybar", "wofi", "grim", "slurp", "swaync"],
-        "ubuntu": ["waybar", "wofi", "grim", "slurp", "mako-notifier"]
-      },
-      "dependencies": ["terminal", "shell"],
+      "optional_dependencies": ["waybar", "wofi", "swaync"],
       "conflicts": ["gnome", "kde", "xfce"],
-      "post_install": ["configure_hyprland", "configure_waybar"]
+      "post_install": ["configure_hyprland_session", "setup_wayland_env"],
+      "hardware_requirements": ["gpu_acceleration"]
     },
-    "dev-tools": {
-      "description": "Development tools and languages",
+    "waybar": {
+      "name": "Waybar Status Bar",
+      "description": "Highly customizable Wayland bar",
+      "category": "status_bar",
       "packages": {
-        "arch": ["git", "docker", "nodejs", "python", "rust", "go"],
-        "ubuntu": ["git", "docker.io", "nodejs", "python3", "rustc", "golang-go"]
+        "arch": ["waybar"],
+        "ubuntu": ["waybar"]
       },
-      "dependencies": ["editor"],
-      "conflicts": [],
-      "post_install": ["configure_git", "configure_docker"]
+      "dependencies": ["hyprland"],
+      "conflicts": ["polybar", "i3status"],
+      "post_install": ["configure_waybar"]
     },
-    "hardware": {
-      "description": "Hardware-specific configurations",
+    "wofi": {
+      "name": "Wofi Application Launcher",
+      "description": "Wayland-native application launcher",
+      "category": "launcher",
       "packages": {
-        "arch": [],
-        "ubuntu": []
+        "arch": ["wofi"],
+        "ubuntu": ["wofi"]
+      },
+      "dependencies": ["hyprland"],
+      "conflicts": ["rofi", "dmenu"],
+      "post_install": ["configure_wofi"]
+    },
+    "swaync": {
+      "name": "SwayNC Notification Center",
+      "description": "Notification daemon for Wayland",
+      "category": "notifications",
+      "packages": {
+        "arch": ["swaync"],
+        "ubuntu": ["swaync"]
+      },
+      "dependencies": ["hyprland"],
+      "conflicts": ["dunst", "mako"],
+      "post_install": ["configure_swaync"]
+    },
+    "alacritty": {
+      "name": "Alacritty Terminal",
+      "description": "GPU-accelerated terminal emulator",
+      "category": "terminal",
+      "packages": {
+        "arch": ["alacritty"],
+        "ubuntu": ["alacritty"]
+      },
+      "dependencies": [],
+      "conflicts": ["kitty"],
+      "post_install": ["configure_alacritty"]
+    },
+    "kitty": {
+      "name": "Kitty Terminal",
+      "description": "Fast, feature-rich terminal emulator",
+      "category": "terminal",
+      "packages": {
+        "arch": ["kitty"],
+        "ubuntu": ["kitty"]
+      },
+      "dependencies": [],
+      "conflicts": ["alacritty"],
+      "post_install": ["configure_kitty"]
+    },
+    "tmux": {
+      "name": "Tmux Terminal Multiplexer",
+      "description": "Terminal session manager",
+      "category": "terminal_tools",
+      "packages": {
+        "arch": ["tmux"],
+        "ubuntu": ["tmux"]
       },
       "dependencies": [],
       "conflicts": [],
-      "conditional": true,
-      "post_install": ["detect_hardware", "configure_hardware"]
+      "post_install": ["configure_tmux", "install_tmux_plugins"]
+    },
+    "zsh": {
+      "name": "Zsh Shell",
+      "description": "Extended Bourne shell with improvements",
+      "category": "shell",
+      "packages": {
+        "arch": ["zsh", "zsh-completions", "zsh-syntax-highlighting", "zsh-autosuggestions"],
+        "ubuntu": ["zsh", "zsh-syntax-highlighting", "zsh-autosuggestions"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": ["configure_zsh", "set_default_shell"]
+    },
+    "starship": {
+      "name": "Starship Prompt",
+      "description": "Cross-shell prompt with customization",
+      "category": "shell_tools",
+      "packages": {
+        "arch": ["starship"],
+        "ubuntu": ["starship"]
+      },
+      "dependencies": ["zsh"],
+      "conflicts": [],
+      "post_install": ["configure_starship"]
+    },
+    "neovim": {
+      "name": "Neovim Editor",
+      "description": "Hyperextensible Vim-based text editor",
+      "category": "editor",
+      "packages": {
+        "arch": ["neovim", "python-pynvim", "nodejs", "npm", "ripgrep", "fd"],
+        "ubuntu": ["neovim", "python3-neovim", "nodejs", "npm", "ripgrep", "fd-find"]
+      },
+      "dependencies": [],
+      "conflicts": ["vscode"],
+      "post_install": ["configure_neovim", "install_nvim_plugins"]
+    },
+    "vscode": {
+      "name": "Visual Studio Code",
+      "description": "Feature-rich code editor",
+      "category": "editor",
+      "packages": {
+        "arch": ["code"],
+        "ubuntu": ["code"]
+      },
+      "dependencies": [],
+      "conflicts": ["neovim"],
+      "post_install": ["configure_vscode", "install_vscode_extensions"]
+    },
+    "git": {
+      "name": "Git Version Control",
+      "description": "Distributed version control system",
+      "category": "dev_tools",
+      "packages": {
+        "arch": ["git", "git-lfs"],
+        "ubuntu": ["git", "git-lfs"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": ["configure_git"]
+    },
+    "docker": {
+      "name": "Docker Container Platform",
+      "description": "Containerization platform",
+      "category": "dev_tools",
+      "packages": {
+        "arch": ["docker", "docker-compose"],
+        "ubuntu": ["docker.io", "docker-compose"]
+      },
+      "dependencies": [],
+      "conflicts": ["podman"],
+      "post_install": ["configure_docker", "add_user_to_docker_group"],
+      "services": ["docker"]
+    },
+    "languages": {
+      "name": "Programming Languages",
+      "description": "Common programming language runtimes",
+      "category": "dev_tools",
+      "packages": {
+        "arch": ["python", "python-pip", "nodejs", "npm", "rust", "go"],
+        "ubuntu": ["python3", "python3-pip", "nodejs", "npm", "rustc", "golang-go"]
+      },
+      "dependencies": [],
+      "conflicts": [],
+      "post_install": ["configure_language_tools"]
     }
   },
-  "hardware_profiles": {
-    "nvidia": {
-      "packages": {
-        "arch": ["nvidia-dkms", "nvidia-utils", "lib32-nvidia-utils"],
-        "ubuntu": ["nvidia-driver-535", "nvidia-settings"]
-      },
-      "configs": ["nvidia_modeset", "nvidia_drm"]
+  "categories": {
+    "window_manager": {
+      "name": "Window Managers",
+      "description": "Desktop environment and window management",
+      "mutually_exclusive": true
     },
-    "asus_tuf": {
-      "packages": {
-        "arch": ["asusctl", "supergfxctl", "optimus-manager"],
-        "ubuntu": []
-      },
-      "configs": ["asus_keyboard", "asus_power"]
+    "terminal": {
+      "name": "Terminal Emulators",
+      "description": "Terminal applications",
+      "mutually_exclusive": true
+    },
+    "shell": {
+      "name": "Shell Environments",
+      "description": "Command line shells",
+      "mutually_exclusive": false
+    },
+    "editor": {
+      "name": "Text Editors",
+      "description": "Code and text editing applications",
+      "mutually_exclusive": true
+    },
+    "dev_tools": {
+      "name": "Development Tools",
+      "description": "Programming and development utilities",
+      "mutually_exclusive": false
+    },
+    "status_bar": {
+      "name": "Status Bars",
+      "description": "Desktop status and information bars",
+      "mutually_exclusive": true
+    },
+    "launcher": {
+      "name": "Application Launchers",
+      "description": "Application menu and launcher systems",
+      "mutually_exclusive": true
+    },
+    "notifications": {
+      "name": "Notification Systems",
+      "description": "Desktop notification management",
+      "mutually_exclusive": true
+    }
+  },
+  "presets": {
+    "minimal": {
+      "name": "Minimal Setup",
+      "description": "Basic terminal and shell environment",
+      "components": ["zsh", "starship", "kitty", "git"]
+    },
+    "hyprland_desktop": {
+      "name": "Hyprland Desktop Environment",
+      "description": "Complete Hyprland desktop with all components",
+      "components": ["hyprland", "waybar", "wofi", "swaync", "kitty", "zsh", "starship", "git"]
+    },
+    "development": {
+      "name": "Development Environment",
+      "description": "Full development setup with tools and editors",
+      "components": ["zsh", "starship", "kitty", "tmux", "neovim", "git", "docker", "languages"]
     }
   }
 }

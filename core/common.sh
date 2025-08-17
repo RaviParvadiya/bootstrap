@@ -9,7 +9,7 @@
 # Set SCRIPT_DIR to project root if not already set
 if [[ -z "${SCRIPT_DIR:-}" ]]; then
     # When sourced from core/, get the parent directory (project root)
-    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     SCRIPT_DIR="$(dirname "$core_dir")"
 fi
 PROJECT_ROOT="$SCRIPT_DIR"

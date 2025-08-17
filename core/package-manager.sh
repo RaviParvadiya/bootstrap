@@ -1,583 +1,593 @@
 #!/bin/bash
 
-# Package List Management System
-# Handles parsing and processing of structured package lists
-# Supports comments, sections, and conditional installation
+# Package Manager and Dependency Resolution System
+# Handles component dependencies, conflicts, and hardware requirements
 
-# Global variables for package management
-declare -A PACKAGE_CACHE
-declare -A CONDITION_CACHE
-PACKAGE_LISTS_LOADED=false
+# Source required modules
+source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
-# Set script directory if not already set
-# When sourced from core/, BASH_SOURCE[0] points to this file in core/
-# So we need to go up one level to get the project root
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    # Get the directory containing this script (core/)
-    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # Get the parent directory (project root)
-    SCRIPT_DIR="$(dirname "$core_dir")"
-fi
+# Global variables
+COMPONENT_DEPS_FILE="data/component-deps.json"
+HARDWARE_PROFILES_FILE="data/hardware-profiles.json"
+SELECTED_COMPONENTS=()
+RESOLVED_DEPENDENCIES=()
+DETECTED_CONFLICTS=()
+HARDWARE_PROFILE=""
 
-# Note: logger.sh and common.sh should be sourced before this file
-
-# Initialize package management system
-init_package_manager() {
-    log_debug "Initializing package management system"
-    
-    # Clear caches
-    PACKAGE_CACHE=()
-    CONDITION_CACHE=()
-    PACKAGE_LISTS_LOADED=false
-    
-    # Validate data directory exists
-    if [[ ! -d "$SCRIPT_DIR/data" ]]; then
-        log_error "Data directory not found: $SCRIPT_DIR/data"
+# Load component dependencies from JSON file
+load_component_dependencies() {
+    if [[ ! -f "$COMPONENT_DEPS_FILE" ]]; then
+        log_error "Component dependencies file not found: $COMPONENT_DEPS_FILE"
         return 1
     fi
     
-    log_debug "Package management system initialized"
+    log_info "Loading component dependencies..."
     return 0
 }
 
-# Parse a package list file
-# Usage: parse_package_list <file_path> [condition_filter]
-parse_package_list() {
-    local file_path="$1"
-    local condition_filter="${2:-}"
-    local -a packages=()
-    
-    if [[ ! -f "$file_path" ]]; then
-        log_error "Package list file not found: $file_path"
+# Load hardware profiles from JSON file
+load_hardware_profiles() {
+    if [[ ! -f "$HARDWARE_PROFILES_FILE" ]]; then
+        log_error "Hardware profiles file not found: $HARDWARE_PROFILES_FILE"
         return 1
     fi
     
-    log_debug "Parsing package list: $file_path"
+    log_info "Loading hardware profiles..."
+    return 0
+}
+
+# Detect hardware profile based on system information
+detect_hardware_profile() {
+    log_info "Detecting hardware profile..."
     
-    local line_number=0
-    local current_section=""
+    # Check if running in VM
+    if is_virtual_machine; then
+        HARDWARE_PROFILE="vm-generic"
+        log_info "Virtual machine detected, using profile: $HARDWARE_PROFILE"
+        return 0
+    fi
     
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        ((line_number++))
-        
-        # Skip empty lines
-        [[ -z "${line// }" ]] && continue
-        
-        # Skip comments, but capture section headers
-        if [[ "$line" =~ ^[[:space:]]*# ]]; then
-            # Check if it's a section header (format: # --- Section Name ---)
-            if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*---[[:space:]]*(.+)[[:space:]]*---[[:space:]]*$ ]]; then
-                current_section="${BASH_REMATCH[1]}"
-                log_debug "Found section: $current_section"
-            fi
-            continue
-        fi
-        
-        # Remove leading/trailing whitespace
-        line="${line// /}"
-        
-        # Parse package entry
-        local package_name=""
-        local package_condition=""
-        local package_source="apt"  # Default source for Ubuntu
-        
-        # Check for source prefix (e.g., snap:package, flatpak:package)
-        if [[ "$line" =~ ^([^:]+):(.+)$ ]]; then
-            package_source="${BASH_REMATCH[1]}"
-            line="${BASH_REMATCH[2]}"
-        fi
-        
-        # Check for condition suffix (e.g., package|condition)
-        if [[ "$line" =~ ^([^|]+)\|(.+)$ ]]; then
-            package_name="${BASH_REMATCH[1]}"
-            package_condition="${BASH_REMATCH[2]}"
-        else
-            package_name="$line"
-        fi
-        
-        # Validate package name
-        if [[ -z "$package_name" ]]; then
-            log_warn "Empty package name at line $line_number in $file_path"
-            continue
-        fi
-        
-        # Apply condition filter if specified
-        if [[ -n "$condition_filter" && -n "$package_condition" ]]; then
-            if [[ "$package_condition" != "$condition_filter" ]]; then
-                log_debug "Skipping $package_name (condition: $package_condition, filter: $condition_filter)"
-                continue
-            fi
-        fi
-        
-        # Check if condition is met (if no filter specified)
-        if [[ -n "$package_condition" && -z "$condition_filter" ]]; then
-            if ! check_package_condition "$package_condition"; then
-                log_debug "Skipping $package_name (condition not met: $package_condition)"
-                continue
-            fi
-        fi
-        
-        # Add package to list with metadata
-        local package_entry="$package_source:$package_name"
-        if [[ -n "$current_section" ]]; then
-            package_entry="$package_entry:$current_section"
-        fi
-        
-        packages+=("$package_entry")
-        log_debug "Added package: $package_name (source: $package_source, section: $current_section)"
-        
-    done < "$file_path"
+    # Detect GPU type
+    local gpu_type
+    gpu_type=$(detect_gpu_type)
     
-    log_info "Parsed ${#packages[@]} packages from $file_path"
+    # Check for specific hardware models
+    local dmi_info
+    dmi_info=$(sudo dmidecode -s system-product-name 2>/dev/null || echo "")
     
-    # Output packages (one per line)
-    printf '%s\n' "${packages[@]}"
+    if [[ "$dmi_info" =~ "TUF Gaming FX516" ]]; then
+        HARDWARE_PROFILE="asus-tuf-dash-f15"
+        log_info "ASUS TUF Dash F15 detected, using profile: $HARDWARE_PROFILE"
+    elif [[ "$gpu_type" == "nvidia" ]]; then
+        HARDWARE_PROFILE="generic-nvidia"
+        log_info "NVIDIA GPU detected, using profile: $HARDWARE_PROFILE"
+    elif [[ "$gpu_type" == "amd" ]]; then
+        HARDWARE_PROFILE="generic-amd"
+        log_info "AMD GPU detected, using profile: $HARDWARE_PROFILE"
+    elif [[ "$gpu_type" == "intel" ]]; then
+        HARDWARE_PROFILE="generic-intel"
+        log_info "Intel GPU detected, using profile: $HARDWARE_PROFILE"
+    else
+        HARDWARE_PROFILE="generic-intel"
+        log_warn "Could not detect specific hardware, using fallback profile: $HARDWARE_PROFILE"
+    fi
     
     return 0
 }
 
-# Check if a package condition is met
-# Usage: check_package_condition <condition>
-check_package_condition() {
-    local condition="$1"
+# Detect GPU type from lspci output
+detect_gpu_type() {
+    local lspci_output
+    lspci_output=$(lspci | grep -i vga)
     
-    # Check cache first
-    if [[ -n "${CONDITION_CACHE[$condition]:-}" ]]; then
-        [[ "${CONDITION_CACHE[$condition]}" == "true" ]]
-        return $?
+    if echo "$lspci_output" | grep -qi "nvidia\|geforce\|quadro\|tesla"; then
+        echo "nvidia"
+    elif echo "$lspci_output" | grep -qi "amd\|radeon\|rx "; then
+        echo "amd"
+    elif echo "$lspci_output" | grep -qi "intel.*graphics\|intel.*hd\|intel.*iris"; then
+        echo "intel"
+    else
+        echo "unknown"
     fi
-    
-    local result=false
-    
-    case "$condition" in
-        "nvidia")
-            # Check for NVIDIA GPU
-            if command -v lspci >/dev/null 2>&1; then
-                if lspci | grep -i nvidia >/dev/null 2>&1; then
-                    result=true
-                fi
-            fi
-            ;;
-        "amd")
-            # Check for AMD GPU
-            if command -v lspci >/dev/null 2>&1; then
-                if lspci | grep -i amd >/dev/null 2>&1; then
-                    result=true
-                fi
-            fi
-            ;;
-        "gaming")
-            # Check if gaming packages should be installed
-            # This could be based on user selection or system capabilities
-            if [[ "$DRY_RUN" == "true" ]]; then
-                # In dry-run mode, default to false for gaming packages
-                result=false
-            elif ask_yes_no "Install gaming packages?"; then
-                result=true
-            fi
-            ;;
-        "laptop")
-            # Check if running on laptop
-            if [[ -d "/sys/class/power_supply" ]]; then
-                if ls /sys/class/power_supply/ | grep -q "BAT"; then
-                    result=true
-                fi
-            fi
-            ;;
-        "vm")
-            # Check if running in virtual machine
-            if [[ "$VM_MODE" == "true" ]]; then
-                result=true
-            elif command -v systemd-detect-virt >/dev/null 2>&1; then
-                if systemd-detect-virt --quiet; then
-                    result=true
-                fi
-            fi
-            ;;
-        "asus")
-            # Check for ASUS hardware
-            if [[ -f "/sys/class/dmi/id/board_vendor" ]]; then
-                if grep -qi "asus" /sys/class/dmi/id/board_vendor 2>/dev/null; then
-                    result=true
-                fi
-            fi
-            ;;
-        *)
-            log_warn "Unknown condition: $condition"
-            result=false
-            ;;
-    esac
-    
-    # Cache result
-    CONDITION_CACHE[$condition]="$result"
-    
-    log_debug "Condition '$condition' evaluated to: $result"
-    [[ "$result" == "true" ]]
-    return $?
 }
 
-# Get packages for a specific distribution
-# Usage: get_packages_for_distro <distro> [condition_filter]
-get_packages_for_distro() {
-    local distro="$1"
-    local condition_filter="${2:-}"
-    local -a all_packages=()
+# Check if system is running in a virtual machine
+is_virtual_machine() {
+    # Check DMI information
+    local dmi_info
+    dmi_info=$(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "")
     
-    case "$distro" in
-        "arch")
-            # Parse Arch packages
-            if [[ -f "$SCRIPT_DIR/data/arch-packages.lst" ]]; then
-                mapfile -t arch_packages < <(parse_package_list "$SCRIPT_DIR/data/arch-packages.lst" "$condition_filter")
-                all_packages+=("${arch_packages[@]}")
-            fi
-            
-            # Parse AUR packages
-            if [[ -f "$SCRIPT_DIR/data/aur-packages.lst" ]]; then
-                mapfile -t aur_packages < <(parse_package_list "$SCRIPT_DIR/data/aur-packages.lst" "$condition_filter")
-                # Prefix AUR packages with source
-                for pkg in "${aur_packages[@]}"; do
-                    all_packages+=("aur:${pkg#*:}")
-                done
-            fi
-            ;;
-        "ubuntu")
-            # Parse Ubuntu packages
-            if [[ -f "$SCRIPT_DIR/data/ubuntu-packages.lst" ]]; then
-                mapfile -t ubuntu_packages < <(parse_package_list "$SCRIPT_DIR/data/ubuntu-packages.lst" "$condition_filter")
-                all_packages+=("${ubuntu_packages[@]}")
-            fi
-            ;;
-        *)
-            log_error "Unsupported distribution: $distro"
+    if echo "$dmi_info" | grep -qi "virtualbox\|vmware\|qemu\|kvm\|xen\|microsoft corporation"; then
+        return 0
+    fi
+    
+    # Check for virtualization indicators
+    if [[ -d /proc/vz ]] || [[ -f /proc/xen/capabilities ]] || [[ -d /sys/bus/vmbus ]]; then
+        return 0
+    fi
+    
+    # Check lscpu output
+    if lscpu | grep -qi "hypervisor\|virtualization"; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Get component information from JSON
+get_component_info() {
+    local component="$1"
+    local field="$2"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".components.\"$component\".\"$field\" // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# Get component packages for current distribution
+get_component_packages() {
+    local component="$1"
+    local distro="$2"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".components.\"$component\".packages.\"$distro\"[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# Get component dependencies
+get_component_dependencies() {
+    local component="$1"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".components.\"$component\".dependencies[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# Get component conflicts
+get_component_conflicts() {
+    local component="$1"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".components.\"$component\".conflicts[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# Resolve dependencies for a list of components
+resolve_dependencies() {
+    local components=("$@")
+    local resolved=()
+    local processing=()
+    
+    log_info "Resolving dependencies for components: ${components[*]}"
+    
+    # Clear previous results
+    RESOLVED_DEPENDENCIES=()
+    DETECTED_CONFLICTS=()
+    
+    # Process each component
+    for component in "${components[@]}"; do
+        if ! resolve_component_dependencies "$component" "resolved" "processing"; then
+            log_error "Failed to resolve dependencies for component: $component"
             return 1
-            ;;
-    esac
-    
-    # Output packages
-    printf '%s\n' "${all_packages[@]}"
-    
-    return 0
-}
-
-# Get packages by source (apt, snap, flatpak, aur, etc.)
-# Usage: get_packages_by_source <distro> <source> [condition_filter]
-get_packages_by_source() {
-    local distro="$1"
-    local source="$2"
-    local condition_filter="${3:-}"
-    local -a filtered_packages=()
-    
-    # Get all packages for distro
-    mapfile -t all_packages < <(get_packages_for_distro "$distro" "$condition_filter")
-    
-    # Filter by source
-    for package_entry in "${all_packages[@]}"; do
-        local pkg_source="${package_entry%%:*}"
-        local pkg_name="${package_entry#*:}"
-        pkg_name="${pkg_name%%:*}"  # Remove section if present
-        
-        if [[ "$pkg_source" == "$source" ]]; then
-            filtered_packages+=("$pkg_name")
         fi
     done
     
-    # Output packages
-    printf '%s\n' "${filtered_packages[@]}"
+    # Remove duplicates and store final result
+    RESOLVED_DEPENDENCIES=($(printf '%s\n' "${resolved[@]}" | sort -u))
     
+    log_success "Dependency resolution complete. Final component list: ${RESOLVED_DEPENDENCIES[*]}"
     return 0
 }
 
-# Get packages by section
-# Usage: get_packages_by_section <distro> <section> [condition_filter]
-get_packages_by_section() {
-    local distro="$1"
-    local section="$2"
-    local condition_filter="${3:-}"
-    local -a filtered_packages=()
+# Recursively resolve dependencies for a single component
+resolve_component_dependencies() {
+    local component="$1"
+    local resolved_var="$2"
+    local processing_var="$3"
+    local -n resolved_ref=$resolved_var
+    local -n processing_ref=$processing_var
     
-    # Get all packages for distro
-    mapfile -t all_packages < <(get_packages_for_distro "$distro" "$condition_filter")
+    # Check if component exists
+    if ! component_exists "$component"; then
+        log_error "Component '$component' not found in dependencies file"
+        return 1
+    fi
     
-    # Filter by section
-    for package_entry in "${all_packages[@]}"; do
-        if [[ "$package_entry" =~ :.*:(.+)$ ]]; then
-            local pkg_section="${BASH_REMATCH[1]}"
-            local pkg_source="${package_entry%%:*}"
-            local pkg_name="${package_entry#*:}"
-            pkg_name="${pkg_name%%:*}"
-            
-            if [[ "$pkg_section" == "$section" ]]; then
-                filtered_packages+=("$pkg_source:$pkg_name")
+    # Check for circular dependencies
+    if [[ " ${processing_ref[*]} " =~ " $component " ]]; then
+        log_error "Circular dependency detected: $component"
+        return 1
+    fi
+    
+    # Skip if already resolved
+    if [[ " ${resolved_ref[*]} " =~ " $component " ]]; then
+        return 0
+    fi
+    
+    # Add to processing list
+    processing_ref+=("$component")
+    
+    # Get dependencies for this component
+    local deps
+    mapfile -t deps < <(get_component_dependencies "$component")
+    
+    # Resolve each dependency first
+    for dep in "${deps[@]}"; do
+        if [[ -n "$dep" ]]; then
+            if ! resolve_component_dependencies "$dep" "$resolved_var" "$processing_var"; then
+                return 1
             fi
         fi
     done
     
-    # Output packages
-    printf '%s\n' "${filtered_packages[@]}"
+    # Add current component to resolved list
+    resolved_ref+=("$component")
+    
+    # Remove from processing list
+    local temp_processing=()
+    for item in "${processing_ref[@]}"; do
+        if [[ "$item" != "$component" ]]; then
+            temp_processing+=("$item")
+        fi
+    done
+    processing_ref=("${temp_processing[@]}")
     
     return 0
 }
 
-# Install packages using appropriate package manager
-# Usage: install_packages_from_list <distro> <source> <package_list>
-install_packages_from_list() {
-    local distro="$1"
-    local source="$2"
+# Check if component exists in the dependencies file
+component_exists() {
+    local component="$1"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    local exists
+    exists=$(jq -r ".components | has(\"$component\")" "$COMPONENT_DEPS_FILE" 2>/dev/null)
+    [[ "$exists" == "true" ]]
+}
+
+# Detect conflicts between selected components
+detect_conflicts() {
+    local components=("$@")
+    local conflicts=()
+    
+    log_info "Detecting conflicts between components..."
+    
+    # Clear previous conflicts
+    DETECTED_CONFLICTS=()
+    
+    # Check each component against all others
+    for component in "${components[@]}"; do
+        local component_conflicts
+        mapfile -t component_conflicts < <(get_component_conflicts "$component")
+        
+        for conflict in "${component_conflicts[@]}"; do
+            if [[ -n "$conflict" ]] && [[ " ${components[*]} " =~ " $conflict " ]]; then
+                # Avoid duplicate conflict entries
+                local conflict_pair="$component <-> $conflict"
+                local reverse_pair="$conflict <-> $component"
+                if [[ ! " ${conflicts[*]} " =~ " $conflict_pair " ]] && [[ ! " ${conflicts[*]} " =~ " $reverse_pair " ]]; then
+                    conflicts+=("$conflict_pair")
+                    log_warn "Conflict detected: $component conflicts with $conflict"
+                fi
+            fi
+        done
+        
+        # Check category-based conflicts
+        local category
+        category=$(get_component_info "$component" "category")
+        if [[ -n "$category" ]]; then
+            check_category_conflicts "$component" "$category" "${components[@]}"
+        fi
+    done
+    
+    DETECTED_CONFLICTS=("${conflicts[@]}")
+    
+    if [[ ${#DETECTED_CONFLICTS[@]} -gt 0 ]]; then
+        log_warn "Found ${#DETECTED_CONFLICTS[@]} conflict(s)"
+        return 1
+    else
+        log_success "No conflicts detected"
+        return 0
+    fi
+}
+
+# Check for category-based conflicts (mutually exclusive categories)
+check_category_conflicts() {
+    local component="$1"
+    local category="$2"
     shift 2
-    local -a packages=("$@")
+    local all_components=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_debug "No packages to install for source: $source"
+    if ! command -v jq >/dev/null 2>&1; then
         return 0
     fi
     
-    log_info "Installing ${#packages[@]} packages from $source..."
+    # Check if category is mutually exclusive
+    local is_exclusive
+    is_exclusive=$(jq -r ".categories.\"$category\".mutually_exclusive // false" "$COMPONENT_DEPS_FILE" 2>/dev/null)
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${packages[*]}"
-        return 0
-    fi
-    
-    case "$distro" in
-        "arch")
-            case "$source" in
-                "apt"|"")
-                    # Use pacman for regular packages
-                    sudo pacman -S --needed --noconfirm "${packages[@]}" || {
-                        log_error "Failed to install some packages with pacman"
-                        return 1
-                    }
-                    ;;
-                "aur")
-                    # Use AUR helper (yay or paru)
-                    local aur_helper=""
-                    if command -v yay >/dev/null 2>&1; then
-                        aur_helper="yay"
-                    elif command -v paru >/dev/null 2>&1; then
-                        aur_helper="paru"
-                    else
-                        log_error "No AUR helper found (yay or paru required)"
-                        return 1
-                    fi
-                    
-                    $aur_helper -S --needed --noconfirm "${packages[@]}" || {
-                        log_error "Failed to install some AUR packages"
-                        return 1
-                    }
-                    ;;
-                *)
-                    log_error "Unsupported package source for Arch: $source"
-                    return 1
-                    ;;
-            esac
-            ;;
-        "ubuntu")
-            case "$source" in
-                "apt"|"")
-                    # Use apt for regular packages
-                    sudo apt update
-                    sudo apt install -y "${packages[@]}" || {
-                        log_error "Failed to install some packages with apt"
-                        return 1
-                    }
-                    ;;
-                "snap")
-                    # Use snap
-                    for package in "${packages[@]}"; do
-                        sudo snap install "$package" || {
-                            log_warn "Failed to install snap package: $package"
-                        }
-                    done
-                    ;;
-                "flatpak")
-                    # Use flatpak
-                    for package in "${packages[@]}"; do
-                        flatpak install -y flathub "$package" || {
-                            log_warn "Failed to install flatpak package: $package"
-                        }
-                    done
-                    ;;
-                *)
-                    log_error "Unsupported package source for Ubuntu: $source"
-                    return 1
-                    ;;
-            esac
-            ;;
-        *)
-            log_error "Unsupported distribution: $distro"
-            return 1
-            ;;
-    esac
-    
-    log_success "Successfully installed packages from $source"
-    return 0
-}
-
-# Install all packages for a distribution with optional filtering
-# Usage: install_all_packages <distro> [condition_filter]
-install_all_packages() {
-    local distro="$1"
-    local condition_filter="${2:-}"
-    
-    log_info "Installing all packages for $distro..."
-    
-    case "$distro" in
-        "arch")
-            # Install regular packages first
-            mapfile -t regular_packages < <(get_packages_by_source "$distro" "apt" "$condition_filter")
-            if [[ ${#regular_packages[@]} -gt 0 ]]; then
-                install_packages_from_list "$distro" "apt" "${regular_packages[@]}"
+    if [[ "$is_exclusive" == "true" ]]; then
+        # Find other components in the same category
+        for other_component in "${all_components[@]}"; do
+            if [[ "$other_component" != "$component" ]]; then
+                local other_category
+                other_category=$(get_component_info "$other_component" "category")
+                if [[ "$other_category" == "$category" ]]; then
+                    DETECTED_CONFLICTS+=("$component <-> $other_component (category: $category)")
+                    log_warn "Category conflict: $component and $other_component are both in mutually exclusive category '$category'"
+                fi
             fi
-            
-            # Install AUR packages
-            mapfile -t aur_packages < <(get_packages_by_source "$distro" "aur" "$condition_filter")
-            if [[ ${#aur_packages[@]} -gt 0 ]]; then
-                install_packages_from_list "$distro" "aur" "${aur_packages[@]}"
-            fi
-            ;;
-        "ubuntu")
-            # Install apt packages first
-            mapfile -t apt_packages < <(get_packages_by_source "$distro" "apt" "$condition_filter")
-            if [[ ${#apt_packages[@]} -gt 0 ]]; then
-                install_packages_from_list "$distro" "apt" "${apt_packages[@]}"
-            fi
-            
-            # Install snap packages
-            mapfile -t snap_packages < <(get_packages_by_source "$distro" "snap" "$condition_filter")
-            if [[ ${#snap_packages[@]} -gt 0 ]]; then
-                install_packages_from_list "$distro" "snap" "${snap_packages[@]}"
-            fi
-            
-            # Install flatpak packages
-            mapfile -t flatpak_packages < <(get_packages_by_source "$distro" "flatpak" "$condition_filter")
-            if [[ ${#flatpak_packages[@]} -gt 0 ]]; then
-                install_packages_from_list "$distro" "flatpak" "${flatpak_packages[@]}"
-            fi
-            ;;
-        *)
-            log_error "Unsupported distribution: $distro"
-            return 1
-            ;;
-    esac
-    
-    log_success "Package installation completed for $distro"
-    return 0
-}
-
-# List available packages with filtering options
-# Usage: list_packages <distro> [source] [section] [condition_filter]
-list_packages() {
-    local distro="$1"
-    local source_filter="${2:-}"
-    local section_filter="${3:-}"
-    local condition_filter="${4:-}"
-    
-    echo "=== Available Packages for $distro ==="
-    echo
-    
-    # Get all packages
-    mapfile -t all_packages < <(get_packages_for_distro "$distro" "$condition_filter")
-    
-    # Group by source and section
-    declare -A sources
-    declare -A sections
-    
-    for package_entry in "${all_packages[@]}"; do
-        local pkg_source="${package_entry%%:*}"
-        local remaining="${package_entry#*:}"
-        local pkg_name="${remaining%%:*}"
-        local pkg_section=""
-        
-        if [[ "$remaining" =~ :(.+)$ ]]; then
-            pkg_section="${BASH_REMATCH[1]}"
-        fi
-        
-        # Apply filters
-        if [[ -n "$source_filter" && "$pkg_source" != "$source_filter" ]]; then
-            continue
-        fi
-        
-        if [[ -n "$section_filter" && "$pkg_section" != "$section_filter" ]]; then
-            continue
-        fi
-        
-        # Group packages
-        sources["$pkg_source"]+="$pkg_name "
-        if [[ -n "$pkg_section" ]]; then
-            sections["$pkg_section"]+="$pkg_name "
-        fi
-    done
-    
-    # Display by source
-    for source in $(printf '%s\n' "${!sources[@]}" | sort); do
-        echo "--- $source packages ---"
-        echo "${sources[$source]}" | tr ' ' '\n' | sort | sed 's/^/  /'
-        echo
-    done
-    
-    # Display by section if no source filter
-    if [[ -z "$source_filter" && ${#sections[@]} -gt 0 ]]; then
-        echo "=== By Section ==="
-        for section in $(printf '%s\n' "${!sections[@]}" | sort); do
-            echo "--- $section ---"
-            echo "${sections[$section]}" | tr ' ' '\n' | sort | sed 's/^/  /'
-            echo
         done
     fi
 }
 
-# Validate package lists
-# Usage: validate_package_lists
-validate_package_lists() {
-    local -i errors=0
+# Get hardware profile packages for current distribution
+get_hardware_packages() {
+    local profile="$1"
+    local distro="$2"
     
-    log_info "Validating package lists..."
-    
-    # Check if data directory exists
-    if [[ ! -d "$SCRIPT_DIR/data" ]]; then
-        log_error "Data directory not found: $SCRIPT_DIR/data"
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
         return 1
     fi
     
-    # Validate each package list file
-    for file in "$SCRIPT_DIR/data"/*.lst; do
-        if [[ -f "$file" ]]; then
-            log_debug "Validating $file..."
-            
-            # Check file is readable
-            if [[ ! -r "$file" ]]; then
-                log_error "Cannot read file: $file"
-                ((errors++))
-                continue
+    jq -r ".profiles.\"$profile\".packages.\"$distro\"[]? // empty" "$HARDWARE_PROFILES_FILE" 2>/dev/null
+}
+
+# Get hardware profile environment variables
+get_hardware_env_vars() {
+    local profile="$1"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".profiles.\"$profile\".environment_vars // {} | to_entries[] | \"\(.key)=\(.value)\"" "$HARDWARE_PROFILES_FILE" 2>/dev/null
+}
+
+# Check hardware requirements for components
+check_hardware_requirements() {
+    local components=("$@")
+    local missing_requirements=()
+    
+    log_info "Checking hardware requirements..."
+    
+    for component in "${components[@]}"; do
+        local requirements
+        mapfile -t requirements < <(jq -r ".components.\"$component\".hardware_requirements[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null)
+        
+        for requirement in "${requirements[@]}"; do
+            if [[ -n "$requirement" ]]; then
+                if ! check_hardware_requirement "$requirement"; then
+                    missing_requirements+=("$component: $requirement")
+                    log_warn "Hardware requirement not met for $component: $requirement"
+                fi
             fi
-            
-            # Parse file and check for errors
-            if ! parse_package_list "$file" >/dev/null; then
-                log_error "Failed to parse package list: $file"
-                ((errors++))
-            else
-                log_debug "Package list valid: $file"
-            fi
-        fi
+        done
     done
     
-    if [[ $errors -eq 0 ]]; then
-        log_success "All package lists are valid"
+    if [[ ${#missing_requirements[@]} -gt 0 ]]; then
+        log_error "Missing hardware requirements:"
+        printf '%s\n' "${missing_requirements[@]}" | while read -r req; do
+            log_error "  - $req"
+        done
+        return 1
+    else
+        log_success "All hardware requirements satisfied"
+        return 0
+    fi
+}
+
+# Check individual hardware requirement
+check_hardware_requirement() {
+    local requirement="$1"
+    
+    case "$requirement" in
+        "gpu_acceleration")
+            # Check for hardware acceleration support
+            if command -v glxinfo >/dev/null 2>&1; then
+                glxinfo | grep -qi "direct rendering: yes"
+            else
+                # Fallback check
+                [[ -d /dev/dri ]]
+            fi
+            ;;
+        "wayland_support")
+            # Check if Wayland is available
+            [[ "$XDG_SESSION_TYPE" == "wayland" ]] || command -v wayland-scanner >/dev/null 2>&1
+            ;;
+        "vulkan_support")
+            # Check for Vulkan support
+            command -v vulkaninfo >/dev/null 2>&1 && vulkaninfo --summary >/dev/null 2>&1
+            ;;
+        *)
+            log_warn "Unknown hardware requirement: $requirement"
+            return 0
+            ;;
+    esac
+}
+
+# Display dependency resolution summary
+show_dependency_summary() {
+    local selected=("$@")
+    
+    echo
+    log_info "=== Dependency Resolution Summary ==="
+    echo
+    
+    echo "Selected components:"
+    for component in "${selected[@]}"; do
+        local name
+        name=$(get_component_info "$component" "name")
+        echo "  - $component${name:+ ($name)}"
+    done
+    
+    echo
+    echo "Resolved dependencies (final install list):"
+    for component in "${RESOLVED_DEPENDENCIES[@]}"; do
+        local name
+        name=$(get_component_info "$component" "name")
+        local is_selected=""
+        if [[ " ${selected[*]} " =~ " $component " ]]; then
+            is_selected=" [SELECTED]"
+        else
+            is_selected=" [DEPENDENCY]"
+        fi
+        echo "  - $component${name:+ ($name)}$is_selected"
+    done
+    
+    if [[ ${#DETECTED_CONFLICTS[@]} -gt 0 ]]; then
+        echo
+        log_warn "Detected conflicts:"
+        for conflict in "${DETECTED_CONFLICTS[@]}"; do
+            echo "  - $conflict"
+        done
+    fi
+    
+    if [[ -n "$HARDWARE_PROFILE" ]]; then
+        echo
+        echo "Hardware profile: $HARDWARE_PROFILE"
+        local profile_name
+        profile_name=$(jq -r ".profiles.\"$HARDWARE_PROFILE\".name // \"$HARDWARE_PROFILE\"" "$HARDWARE_PROFILES_FILE" 2>/dev/null)
+        echo "  - $profile_name"
+    fi
+    
+    echo
+}
+
+# Get preset components
+get_preset_components() {
+    local preset="$1"
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    jq -r ".presets.\"$preset\".components[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# List available presets
+list_presets() {
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    echo "Available presets:"
+    jq -r '.presets | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# List available components
+list_components() {
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        return 1
+    fi
+    
+    echo "Available components:"
+    jq -r '.components | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE" 2>/dev/null
+}
+
+# Validate component dependency structure
+validate_component_structure() {
+    log_info "Validating component dependency structure..."
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for validation but not installed"
+        return 1
+    fi
+    
+    local validation_errors=0
+    
+    # Get all component names
+    local all_components
+    mapfile -t all_components < <(jq -r '.components | keys[]' "$COMPONENT_DEPS_FILE" 2>/dev/null)
+    
+    # Validate each component
+    for component in "${all_components[@]}"; do
+        # Check dependencies exist
+        local deps
+        mapfile -t deps < <(get_component_dependencies "$component")
+        for dep in "${deps[@]}"; do
+            if [[ -n "$dep" ]] && ! component_exists "$dep"; then
+                log_error "Component '$component' has invalid dependency: '$dep'"
+                ((validation_errors++))
+            fi
+        done
+        
+        # Check conflicts exist (optional - conflicts might be external)
+        local conflicts
+        mapfile -t conflicts < <(get_component_conflicts "$component")
+        for conflict in "${conflicts[@]}"; do
+            if [[ -n "$conflict" ]] && component_exists "$conflict"; then
+                # Check if the conflict is mutual
+                local reverse_conflicts
+                mapfile -t reverse_conflicts < <(get_component_conflicts "$conflict")
+                if [[ ! " ${reverse_conflicts[*]} " =~ " $component " ]]; then
+                    log_warn "Component '$component' conflicts with '$conflict', but '$conflict' doesn't list '$component' as a conflict"
+                fi
+            fi
+        done
+    done
+    
+    if [[ $validation_errors -eq 0 ]]; then
+        log_success "Component dependency structure validation passed"
         return 0
     else
-        log_error "Found $errors errors in package lists"
+        log_error "Component dependency structure validation failed with $validation_errors errors"
         return 1
     fi
 }
 
-# Export functions for use in other scripts
-export -f init_package_manager
-export -f parse_package_list
-export -f check_package_condition
-export -f get_packages_for_distro
-export -f get_packages_by_source
-export -f get_packages_by_section
-export -f install_packages_from_list
-export -f install_all_packages
-export -f list_packages
-export -f validate_package_lists
+# Initialize package manager system
+init_package_manager() {
+    log_info "Initializing package manager system..."
+    
+    # Check for required tools
+    if ! command -v jq >/dev/null 2>&1; then
+        log_error "jq is required for JSON parsing but not installed"
+        log_info "Please install jq first: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
+        return 1
+    fi
+    
+    # Load configuration files
+    if ! load_component_dependencies; then
+        return 1
+    fi
+    
+    if ! load_hardware_profiles; then
+        return 1
+    fi
+    
+    # Detect hardware profile
+    if ! detect_hardware_profile; then
+        log_warn "Hardware detection failed, using fallback profile"
+        HARDWARE_PROFILE="generic-intel"
+    fi
+    
+    # Validate component structure
+    if ! validate_component_structure; then
+        log_warn "Component structure validation failed, but continuing..."
+    fi
+    
+    log_success "Package manager system initialized successfully"
+    return 0
+}

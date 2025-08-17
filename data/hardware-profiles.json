@@ -2,128 +2,159 @@
   "profiles": {
     "asus-tuf-dash-f15": {
       "name": "ASUS TUF Dash F15",
-      "detection": {
-        "dmi_product_name": "*TUF*Dash*F15*",
-        "dmi_board_name": "*TUF*"
-      },
+      "description": "Gaming laptop with NVIDIA GPU and MUX switch",
       "gpu": "nvidia",
-      "features": ["mux_switch", "optimus", "rgb_keyboard"],
+      "features": ["mux_switch", "optimus", "hybrid_graphics"],
       "packages": {
-        "arch": [
-          "nvidia-dkms",
-          "nvidia-utils",
-          "optimus-manager",
-          "asusctl",
-          "supergfxctl"
-        ],
-        "ubuntu": [
-          "nvidia-driver-535"
-        ]
+        "arch": ["nvidia-dkms", "nvidia-utils", "nvidia-settings", "optimus-manager", "optimus-manager-qt"],
+        "ubuntu": ["nvidia-driver-470", "nvidia-settings", "nvidia-prime"]
       },
       "configs": {
         "nvidia_modeset": true,
         "nvidia_drm_fbdev": true,
-        "optimus_switching": "bbswitch",
-        "keyboard_backlight": true
+        "nvidia_preserve_video_memory": true
       },
-      "services": {
-        "optional": ["optimus-manager", "supergfxd", "asusd"]
-      }
+      "kernel_modules": ["nvidia", "nvidia_modeset", "nvidia_uvm", "nvidia_drm"],
+      "blacklist_modules": ["nouveau"],
+      "environment_vars": {
+        "LIBVA_DRIVER_NAME": "nvidia",
+        "XDG_SESSION_TYPE": "wayland",
+        "GBM_BACKEND": "nvidia-drm",
+        "__GLX_VENDOR_LIBRARY_NAME": "nvidia",
+        "WLR_NO_HARDWARE_CURSORS": "1"
+      },
+      "post_install": ["rebuild_initramfs", "configure_mux_switch", "setup_optimus"]
     },
     "generic-nvidia": {
       "name": "Generic NVIDIA GPU",
-      "detection": {
-        "lspci_gpu": "*nvidia*"
-      },
+      "description": "Standard NVIDIA graphics card setup",
       "gpu": "nvidia",
-      "features": ["nvidia_drivers"],
+      "features": ["cuda_support"],
       "packages": {
-        "arch": [
-          "nvidia-dkms",
-          "nvidia-utils",
-          "lib32-nvidia-utils"
-        ],
-        "ubuntu": [
-          "nvidia-driver-535",
-          "nvidia-settings"
-        ]
+        "arch": ["nvidia", "nvidia-utils", "nvidia-settings"],
+        "ubuntu": ["nvidia-driver-470", "nvidia-settings"]
       },
       "configs": {
         "nvidia_modeset": true,
         "nvidia_drm_fbdev": true
-      }
+      },
+      "kernel_modules": ["nvidia", "nvidia_modeset", "nvidia_uvm", "nvidia_drm"],
+      "blacklist_modules": ["nouveau"],
+      "environment_vars": {
+        "LIBVA_DRIVER_NAME": "nvidia",
+        "__GLX_VENDOR_LIBRARY_NAME": "nvidia"
+      },
+      "post_install": ["rebuild_initramfs"]
     },
     "generic-amd": {
       "name": "Generic AMD GPU",
-      "detection": {
-        "lspci_gpu": "*amd*"
-      },
+      "description": "Standard AMD graphics card setup",
       "gpu": "amd",
-      "features": ["amd_drivers"],
+      "features": ["mesa_drivers", "vulkan_support"],
       "packages": {
-        "arch": [
-          "mesa",
-          "lib32-mesa",
-          "vulkan-radeon",
-          "lib32-vulkan-radeon"
-        ],
-        "ubuntu": [
-          "mesa-vulkan-drivers",
-          "libvulkan1"
-        ]
+        "arch": ["mesa", "lib32-mesa", "vulkan-radeon", "lib32-vulkan-radeon", "libva-mesa-driver", "lib32-libva-mesa-driver"],
+        "ubuntu": ["mesa-vulkan-drivers", "libva-driver-all", "vainfo"]
       },
       "configs": {
-        "amd_gpu_acceleration": true
-      }
+        "amdgpu_dc": 1,
+        "amdgpu_experimental_dc": 1
+      },
+      "kernel_modules": ["amdgpu"],
+      "environment_vars": {
+        "LIBVA_DRIVER_NAME": "radeonsi",
+        "VDPAU_DRIVER": "radeonsi"
+      },
+      "post_install": []
     },
     "generic-intel": {
       "name": "Generic Intel GPU",
-      "detection": {
-        "lspci_gpu": "*intel*"
-      },
+      "description": "Standard Intel integrated graphics setup",
       "gpu": "intel",
-      "features": ["intel_drivers"],
+      "features": ["mesa_drivers", "vulkan_support"],
       "packages": {
-        "arch": [
-          "mesa",
-          "lib32-mesa",
-          "vulkan-intel",
-          "lib32-vulkan-intel"
-        ],
-        "ubuntu": [
-          "mesa-vulkan-drivers",
-          "intel-media-va-driver"
-        ]
+        "arch": ["mesa", "lib32-mesa", "vulkan-intel", "lib32-vulkan-intel", "libva-intel-driver", "lib32-libva-intel-driver"],
+        "ubuntu": ["mesa-vulkan-drivers", "intel-media-va-driver", "vainfo"]
       },
       "configs": {
-        "intel_gpu_acceleration": true
+        "i915_enable_guc": 2,
+        "i915_enable_fbc": 1
+      },
+      "kernel_modules": ["i915"],
+      "environment_vars": {
+        "LIBVA_DRIVER_NAME": "iHD",
+        "VDPAU_DRIVER": "va_gl"
+      },
+      "post_install": []
+    },
+    "vm-generic": {
+      "name": "Virtual Machine",
+      "description": "Generic virtual machine setup",
+      "gpu": "virtual",
+      "features": ["software_rendering"],
+      "packages": {
+        "arch": ["mesa", "xf86-video-vmware", "open-vm-tools"],
+        "ubuntu": ["mesa-utils", "open-vm-tools", "open-vm-tools-desktop"]
+      },
+      "configs": {},
+      "kernel_modules": ["vmwgfx"],
+      "environment_vars": {
+        "WLR_RENDERER_ALLOW_SOFTWARE": "1",
+        "WLR_NO_HARDWARE_CURSORS": "1"
+      },
+      "post_install": ["enable_vm_services"]
+    }
+  },
+  "detection": {
+    "gpu_detection": {
+      "nvidia": {
+        "lspci_patterns": ["NVIDIA", "GeForce", "Quadro", "Tesla"],
+        "driver_check": "nvidia-smi"
+      },
+      "amd": {
+        "lspci_patterns": ["AMD", "Radeon", "RX ", "Vega"],
+        "driver_check": "amdgpu"
+      },
+      "intel": {
+        "lspci_patterns": ["Intel.*Graphics", "Intel.*HD", "Intel.*Iris"],
+        "driver_check": "i915"
       }
     },
-    "virtual-machine": {
-      "name": "Virtual Machine",
-      "detection": {
-        "systemd_detect_virt": true,
-        "dmi_product_name": "*virtualbox*|*vmware*|*qemu*"
-      },
-      "gpu": "virtual",
-      "features": ["vm_optimizations"],
-      "packages": {
-        "arch": [
-          "qemu-guest-agent",
-          "spice-vdagent"
-        ],
-        "ubuntu": [
-          "qemu-guest-agent",
-          "spice-vdagent"
-        ]
-      },
-      "configs": {
-        "skip_hardware_configs": true,
-        "vm_optimizations": true
-      },
-      "services": {
-        "required": ["qemu-guest-agent"]
+    "system_detection": {
+      "vm_indicators": [
+        "VirtualBox",
+        "VMware",
+        "QEMU",
+        "KVM",
+        "Xen",
+        "Microsoft Corporation Hyper-V"
+      ],
+      "laptop_indicators": [
+        "Battery",
+        "Lid"
+      ]
+    },
+    "hardware_specific": {
+      "asus_tuf_dash_f15": {
+        "dmi_patterns": ["ASUS", "TUF Gaming FX516"],
+        "model_patterns": ["FX516P"]
       }
+    }
+  },
+  "requirements": {
+    "gpu_acceleration": {
+      "description": "Hardware-accelerated graphics support",
+      "check_command": "glxinfo | grep -i 'direct rendering'",
+      "fallback": "software_rendering"
+    },
+    "wayland_support": {
+      "description": "Wayland compositor compatibility",
+      "check_command": "echo $XDG_SESSION_TYPE",
+      "fallback": "x11_session"
+    },
+    "vulkan_support": {
+      "description": "Vulkan API support",
+      "check_command": "vulkaninfo --summary",
+      "fallback": "opengl_only"
     }
   }
 }
