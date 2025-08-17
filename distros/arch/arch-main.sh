@@ -1,144 +1,187 @@
 #!/bin/bash
 
-# Arch Linux main orchestrator
-# Handles the complete Arch Linux installation process
+# Arch Linux Main Orchestrator
+# Main entry point for Arch Linux installations
 
-# Run Arch Linux installation
-run_arch_installation() {
-    log_section "Arch Linux Installation"
+# Source core utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/validator.sh"
+
+# Source Arch-specific modules
+source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/repositories.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/services.sh"
+
+# Main Arch Linux installation orchestrator
+arch_main_install() {
+    local selected_components=("$@")
+    local dry_run="${DRY_RUN:-false}"
     
-    # Source Arch-specific modules
-    source "$DISTROS_DIR/arch/packages.sh"
-    source "$DISTROS_DIR/arch/repositories.sh"
-    source "$DISTROS_DIR/arch/services.sh"
+    log_info "Starting Arch Linux installation process..."
     
-    # Hardware-specific modules
-    if [[ -f "$DISTROS_DIR/arch/hardware/nvidia.sh" ]]; then
-        source "$DISTROS_DIR/arch/hardware/nvidia.sh"
+    # Validate system requirements
+    if ! validate_arch_system; then
+        log_error "System validation failed"
+        return 1
     fi
     
     # Update system first
-    update_arch_system
+    if ! arch_update_system; then
+        log_error "Failed to update system"
+        return 1
+    fi
     
-    # Setup repositories
-    setup_arch_repositories
+    # Setup repositories (multilib, chaotic-aur)
+    if ! arch_setup_repositories; then
+        log_error "Failed to setup repositories"
+        return 1
+    fi
+    
+    # Install AUR helper if needed
+    if ! arch_ensure_aur_helper; then
+        log_error "Failed to setup AUR helper"
+        return 1
+    fi
+    
+    # Install base packages
+    if ! arch_install_base_packages; then
+        log_error "Failed to install base packages"
+        return 1
+    fi
     
     # Install selected components
-    for component in "${SELECTED_COMPONENTS[@]}"; do
-        install_arch_component "$component"
+    for component in "${selected_components[@]}"; do
+        log_info "Installing component: $component"
+        if ! arch_install_component "$component"; then
+            log_warn "Failed to install component: $component"
+            # Continue with other components
+        fi
     done
     
-    # Configure services
-    configure_arch_services
+    # Configure services (but don't enable them automatically)
+    arch_configure_services "${selected_components[@]}"
     
-    log_success "Arch Linux installation completed"
+    log_success "Arch Linux installation process completed"
+    
+    # Show summary
+    arch_show_installation_summary "${selected_components[@]}"
 }
 
-# Update Arch system
-update_arch_system() {
+# Validate Arch Linux system requirements
+validate_arch_system() {
+    log_info "Validating Arch Linux system..."
+    
+    # Check if running on Arch Linux
+    if ! grep -q "Arch Linux" /etc/os-release 2>/dev/null; then
+        log_error "This script is designed for Arch Linux"
+        return 1
+    fi
+    
+    # Check internet connectivity
+    if ! check_internet; then
+        log_error "Internet connection required"
+        return 1
+    fi
+    
+    # Check if pacman is available
+    if ! command -v pacman >/dev/null 2>&1; then
+        log_error "pacman package manager not found"
+        return 1
+    fi
+    
+    # Check available disk space (at least 5GB)
+    local available_space
+    available_space=$(df / | awk 'NR==2 {print $4}')
+    if [[ $available_space -lt 5242880 ]]; then  # 5GB in KB
+        log_warn "Low disk space detected (less than 5GB available)"
+    fi
+    
+    log_success "System validation passed"
+    return 0
+}
+
+# Update Arch Linux system
+arch_update_system() {
     log_info "Updating Arch Linux system..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would update system packages"
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would run: pacman -Syu --noconfirm"
         return 0
     fi
     
-    sudo pacman -Syu --noconfirm
+    # Update package database and system
+    if ! sudo pacman -Syu --noconfirm; then
+        log_error "Failed to update system"
+        return 1
+    fi
+    
+    log_success "System updated successfully"
+    return 0
 }
 
-# Install component for Arch Linux
-install_arch_component() {
+# Install component packages and configurations
+arch_install_component() {
     local component="$1"
     
-    log_info "Installing component: $component"
+    log_info "Installing Arch component: $component"
     
-    case "$component" in
-        "terminal")
-            source "$COMPONENTS_DIR/terminal/alacritty.sh"
-            source "$COMPONENTS_DIR/terminal/kitty.sh"
-            install_terminal_components
-            ;;
-        "shell")
-            source "$COMPONENTS_DIR/shell/zsh.sh"
-            source "$COMPONENTS_DIR/shell/starship.sh"
-            install_shell_components
-            ;;
-        "editor")
-            source "$COMPONENTS_DIR/editor/neovim.sh"
-            source "$COMPONENTS_DIR/editor/vscode.sh"
-            install_editor_components
-            ;;
-        "wm")
-            source "$COMPONENTS_DIR/wm/hyprland.sh"
-            source "$COMPONENTS_DIR/wm/waybar.sh"
-            source "$COMPONENTS_DIR/wm/wofi.sh"
-            source "$COMPONENTS_DIR/wm/swaync.sh"
-            install_wm_components
-            ;;
-        "dev-tools")
-            source "$COMPONENTS_DIR/dev-tools/git.sh"
-            source "$COMPONENTS_DIR/dev-tools/docker.sh"
-            source "$COMPONENTS_DIR/dev-tools/languages.sh"
-            install_dev_tools
-            ;;
-        "hardware")
-            install_hardware_components
-            ;;
-        *)
-            log_warn "Unknown component: $component"
-            ;;
-    esac
-}
-
-# Install hardware-specific components
-install_hardware_components() {
-    log_info "Installing hardware-specific components..."
+    # Check if component script exists
+    local component_script="$(dirname "${BASH_SOURCE[0]}")/../../components/$component"
     
-    # NVIDIA GPU support
-    if lspci | grep -i nvidia >/dev/null 2>&1; then
-        if ask_yes_no "NVIDIA GPU detected. Install NVIDIA drivers?"; then
-            install_nvidia_drivers
+    # Try different possible locations for the component
+    local possible_locations=(
+        "../../components/terminal/$component.sh"
+        "../../components/shell/$component.sh"
+        "../../components/editor/$component.sh"
+        "../../components/wm/$component.sh"
+        "../../components/dev-tools/$component.sh"
+    )
+    
+    local found_script=""
+    for location in "${possible_locations[@]}"; do
+        local full_path="$(dirname "${BASH_SOURCE[0]}")/$location"
+        if [[ -f "$full_path" ]]; then
+            found_script="$full_path"
+            break
         fi
+    done
+    
+    if [[ -z "$found_script" ]]; then
+        log_warn "Component script not found for: $component"
+        return 1
     fi
     
-    # ASUS TUF specific configurations
-    local product_name=""
-    if [[ -r /sys/class/dmi/id/product_name ]]; then
-        product_name=$(cat /sys/class/dmi/id/product_name)
-        if [[ "$product_name" =~ "ASUS".*"TUF" ]]; then
-            log_info "ASUS TUF laptop detected"
-            if ask_yes_no "Apply ASUS TUF specific configurations?"; then
-                configure_asus_tuf
-            fi
-        fi
+    # Source and execute component installation
+    if source "$found_script" && command -v "install_$component" >/dev/null 2>&1; then
+        "install_$component"
+    else
+        log_warn "Installation function not found for component: $component"
+        return 1
     fi
+    
+    return 0
 }
 
-# Placeholder functions for component installation
-install_terminal_components() {
-    log_info "Terminal components installation not yet implemented"
+# Show installation summary
+arch_show_installation_summary() {
+    local installed_components=("$@")
+    
+    log_info "=== Installation Summary ==="
+    log_info "Distribution: Arch Linux"
+    log_info "Installed components:"
+    
+    for component in "${installed_components[@]}"; do
+        log_info "  - $component"
+    done
+    
+    log_info ""
+    log_info "Next steps:"
+    log_info "1. Review installed services with: systemctl list-unit-files --state=disabled"
+    log_info "2. Enable desired services manually with: systemctl enable <service>"
+    log_info "3. Reboot or restart your session to apply all changes"
+    log_info "4. Check configuration files in your dotfiles directory"
 }
 
-install_shell_components() {
-    log_info "Shell components installation not yet implemented"
-}
-
-install_editor_components() {
-    log_info "Editor components installation not yet implemented"
-}
-
-install_wm_components() {
-    log_info "Window manager components installation not yet implemented"
-}
-
-install_dev_tools() {
-    log_info "Development tools installation not yet implemented"
-}
-
-install_nvidia_drivers() {
-    log_info "NVIDIA drivers installation not yet implemented"
-}
-
-configure_asus_tuf() {
-    log_info "ASUS TUF configuration not yet implemented"
-}
+# Export main function for external use
+export -f arch_main_install
