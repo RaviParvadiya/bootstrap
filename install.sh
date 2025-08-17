@@ -178,6 +178,13 @@ run_installation() {
         log_info "Using pre-selected components: ${SELECTED_COMPONENTS[*]}"
     fi
     
+    # Create pre-installation backup
+    if ask_yes_no "Create backup before installation?"; then
+        log_info "Creating pre-installation backup..."
+        source "$CONFIGS_DIR/backup.sh"
+        create_system_backup
+    fi
+    
     # Route to distribution-specific handler
     case "$DETECTED_DISTRO" in
         "arch")
@@ -193,23 +200,123 @@ run_installation() {
             exit 1
             ;;
     esac
+    
+    # Apply dotfiles configurations
+    log_info "Applying dotfiles configurations..."
+    source "$CONFIGS_DIR/dotfiles-manager.sh"
+    manage_dotfiles "${SELECTED_COMPONENTS[@]}"
+    
+    # Post-installation validation
+    log_info "Running post-installation validation..."
+    if [[ -f "$TESTS_DIR/validate.sh" ]]; then
+        source "$TESTS_DIR/validate.sh"
+        validate_installation
+    fi
+    
+    log_success "Installation process completed successfully!"
 }
 
-# Placeholder functions for other commands
+# Run restoration process
 run_restoration() {
-    log_info "Restoration functionality not yet implemented"
+    log_info "Starting restoration process..."
+    
+    # Source restoration utilities
+    source "$CONFIGS_DIR/restore.sh"
+    
+    # Check if specific backup file provided
+    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
+        # Treat first component as backup file path
+        local backup_file="${SELECTED_COMPONENTS[0]}"
+        
+        if [[ -f "$backup_file" ]]; then
+            log_info "Restoring from specified backup: $backup_file"
+            restore_from_backup "$backup_file"
+        else
+            log_error "Backup file not found: $backup_file"
+            exit 1
+        fi
+    else
+        # Interactive restoration
+        interactive_restore
+    fi
 }
 
+# Run validation process
 run_validation() {
-    log_info "Validation functionality not yet implemented"
+    log_info "Starting validation process..."
+    
+    # Source validation utilities
+    source "$TESTS_DIR/validate.sh"
+    
+    # Validate system state
+    validate_installation
 }
 
+# Run backup process
 run_backup() {
-    log_info "Backup functionality not yet implemented"
+    log_info "Starting backup process..."
+    
+    # Source backup utilities
+    source "$CONFIGS_DIR/backup.sh"
+    
+    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
+        # Backup specific components
+        for component in "${SELECTED_COMPONENTS[@]}"; do
+            create_config_backup "$component"
+        done
+    else
+        # Create comprehensive system backup
+        create_system_backup
+    fi
 }
 
+# List available components
 list_components() {
-    log_info "Component listing functionality not yet implemented"
+    log_info "Available components:"
+    
+    echo
+    echo "=== Terminal Components ==="
+    echo "  - alacritty    : Alacritty terminal emulator"
+    echo "  - kitty        : Kitty terminal emulator"
+    echo "  - tmux         : Terminal multiplexer"
+    
+    echo
+    echo "=== Shell Components ==="
+    echo "  - zsh          : Z shell with plugins"
+    echo "  - starship     : Cross-shell prompt"
+    
+    echo
+    echo "=== Editor Components ==="
+    echo "  - neovim       : Neovim text editor"
+    echo "  - vscode       : Visual Studio Code"
+    
+    echo
+    echo "=== Window Manager Components ==="
+    echo "  - hyprland     : Hyprland wayland compositor"
+    echo "  - waybar       : Wayland status bar"
+    echo "  - wofi         : Application launcher"
+    echo "  - swaync       : Notification daemon"
+    
+    echo
+    echo "=== Development Tools ==="
+    echo "  - git          : Git version control"
+    echo "  - docker       : Docker containerization"
+    echo "  - languages    : Programming language tools"
+    
+    echo
+    echo "=== Component Groups ==="
+    echo "  - terminal     : All terminal-related components"
+    echo "  - shell        : All shell-related components"
+    echo "  - editor       : All editor-related components"
+    echo "  - wm           : All window manager components"
+    echo "  - dev-tools    : All development tools"
+    
+    echo
+    echo "Usage examples:"
+    echo "  $0 --components terminal,shell    # Install terminal and shell components"
+    echo "  $0 --components hyprland         # Install only Hyprland"
+    echo "  $0 backup --components terminal  # Backup terminal configurations"
+    echo "  $0 restore                       # Interactive restoration menu"
 }
 
 # Error handling
