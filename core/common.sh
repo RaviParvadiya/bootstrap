@@ -14,57 +14,208 @@ VERBOSE="${VERBOSE:-false}"
 # Distribution detection cache
 DETECTED_DISTRO=""
 DISTRO_VERSION=""
+DISTRO_CODENAME=""
+DISTRO_COMPATIBLE=""
 
 #######################################
 # Distribution Detection Functions
 #######################################
 
 # Detect the current Linux distribution
-# Returns: Sets DETECTED_DISTRO and DISTRO_VERSION global variables
-# Requirements: 1.1 - Auto-detect Arch Linux vs Ubuntu
+# Returns: Sets DETECTED_DISTRO, DISTRO_VERSION, DISTRO_CODENAME, and DISTRO_COMPATIBLE global variables
+# Requirements: 1.1 - Auto-detect Arch Linux vs Ubuntu, 1.5 - Fallback handling for unsupported distributions
 detect_distro() {
     if [[ -n "$DETECTED_DISTRO" ]]; then
         return 0  # Already detected
     fi
 
+    # Initialize variables
+    DETECTED_DISTRO=""
+    DISTRO_VERSION=""
+    DISTRO_CODENAME=""
+    DISTRO_COMPATIBLE="false"
+
+    # Primary detection method: /etc/os-release
     if [[ -f /etc/os-release ]]; then
-        source /etc/os-release
+        # Read os-release variables safely
+        local id version_id version_codename id_like name
         
-        case "$ID" in
-            "arch")
-                DETECTED_DISTRO="arch"
-                DISTRO_VERSION="$VERSION_ID"
-                ;;
-            "ubuntu")
-                DETECTED_DISTRO="ubuntu"
-                DISTRO_VERSION="$VERSION_ID"
-                ;;
-            "manjaro")
-                DETECTED_DISTRO="arch"  # Treat Manjaro as Arch-based
-                DISTRO_VERSION="manjaro-$VERSION_ID"
-                ;;
-            *)
-                DETECTED_DISTRO="unsupported"
-                DISTRO_VERSION="$VERSION_ID"
-                ;;
-        esac
-    else
-        # Fallback detection methods
-        if command -v pacman >/dev/null 2>&1; then
-            DETECTED_DISTRO="arch"
-            DISTRO_VERSION="unknown"
-        elif command -v apt >/dev/null 2>&1; then
-            DETECTED_DISTRO="ubuntu"
-            DISTRO_VERSION="unknown"
-        else
-            DETECTED_DISTRO="unsupported"
-            DISTRO_VERSION="unknown"
+        # Parse /etc/os-release line by line
+        while IFS='=' read -r key value; do
+            # Remove quotes from value
+            value=$(echo "$value" | sed 's/^"//;s/"$//')
+            
+            case "$key" in
+                "ID") id="$value" ;;
+                "VERSION_ID") version_id="$value" ;;
+                "VERSION_CODENAME") version_codename="$value" ;;
+                "ID_LIKE") id_like="$value" ;;
+                "NAME") name="$value" ;;
+            esac
+        done < /etc/os-release
+        
+        if [[ -n "$id" ]]; then
+            
+            case "$id" in
+                "arch")
+                    DETECTED_DISTRO="arch"
+                    DISTRO_VERSION="${version_id:-rolling}"
+                    DISTRO_CODENAME="${version_codename:-rolling}"
+                    DISTRO_COMPATIBLE="true"
+                    ;;
+                "ubuntu")
+                    DETECTED_DISTRO="ubuntu"
+                    DISTRO_VERSION="$version_id"
+                    DISTRO_CODENAME="$version_codename"
+                    # Check Ubuntu version compatibility (18.04+)
+                    if _is_ubuntu_version_supported "$version_id"; then
+                        DISTRO_COMPATIBLE="true"
+                    else
+                        DISTRO_COMPATIBLE="false"
+                    fi
+                    ;;
+                "manjaro")
+                    DETECTED_DISTRO="arch"  # Treat Manjaro as Arch-based
+                    DISTRO_VERSION="manjaro-${version_id:-unknown}"
+                    DISTRO_CODENAME="$version_codename"
+                    DISTRO_COMPATIBLE="true"
+                    ;;
+                "endeavouros")
+                    DETECTED_DISTRO="arch"  # Treat EndeavourOS as Arch-based
+                    DISTRO_VERSION="endeavouros-${version_id:-unknown}"
+                    DISTRO_CODENAME="$version_codename"
+                    DISTRO_COMPATIBLE="true"
+                    ;;
+                "garuda")
+                    DETECTED_DISTRO="arch"  # Treat Garuda as Arch-based
+                    DISTRO_VERSION="garuda-${version_id:-unknown}"
+                    DISTRO_CODENAME="$version_codename"
+                    DISTRO_COMPATIBLE="true"
+                    ;;
+                *)
+                    # Check ID_LIKE for compatibility
+                    if [[ "$id_like" == *"arch"* ]]; then
+                        DETECTED_DISTRO="arch"
+                        DISTRO_VERSION="${id}-${version_id:-unknown}"
+                        DISTRO_CODENAME="$version_codename"
+                        DISTRO_COMPATIBLE="true"
+                    elif [[ "$id_like" == *"ubuntu"* || "$id_like" == *"debian"* ]]; then
+                        DETECTED_DISTRO="ubuntu"
+                        DISTRO_VERSION="${id}-${version_id:-unknown}"
+                        DISTRO_CODENAME="$version_codename"
+                        DISTRO_COMPATIBLE="false"  # Only pure Ubuntu is fully supported
+                    else
+                        DETECTED_DISTRO="unsupported"
+                        DISTRO_VERSION="${id:-unknown}-${version_id:-unknown}"
+                        DISTRO_CODENAME="$version_codename"
+                        DISTRO_COMPATIBLE="false"
+                    fi
+                    ;;
+            esac
         fi
     fi
 
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo "Detected distribution: $DETECTED_DISTRO ($DISTRO_VERSION)"
+    # Fallback detection methods if /etc/os-release failed
+    if [[ -z "$DETECTED_DISTRO" || "$DETECTED_DISTRO" == "unsupported" ]]; then
+        _fallback_distro_detection
     fi
+
+    # Final validation and logging
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "Detected distribution: $DETECTED_DISTRO"
+        echo "Version: $DISTRO_VERSION"
+        echo "Codename: $DISTRO_CODENAME"
+        echo "Compatible: $DISTRO_COMPATIBLE"
+    fi
+
+    return 0
+}
+
+# Check if Ubuntu version is supported (18.04 LTS and newer)
+# Arguments: $1 - Ubuntu version (e.g., "20.04", "22.04")
+# Returns: 0 if supported, 1 if not supported
+_is_ubuntu_version_supported() {
+    local version="$1"
+    
+    if [[ -z "$version" ]]; then
+        return 1
+    fi
+
+    # Extract major and minor version numbers
+    local major minor
+    IFS='.' read -r major minor <<< "$version"
+    
+    # Support Ubuntu 18.04 and newer
+    if [[ $major -gt 18 ]] || [[ $major -eq 18 && $minor -ge 4 ]]; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Fallback distribution detection using various system indicators
+# Sets global variables if detection is successful
+_fallback_distro_detection() {
+    # Method 1: Check for package managers
+    if command -v pacman >/dev/null 2>&1; then
+        DETECTED_DISTRO="arch"
+        DISTRO_VERSION="unknown"
+        DISTRO_CODENAME="unknown"
+        DISTRO_COMPATIBLE="true"
+        return 0
+    elif command -v apt >/dev/null 2>&1; then
+        DETECTED_DISTRO="ubuntu"
+        DISTRO_VERSION="unknown"
+        DISTRO_CODENAME="unknown"
+        DISTRO_COMPATIBLE="false"  # Can't verify version compatibility
+        return 0
+    fi
+
+    # Method 2: Check for distribution-specific files
+    if [[ -f /etc/arch-release ]]; then
+        DETECTED_DISTRO="arch"
+        DISTRO_VERSION="unknown"
+        DISTRO_CODENAME="unknown"
+        DISTRO_COMPATIBLE="true"
+        return 0
+    elif [[ -f /etc/lsb-release ]]; then
+        # Try to parse LSB release info
+        if grep -q "Ubuntu" /etc/lsb-release 2>/dev/null; then
+            DETECTED_DISTRO="ubuntu"
+            DISTRO_VERSION=$(grep "DISTRIB_RELEASE" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+            DISTRO_CODENAME=$(grep "DISTRIB_CODENAME" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+            
+            if _is_ubuntu_version_supported "$DISTRO_VERSION"; then
+                DISTRO_COMPATIBLE="true"
+            else
+                DISTRO_COMPATIBLE="false"
+            fi
+            return 0
+        fi
+    fi
+
+    # Method 3: Check /proc/version
+    if [[ -f /proc/version ]]; then
+        if grep -qi "arch" /proc/version; then
+            DETECTED_DISTRO="arch"
+            DISTRO_VERSION="unknown"
+            DISTRO_CODENAME="unknown"
+            DISTRO_COMPATIBLE="true"
+            return 0
+        elif grep -qi "ubuntu" /proc/version; then
+            DETECTED_DISTRO="ubuntu"
+            DISTRO_VERSION="unknown"
+            DISTRO_CODENAME="unknown"
+            DISTRO_COMPATIBLE="false"
+            return 0
+        fi
+    fi
+
+    # If all methods fail, mark as unsupported
+    DETECTED_DISTRO="unsupported"
+    DISTRO_VERSION="unknown"
+    DISTRO_CODENAME="unknown"
+    DISTRO_COMPATIBLE="false"
 }
 
 # Get the detected distribution
@@ -81,12 +232,107 @@ get_distro_version() {
     echo "$DISTRO_VERSION"
 }
 
+# Get the distribution codename
+# Returns: Echoes the distribution codename
+get_distro_codename() {
+    detect_distro
+    echo "$DISTRO_CODENAME"
+}
+
 # Check if current distribution is supported
 # Returns: 0 if supported, 1 if unsupported
 is_supported_distro() {
+    detect_distro
+    [[ "$DISTRO_COMPATIBLE" == "true" ]]
+}
+
+# Check if current distribution is compatible (may work but not fully tested)
+# Returns: 0 if compatible, 1 if incompatible
+is_compatible_distro() {
     local distro
     distro=$(get_distro)
     [[ "$distro" == "arch" || "$distro" == "ubuntu" ]]
+}
+
+# Get detailed distribution information
+# Returns: Echoes formatted distribution information
+get_distro_info() {
+    detect_distro
+    echo "Distribution: $DETECTED_DISTRO"
+    echo "Version: $DISTRO_VERSION"
+    echo "Codename: $DISTRO_CODENAME"
+    echo "Fully Supported: $DISTRO_COMPATIBLE"
+}
+
+# Handle unsupported distribution with user-friendly error message
+# Requirements: 1.5 - Display error message and exit gracefully for unsupported distributions
+handle_unsupported_distro() {
+    local distro version
+    distro=$(get_distro)
+    version=$(get_distro_version)
+    
+    echo "=============================================="
+    echo "UNSUPPORTED DISTRIBUTION DETECTED"
+    echo "=============================================="
+    echo
+    echo "Distribution: $distro"
+    echo "Version: $version"
+    echo
+    echo "This installation framework currently supports:"
+    echo "  • Arch Linux (and Arch-based distributions)"
+    echo "  • Ubuntu 18.04 LTS and newer"
+    echo
+    echo "Detected system information:"
+    get_distro_info
+    echo
+    
+    if [[ "$distro" == "ubuntu" && "$DISTRO_COMPATIBLE" == "false" ]]; then
+        echo "Your Ubuntu version may be too old or could not be verified."
+        echo "Please ensure you are running Ubuntu 18.04 LTS or newer."
+        echo
+        if ask_yes_no "Would you like to continue anyway? (not recommended)" "n"; then
+            echo "Continuing with limited support..."
+            return 0
+        fi
+    elif [[ "$distro" != "unsupported" ]]; then
+        echo "Your distribution might be compatible but is not officially supported."
+        echo "You may encounter issues during installation."
+        echo
+        if ask_yes_no "Would you like to continue anyway? (not recommended)" "n"; then
+            echo "Continuing with limited support..."
+            return 0
+        fi
+    fi
+    
+    echo "Installation aborted."
+    echo
+    echo "For support with additional distributions, please:"
+    echo "  • Check the project documentation"
+    echo "  • Submit a feature request on GitHub"
+    echo "  • Consider using a supported distribution"
+    echo
+    return 1
+}
+
+# Validate distribution compatibility and handle unsupported cases
+# Returns: 0 if can proceed, 1 if should abort
+# Requirements: 1.1, 1.5 - Auto-detect and handle unsupported distributions
+validate_distro_support() {
+    detect_distro
+    
+    if is_supported_distro; then
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "Distribution validation passed: $(get_distro) $(get_distro_version)"
+        fi
+        return 0
+    fi
+    
+    # Handle unsupported distribution
+    if ! handle_unsupported_distro; then
+        return 1
+    fi
+    
+    return 0
 }
 
 #######################################
@@ -478,9 +724,7 @@ validate_system() {
     done
 
     # Check distribution support
-    if ! is_supported_distro; then
-        echo "Error: Unsupported distribution: $(get_distro)"
-        echo "Supported distributions: Arch Linux, Ubuntu"
+    if ! validate_distro_support; then
         return 1
     fi
 
