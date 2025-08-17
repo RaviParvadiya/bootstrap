@@ -13,6 +13,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/repositories.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/services.sh"
 
+# Source hardware modules
+source "$(dirname "${BASH_SOURCE[0]}")/hardware/nvidia.sh"
+
 # Main Arch Linux installation orchestrator
 arch_main_install() {
     local selected_components=("$@")
@@ -49,6 +52,9 @@ arch_main_install() {
         log_error "Failed to install base packages"
         return 1
     fi
+    
+    # Check for hardware-specific configurations
+    arch_configure_hardware
     
     # Install selected components
     for component in "${selected_components[@]}"; do
@@ -117,6 +123,27 @@ arch_update_system() {
     fi
     
     log_success "System updated successfully"
+    return 0
+}
+
+# Configure hardware-specific settings
+arch_configure_hardware() {
+    log_info "Configuring hardware-specific settings..."
+    
+    # Check for NVIDIA GPU and offer installation
+    if detect_nvidia_gpu; then
+        if ask_yes_no "NVIDIA GPU detected. Would you like to install NVIDIA drivers?"; then
+            if ! install_nvidia "${DRY_RUN:-false}"; then
+                log_warn "NVIDIA installation failed, continuing with other components"
+            fi
+        else
+            log_info "NVIDIA installation skipped by user"
+        fi
+    fi
+    
+    # Future hardware configurations can be added here
+    # e.g., AMD GPU, Intel GPU, specific laptop models, etc.
+    
     return 0
 }
 
