@@ -47,10 +47,30 @@ arch_main_install() {
         return 1
     fi
     
+    # Configure system settings (pacman, makepkg, etc.)
+    if ! arch_setup_system; then
+        log_error "Failed to configure system settings"
+        return 1
+    fi
+    
     # Install base packages
     if ! arch_install_base_packages; then
         log_error "Failed to install base packages"
         return 1
+    fi
+    
+    # Install packages based on user preferences and auto-detected conditions
+    local user_preferences=""
+    
+    # Ask user about optional package categories
+    if ask_yes_no "Would you like to install gaming packages?"; then
+        user_preferences="$user_preferences,gaming"
+    fi
+    
+    # Install main package set with auto-detection
+    log_info "Installing packages with auto-detected system conditions..."
+    if ! arch_install_packages_auto "all" "$user_preferences"; then
+        log_warn "Some packages failed to install, continuing..."
     fi
     
     # Check for hardware-specific configurations

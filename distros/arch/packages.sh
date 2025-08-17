@@ -136,6 +136,7 @@ arch_ensure_aur_helper() {
 arch_install_from_package_list() {
     local package_list_file="$1"
     local package_type="${2:-pacman}"  # pacman or aur
+    local conditions="${3:-}"  # Optional conditions to filter packages
     
     if [[ ! -f "$package_list_file" ]]; then
         log_error "Package list file not found: $package_list_file"
@@ -156,23 +157,10 @@ arch_install_from_package_list() {
             local package="${line%%|*}"
             local condition="${line##*|}"
             
-            # Simple condition evaluation (can be extended)
-            case "$condition" in
-                "nvidia")
-                    if arch_has_nvidia_gpu; then
-                        packages+=("$package")
-                    fi
-                    ;;
-                "intel")
-                    if arch_has_intel_gpu; then
-                        packages+=("$package")
-                    fi
-                    ;;
-                *)
-                    # Default: include package
-                    packages+=("$package")
-                    ;;
-            esac
+            # Check if condition should be included
+            if arch_should_include_condition "$condition" "$conditions"; then
+                packages+=("$package")
+            fi
         else
             packages+=("$line")
         fi
@@ -193,6 +181,68 @@ arch_install_from_package_list() {
             ;;
         *)
             log_error "Unknown package type: $package_type"
+            return 1
+            ;;
+    esac
+}
+
+# Check if a condition should be included based on system state and user preferences
+arch_should_include_condition() {
+    local condition="$1"
+    local user_conditions="$2"
+    
+    case "$condition" in
+        "nvidia")
+            arch_has_nvidia_gpu && [[ "$user_conditions" =~ nvidia ]]
+            ;;
+        "amd")
+            arch_has_amd_gpu && [[ "$user_conditions" =~ amd ]]
+            ;;
+        "intel")
+            arch_has_intel_gpu && [[ "$user_conditions" =~ intel ]]
+            ;;
+        "gaming")
+            [[ "$user_conditions" =~ gaming ]]
+            ;;
+        "laptop")
+            arch_is_laptop && [[ "$user_conditions" =~ laptop ]]
+            ;;
+        "vm")
+            arch_is_vm && [[ "$user_conditions" =~ vm ]]
+            ;;
+        "asus")
+            arch_is_asus_hardware && [[ "$user_conditions" =~ asus ]]
+            ;;
+        *)
+            # Default: include package if no specific condition
+            return 0
+            ;;
+    esac
+}
+
+# Install packages by category with conditions
+arch_install_packages_by_category() {
+    local category="$1"
+    local conditions="${2:-}"
+    local data_dir="${3:-$(dirname "${BASH_SOURCE[0]}")/../../data}"
+    
+    log_info "Installing $category packages with conditions: $conditions"
+    
+    case "$category" in
+        "base"|"system")
+            arch_install_from_package_list "$data_dir/arch-packages.lst" "pacman" "$conditions"
+            ;;
+        "aur")
+            # Ensure AUR helper is available first
+            arch_ensure_aur_helper
+            arch_install_from_package_list "$data_dir/aur-packages.lst" "aur" "$conditions"
+            ;;
+        "all")
+            arch_install_packages_by_category "base" "$conditions" "$data_dir"
+            arch_install_packages_by_category "aur" "$conditions" "$data_dir"
+            ;;
+        *)
+            log_error "Unknown package category: $category"
             return 1
             ;;
     esac
@@ -230,6 +280,26 @@ arch_has_intel_gpu() {
 
 arch_has_amd_gpu() {
     lspci | grep -i "amd\|ati" >/dev/null 2>&1
+}
+
+arch_is_laptop() {
+    # Check if system is a laptop
+    [[ -d /sys/class/power_supply/BAT* ]] || \
+    [[ -f /sys/class/dmi/id/chassis_type ]] && \
+    [[ "$(cat /sys/class/dmi/id/chassis_type 2>/dev/null)" =~ ^(8|9|10|14)$ ]]
+}
+
+arch_is_vm() {
+    # Check if running in a virtual machine
+    systemd-detect-virt >/dev/null 2>&1 || \
+    [[ "$(dmidecode -s system-manufacturer 2>/dev/null)" =~ (VMware|VirtualBox|QEMU|Xen|Microsoft Corporation) ]] || \
+    [[ -f /proc/cpuinfo ]] && grep -q "hypervisor" /proc/cpuinfo
+}
+
+arch_is_asus_hardware() {
+    # Check if system is ASUS hardware
+    [[ "$(dmidecode -s system-manufacturer 2>/dev/null)" =~ ASUS ]] || \
+    [[ "$(dmidecode -s baseboard-manufacturer 2>/dev/null)" =~ ASUS ]]
 }
 
 # Check if package is installed
@@ -298,3 +368,163 @@ export -f arch_is_package_installed
 export -f arch_get_package_version
 export -f arch_remove_packages
 export -f arch_clean_package_cache
+
+# Configure pacman for better performance and appearance
+arch_configure_pacman() {
+    log_info "Configuring pacman for better performance..."
+    
+    local pacman_conf="/etc/pacman.conf"
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would configure pacman settings"
+        return 0
+    fi
+    
+    # Create backup
+    sudo cp "$pacman_conf" "$pacman_conf.backup.config.$(date +%Y%m%d_%H%M%S)"
+    
+    # Enable color output, verbose package lists, and parallel downloads
+    sudo sed -i 's/^#Color/Color/; s/^#VerbosePkgLists/VerbosePkgLists/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' "$pacman_conf"
+    
+    log_success "Pacman configuration updated"
+    return 0
+}
+
+# Configure makepkg for faster compression
+arch_configure_makepkg() {
+    log_info "Configuring makepkg for faster compression..."
+    
+    local makepkg_conf="/etc/makepkg.conf"
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would configure makepkg compression settings"
+        return 0
+    fi
+    
+    # Create backup
+    sudo cp "$makepkg_conf" "$makepkg_conf.backup.$(date +%Y%m%d_%H%M%S)"
+    
+    # Use faster compression for packages
+    sudo sed -i 's/COMPRESSZST=(zstd -c -T0 --ultra -20 -)/COMPRESSZST=(zstd -c -T0 --fast -)/' "$makepkg_conf"
+    
+    log_success "Makepkg configuration updated for faster compression"
+    return 0
+}
+
+# Install and configure reflector for mirror management
+arch_setup_reflector() {
+    log_info "Setting up reflector for mirror management..."
+    
+    # Install reflector if not already installed
+    if ! arch_is_package_installed "reflector"; then
+        arch_install_pacman_packages "reflector"
+    fi
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would configure reflector service"
+        return 0
+    fi
+    
+    # Enable and start reflector timer
+    sudo systemctl enable reflector.timer
+    sudo systemctl start reflector.timer
+    
+    log_success "Reflector configured and enabled"
+    return 0
+}
+
+# Enable SSD TRIM support
+arch_enable_trim() {
+    log_info "Enabling SSD TRIM support..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would enable fstrim.timer"
+        return 0
+    fi
+    
+    # Enable fstrim timer for SSD maintenance
+    sudo systemctl enable fstrim.timer
+    
+    log_success "SSD TRIM support enabled"
+    return 0
+}
+
+# Complete Arch Linux system setup
+arch_setup_system() {
+    log_info "Setting up Arch Linux system configuration..."
+    
+    # Configure pacman
+    arch_configure_pacman
+    
+    # Configure makepkg
+    arch_configure_makepkg
+    
+    # Setup reflector
+    arch_setup_reflector
+    
+    # Enable TRIM for SSDs
+    arch_enable_trim
+    
+    log_success "Arch Linux system setup completed"
+    return 0
+}
+
+# Install packages with automatic condition detection
+arch_install_packages_auto() {
+    local category="$1"
+    local user_preferences="${2:-}"
+    
+    # Detect system conditions automatically
+    local conditions=()
+    
+    # Hardware detection
+    if arch_has_nvidia_gpu; then
+        conditions+=("nvidia")
+    fi
+    
+    if arch_has_amd_gpu; then
+        conditions+=("amd")
+    fi
+    
+    if arch_has_intel_gpu; then
+        conditions+=("intel")
+    fi
+    
+    # System type detection
+    if arch_is_laptop; then
+        conditions+=("laptop")
+    fi
+    
+    if arch_is_vm; then
+        conditions+=("vm")
+    fi
+    
+    if arch_is_asus_hardware; then
+        conditions+=("asus")
+    fi
+    
+    # Add user preferences
+    if [[ -n "$user_preferences" ]]; then
+        IFS=',' read -ra user_prefs <<< "$user_preferences"
+        conditions+=("${user_prefs[@]}")
+    fi
+    
+    # Convert array to space-separated string
+    local conditions_str="${conditions[*]}"
+    
+    log_info "Auto-detected conditions: $conditions_str"
+    
+    # Install packages with detected conditions
+    arch_install_packages_by_category "$category" "$conditions_str"
+}
+
+# Export new functions
+export -f arch_configure_pacman
+export -f arch_configure_makepkg
+export -f arch_setup_reflector
+export -f arch_enable_trim
+export -f arch_setup_system
+export -f arch_install_packages_auto
+export -f arch_is_laptop
+export -f arch_is_vm
+export -f arch_is_asus_hardware

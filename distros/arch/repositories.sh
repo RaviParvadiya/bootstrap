@@ -78,39 +78,28 @@ arch_setup_chaotic_aur() {
         return 0
     fi
     
-    # Install chaotic-aur keyring and mirrorlist
-    log_info "Installing chaotic-aur keyring..."
+    # Install chaotic-aur keyring using the official method
+    log_info "Installing chaotic-aur keyring and mirrorlist..."
     
-    # Download and install chaotic-aur keyring
-    local temp_dir
-    temp_dir=$(mktemp -d)
+    # Receive and sign the chaotic-aur key
+    if ! sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com; then
+        log_error "Failed to receive chaotic-aur key"
+        return 1
+    fi
     
-    (
-        cd "$temp_dir" || exit 1
-        
-        # Download keyring package
-        if ! curl -O https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.xz; then
-            log_error "Failed to download chaotic-aur keyring"
-            exit 1
-        fi
-        
-        # Download mirrorlist package
-        if ! curl -O https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.xz; then
-            log_error "Failed to download chaotic-aur mirrorlist"
-            exit 1
-        fi
-        
-        # Install packages
-        if ! sudo pacman -U --noconfirm chaotic-keyring.pkg.tar.xz chaotic-mirrorlist.pkg.tar.xz; then
-            log_error "Failed to install chaotic-aur packages"
-            exit 1
-        fi
-    )
+    if ! sudo pacman-key --lsign-key 3056513887B78AEB; then
+        log_error "Failed to sign chaotic-aur key"
+        return 1
+    fi
     
-    local install_result=$?
-    rm -rf "$temp_dir"
+    # Install chaotic keyring and mirrorlist packages
+    if ! sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'; then
+        log_error "Failed to install chaotic-keyring"
+        return 1
+    fi
     
-    if [[ $install_result -ne 0 ]]; then
+    if ! sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; then
+        log_error "Failed to install chaotic-mirrorlist"
         return 1
     fi
     
@@ -121,14 +110,15 @@ arch_setup_chaotic_aur() {
     sudo cp "$pacman_conf" "$pacman_conf.backup.chaotic.$(date +%Y%m%d_%H%M%S)"
     
     # Add chaotic-aur repository configuration
-    cat << 'EOF' | sudo tee -a "$pacman_conf" >/dev/null
-
-# Chaotic-AUR repository
-[chaotic-aur]
-Include = /etc/pacman.d/chaotic-mirrorlist
-EOF
+    echo -e '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist' | sudo tee -a "$pacman_conf" >/dev/null
     
-    log_success "Chaotic-aur repository configured"
+    # Update package database
+    if ! sudo pacman -Sy; then
+        log_error "Failed to update package database after adding chaotic-aur"
+        return 1
+    fi
+    
+    log_success "Chaotic-aur repository configured successfully"
     return 0
 }
 

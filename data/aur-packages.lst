@@ -8,9 +8,33 @@ paru
 
 # --- Development Tools ---
 visual-studio-code-bin
-google-chrome
-discord
-spotify
+github-desktop
+aurutils
+
+# --- Applications ---
+bibata-cursor-theme
+gapless
+hardcode-fixer-git
+wlogout
+auto-cpufreq
+hyprpicker
+grimblast-git
+arch-update
+python-pywal16
+smile
+clipse
+swayosd-git
+waypaper
+ttf-meslo-nerd-font-powerlevel10k
+python-haishoku
+dopamine-appimage-preview
+python-screeninfo
+python-imageio
+ulauncher-git
+matugen-bin
+python-materialyoucolor
+xwaylandvideobridge
+pinta
 
 # --- System Utilities ---
 optimus-manager|nvidia
@@ -18,6 +42,7 @@ optimus-manager-qt|nvidia
 asusctl|asus
 supergfxctl|asus
 rog-control-center|asus
+lact|amd
 
 # --- Fonts ---
 ttf-jetbrains-mono
@@ -30,9 +55,16 @@ papirus-icon-theme
 bibata-cursor-theme
 
 # --- Gaming ---
-steam
-lutris
-heroic-games-launcher-bin
+steam|gaming
+lutris|gaming
+heroic-games-launcher-bin|gaming
+vkbasalt|gaming
+lib32-vkbasalt|gaming
+proton-ge-custom|gaming
+dxvk-bin|gaming
+vesktop|gaming
+protontricks|gaming
+goverlay|gaming
 
 # --- Multimedia ---
 obs-studio-git
@@ -42,3 +74,6 @@ davinci-resolve
 notion-app
 obsidian
 todoist-nativefier
+
+# --- Laptop Specific ---
+batsignal|laptop
