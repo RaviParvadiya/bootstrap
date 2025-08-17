@@ -119,12 +119,19 @@ main() {
     
     # Detect distribution first
     log_info "Detecting Linux distribution..."
-    DETECTED_DISTRO=$(detect_distro)
+    detect_distro
+    DETECTED_DISTRO=$(get_distro)
     if [[ -z "$DETECTED_DISTRO" ]]; then
         log_error "Failed to detect Linux distribution"
         exit 1
     fi
     log_info "Detected distribution: $DETECTED_DISTRO"
+    
+    # Validate distribution support
+    if ! validate_distro_support; then
+        log_error "Distribution not supported or validation failed"
+        exit 1
+    fi
     
     # Validate system prerequisites
     log_info "Validating system requirements..."
@@ -175,11 +182,11 @@ run_installation() {
     case "$DETECTED_DISTRO" in
         "arch")
             source "$DISTROS_DIR/arch/arch-main.sh"
-            run_arch_installation
+            arch_main_install "${SELECTED_COMPONENTS[@]}"
             ;;
         "ubuntu")
             source "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
-            run_ubuntu_installation
+            ubuntu_main_install "${SELECTED_COMPONENTS[@]}"
             ;;
         *)
             log_error "Unsupported distribution: $DETECTED_DISTRO"

@@ -3,6 +3,12 @@
 # Logging and output management system
 # Provides color-coded output, file logging, and progress indicators
 
+# Prevent multiple sourcing
+if [[ -n "${LOGGER_SOURCED:-}" ]]; then
+    return 0
+fi
+readonly LOGGER_SOURCED=1
+
 # Color codes for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'

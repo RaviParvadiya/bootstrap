@@ -1,141 +1,222 @@
 #!/bin/bash
 
-# Hyprland installation for Ubuntu
-# Builds and configures Hyprland from source on Ubuntu
+# Ubuntu Hyprland Installation
+# Handles building and configuring Hyprland from source on Ubuntu
 
-# Install Hyprland on Ubuntu
-install_hyprland_ubuntu() {
-    log_section "Installing Hyprland on Ubuntu"
+# Source core utilities
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+
+# Main Hyprland installation function
+ubuntu_install_hyprland() {
+    log_info "Installing Hyprland on Ubuntu..."
     
     # Install build dependencies
-    install_hyprland_dependencies
+    if ! ubuntu_install_hyprland_dependencies; then
+        log_error "Failed to install Hyprland dependencies"
+        return 1
+    fi
     
     # Build and install Hyprland
-    build_hyprland
+    if ! ubuntu_build_hyprland; then
+        log_error "Failed to build Hyprland"
+        return 1
+    fi
     
-    # Install Wayland session
-    install_hyprland_session
+    # Install additional Wayland tools
+    if ! ubuntu_install_wayland_tools; then
+        log_error "Failed to install Wayland tools"
+        return 1
+    fi
     
-    # Configure Hyprland environment
-    configure_hyprland_environment
+    # Configure Hyprland session
+    if ! ubuntu_configure_hyprland_session; then
+        log_error "Failed to configure Hyprland session"
+        return 1
+    fi
     
     log_success "Hyprland installation completed"
+    return 0
 }
 
 # Install Hyprland build dependencies
-install_hyprland_dependencies() {
+ubuntu_install_hyprland_dependencies() {
     log_info "Installing Hyprland build dependencies..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install Hyprland dependencies"
-        return 0
-    fi
-    
-    # Build tools and libraries
-    local build_deps=(
-        build-essential
-        cmake
-        meson
-        ninja-build
-        pkg-config
-        libwayland-dev
-        libwayland-client0
-        libwayland-cursor0
-        libwayland-server0
-        wayland-protocols
-        libxkbcommon-dev
-        libxkbcommon-x11-dev
-        libpixman-1-dev
-        libcairo2-dev
-        libpango1.0-dev
-        libdrm-dev
-        libxcb1-dev
-        libxcb-composite0-dev
-        libxcb-xfixes0-dev
-        libxcb-xinput-dev
-        libxcb-image0-dev
-        libxcb-shm0-dev
-        libxcb-util0-dev
-        libxcb-keysyms1-dev
-        libxcb-randr0-dev
-        libxcb-icccm4-dev
-        libxcb-cursor-dev
-        libinput-dev
-        libxcb-dri3-dev
-        libxcb-present-dev
-        libxcb-sync-dev
-        libxcb-ewmh-dev
-        libtomlplusplus-dev
-        libjpeg-dev
-        libwebp-dev
-        libmagic-dev
-        libhyprlang-dev
-        libhyprutils-dev
-        libhyprcursor-dev
-        libaquamarine-dev
-        libseat-dev
-        libudev-dev
-        libgbm-dev
-        libegl1-mesa-dev
-        libgles2-mesa-dev
-        libdisplay-info-dev
-        libliftoff-dev
-        liblibliftoff-dev
-        hwdata
+    local dependencies=(
+        # Build tools
+        "build-essential"
+        "cmake"
+        "meson"
+        "ninja-build"
+        "pkg-config"
+        "git"
+        
+        # Wayland development libraries
+        "libwayland-dev"
+        "wayland-protocols"
+        "libwlroots-dev"
+        
+        # Graphics and input libraries
+        "libegl1-mesa-dev"
+        "libgles2-mesa-dev"
+        "libdrm-dev"
+        "libxkbcommon-dev"
+        "libxkbcommon-x11-dev"
+        "libpixman-1-dev"
+        "libcairo2-dev"
+        "libpango1.0-dev"
+        "libinput-dev"
+        
+        # X11 compatibility libraries
+        "libxcb1-dev"
+        "libxcb-composite0-dev"
+        "libxcb-ewmh-dev"
+        "libxcb-icccm4-dev"
+        "libxcb-image0-dev"
+        "libxcb-render-util0-dev"
+        "libxcb-xfixes0-dev"
+        "libxcb-xinput-dev"
+        
+        # Additional libraries
+        "libtomlplusplus-dev"
+        "libzip-dev"
+        "librsvg2-dev"
+        "libmagic-dev"
+        
+        # Hyprland-specific dependencies
+        "libhyprlang-dev"
+        "libhyprutils-dev"
+        "libaquamarine-dev"
+        
+        # Session management
+        "seatd"
+        "libseat-dev"
     )
     
-    # Install dependencies
-    sudo apt-get update
-    sudo apt-get install -y "${build_deps[@]}"
-    
-    log_success "Hyprland dependencies installed"
+    # Install dependencies via APT
+    source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
+    ubuntu_install_apt_packages "${dependencies[@]}"
 }
 
 # Build Hyprland from source
-build_hyprland() {
+ubuntu_build_hyprland() {
     log_info "Building Hyprland from source..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would build Hyprland from source"
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would build Hyprland from source"
         return 0
     fi
     
+    # Create build directory
     local build_dir="$HOME/.local/src"
     mkdir -p "$build_dir"
-    cd "$build_dir"
     
     # Clone Hyprland repository
-    if [[ -d "Hyprland" ]]; then
+    local hyprland_dir="$build_dir/Hyprland"
+    
+    if [[ -d "$hyprland_dir" ]]; then
         log_info "Updating existing Hyprland repository..."
-        cd Hyprland
-        git pull
+        (cd "$hyprland_dir" && git pull)
     else
         log_info "Cloning Hyprland repository..."
-        git clone --recursive https://github.com/hyprwm/Hyprland.git
-        cd Hyprland
+        git clone --recursive https://github.com/hyprwm/Hyprland.git "$hyprland_dir"
     fi
     
     # Build Hyprland
     log_info "Compiling Hyprland (this may take a while)..."
-    make all
+    (
+        cd "$hyprland_dir" || exit 1
+        
+        # Configure build
+        meson setup build --buildtype=release
+        
+        # Compile
+        ninja -C build
+        
+        # Install
+        sudo ninja -C build install
+    )
     
-    # Install Hyprland
-    sudo make install
+    local build_result=$?
     
-    log_success "Hyprland built and installed"
+    if [[ $build_result -ne 0 ]]; then
+        log_error "Hyprland build failed"
+        return 1
+    fi
+    
+    log_success "Hyprland built and installed successfully"
+    return 0
 }
 
-# Install Hyprland Wayland session
-install_hyprland_session() {
-    log_info "Installing Hyprland Wayland session..."
+# Install additional Wayland tools
+ubuntu_install_wayland_tools() {
+    log_info "Installing additional Wayland tools..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install Hyprland session"
+    local wayland_tools=(
+        # Screenshot and screen recording
+        "grim"
+        "slurp"
+        "wf-recorder"
+        
+        # Clipboard
+        "wl-clipboard"
+        
+        # Notification daemon
+        "mako-notifier"
+        
+        # Application launcher
+        "wofi"
+        
+        # Status bar
+        "waybar"
+        
+        # Terminal emulator
+        "foot"
+        
+        # File manager
+        "thunar"
+        
+        # Image viewer
+        "imv"
+        
+        # PDF viewer
+        "zathura"
+        
+        # Desktop portal
+        "xdg-desktop-portal-wlr"
+        "xdg-desktop-portal-gtk"
+        
+        # Polkit agent
+        "polkit-kde-agent-1"
+        
+        # Network manager applet
+        "network-manager-gnome"
+        
+        # Audio control
+        "pavucontrol"
+        
+        # Brightness control
+        "brightnessctl"
+    )
+    
+    source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
+    ubuntu_install_apt_packages "${wayland_tools[@]}"
+}
+
+# Configure Hyprland session
+ubuntu_configure_hyprland_session() {
+    log_info "Configuring Hyprland session..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would configure Hyprland session"
         return 0
     fi
     
-    # Create desktop entry for display managers
-    sudo tee /usr/share/wayland-sessions/hyprland.desktop > /dev/null << 'EOF'
+    # Create Hyprland desktop entry
+    local desktop_entry="/usr/share/wayland-sessions/hyprland.desktop"
+    
+    sudo tee "$desktop_entry" >/dev/null << 'EOF'
 [Desktop Entry]
 Name=Hyprland
 Comment=An intelligent dynamic tiling Wayland compositor
@@ -143,161 +224,286 @@ Exec=Hyprland
 Type=Application
 EOF
     
-    # Create Hyprland wrapper script
-    sudo tee /usr/local/bin/Hyprland > /dev/null << 'EOF'
+    # Create Hyprland wrapper script for proper session setup
+    local wrapper_script="/usr/local/bin/hyprland-session"
+    
+    sudo tee "$wrapper_script" >/dev/null << 'EOF'
 #!/bin/bash
-cd ~
-export _JAVA_AWT_WM_NONREPARENTING=1
-export XCURSOR_SIZE=24
-export WLR_NO_HARDWARE_CURSORS=1
-exec /usr/local/bin/hyprland
+
+# Hyprland session wrapper script
+
+# Set environment variables for Wayland
+export XDG_SESSION_TYPE=wayland
+export XDG_SESSION_DESKTOP=Hyprland
+export XDG_CURRENT_DESKTOP=Hyprland
+
+# NVIDIA specific settings (if NVIDIA GPU is present)
+if lspci | grep -i nvidia >/dev/null 2>&1; then
+    export LIBVA_DRIVER_NAME=nvidia
+    export XDG_SESSION_TYPE=wayland
+    export GBM_BACKEND=nvidia-drm
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export WLR_NO_HARDWARE_CURSORS=1
+fi
+
+# Intel specific settings
+if lspci | grep -i "intel.*graphics" >/dev/null 2>&1; then
+    export LIBVA_DRIVER_NAME=i965
+fi
+
+# AMD specific settings
+if lspci | grep -i "amd\|ati" >/dev/null 2>&1; then
+    export LIBVA_DRIVER_NAME=radeonsi
+fi
+
+# Start Hyprland
+exec Hyprland "$@"
 EOF
     
-    sudo chmod +x /usr/local/bin/Hyprland
+    sudo chmod +x "$wrapper_script"
     
-    log_success "Hyprland session installed"
+    # Update desktop entry to use wrapper script
+    sudo sed -i 's|Exec=Hyprland|Exec=/usr/local/bin/hyprland-session|' "$desktop_entry"
+    
+    # Configure environment for Hyprland
+    ubuntu_configure_hyprland_environment
+    
+    log_success "Hyprland session configured"
+    return 0
 }
 
 # Configure Hyprland environment
-configure_hyprland_environment() {
+ubuntu_configure_hyprland_environment() {
     log_info "Configuring Hyprland environment..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would configure Hyprland environment"
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would configure Hyprland environment"
         return 0
     fi
     
-    # Create Hyprland config directory
-    mkdir -p "$HOME/.config/hypr"
+    # Create environment configuration file
+    local env_file="/etc/environment.d/hyprland.conf"
     
-    # Create basic Hyprland configuration if it doesn't exist
-    if [[ ! -f "$HOME/.config/hypr/hyprland.conf" ]]; then
-        cat > "$HOME/.config/hypr/hyprland.conf" << 'EOF'
-# Hyprland configuration
-# See https://wiki.hyprland.org/Configuring/Configuring-Hyprland/
+    sudo mkdir -p "$(dirname "$env_file")"
+    sudo tee "$env_file" >/dev/null << 'EOF'
+# Hyprland environment variables
+XDG_SESSION_TYPE=wayland
+XDG_SESSION_DESKTOP=Hyprland
+XDG_CURRENT_DESKTOP=Hyprland
 
-# Monitor configuration
-monitor=,preferred,auto,auto
+# Wayland specific
+WAYLAND_DISPLAY=wayland-1
+QT_QPA_PLATFORM=wayland
+GDK_BACKEND=wayland
+SDL_VIDEODRIVER=wayland
+CLUTTER_BACKEND=wayland
 
-# Input configuration
-input {
-    kb_layout = us
-    follow_mouse = 1
-    touchpad {
-        natural_scroll = no
-    }
-    sensitivity = 0
-}
+# Qt scaling
+QT_AUTO_SCREEN_SCALE_FACTOR=1
+QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 
-# General configuration
-general {
-    gaps_in = 5
-    gaps_out = 20
-    border_size = 2
-    col.active_border = rgba(33ccffee) rgba(00ff99ee) 45deg
-    col.inactive_border = rgba(595959aa)
-    layout = dwindle
-}
+# Java applications
+_JAVA_AWT_WM_NONREPARENTING=1
 
-# Decoration
-decoration {
-    rounding = 10
-    blur {
-        enabled = true
-        size = 3
-        passes = 1
-    }
-    drop_shadow = yes
-    shadow_range = 4
-    shadow_render_power = 3
-    col.shadow = rgba(1a1a1aee)
-}
-
-# Animations
-animations {
-    enabled = yes
-    bezier = myBezier, 0.05, 0.9, 0.1, 1.05
-    animation = windows, 1, 7, myBezier
-    animation = windowsOut, 1, 7, default, popin 80%
-    animation = border, 1, 10, default
-    animation = borderangle, 1, 8, default
-    animation = fade, 1, 7, default
-    animation = workspaces, 1, 6, default
-}
-
-# Layout
-dwindle {
-    pseudotile = yes
-    preserve_split = yes
-}
-
-# Window rules
-windowrule = float, ^(kitty)$
-
-# Key bindings
-$mainMod = SUPER
-
-bind = $mainMod, Q, exec, kitty
-bind = $mainMod, C, killactive,
-bind = $mainMod, M, exit,
-bind = $mainMod, E, exec, dolphin
-bind = $mainMod, V, togglefloating,
-bind = $mainMod, R, exec, wofi --show drun
-bind = $mainMod, P, pseudo,
-bind = $mainMod, J, togglesplit,
-
-# Move focus
-bind = $mainMod, left, movefocus, l
-bind = $mainMod, right, movefocus, r
-bind = $mainMod, up, movefocus, u
-bind = $mainMod, down, movefocus, d
-
-# Switch workspaces
-bind = $mainMod, 1, workspace, 1
-bind = $mainMod, 2, workspace, 2
-bind = $mainMod, 3, workspace, 3
-bind = $mainMod, 4, workspace, 4
-bind = $mainMod, 5, workspace, 5
-
-# Move active window to workspace
-bind = $mainMod SHIFT, 1, movetoworkspace, 1
-bind = $mainMod SHIFT, 2, movetoworkspace, 2
-bind = $mainMod SHIFT, 3, movetoworkspace, 3
-bind = $mainMod SHIFT, 4, movetoworkspace, 4
-bind = $mainMod SHIFT, 5, movetoworkspace, 5
-
-# Mouse bindings
-bindm = $mainMod, mouse:272, movewindow
-bindm = $mainMod, mouse:273, resizewindow
+# Firefox
+MOZ_ENABLE_WAYLAND=1
 EOF
-    fi
+    
+    # Configure user-specific environment
+    local user_env_dir="$HOME/.config/environment.d"
+    mkdir -p "$user_env_dir"
+    
+    cp "/etc/environment.d/hyprland.conf" "$user_env_dir/"
     
     log_success "Hyprland environment configured"
 }
 
-# Install additional Hyprland tools
-install_hyprland_tools() {
-    log_info "Installing additional Hyprland tools..."
+# Install Hyprland ecosystem tools
+ubuntu_install_hyprland_ecosystem() {
+    log_info "Installing Hyprland ecosystem tools..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install Hyprland tools"
+    # Install hyprpaper (wallpaper daemon)
+    ubuntu_build_hyprpaper
+    
+    # Install hypridle (idle daemon)
+    ubuntu_build_hypridle
+    
+    # Install hyprlock (screen locker)
+    ubuntu_build_hyprlock
+    
+    # Install hyprpicker (color picker)
+    ubuntu_build_hyprpicker
+}
+
+# Build hyprpaper
+ubuntu_build_hyprpaper() {
+    log_info "Building hyprpaper..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would build hyprpaper"
         return 0
     fi
     
-    # Install Waybar (status bar)
-    sudo apt-get install -y waybar
+    local build_dir="$HOME/.local/src"
+    local hyprpaper_dir="$build_dir/hyprpaper"
     
-    # Install Wofi (application launcher)
-    sudo apt-get install -y wofi
+    if [[ -d "$hyprpaper_dir" ]]; then
+        (cd "$hyprpaper_dir" && git pull)
+    else
+        git clone https://github.com/hyprwm/hyprpaper.git "$hyprpaper_dir"
+    fi
     
-    # Install screenshot tools
-    sudo apt-get install -y grim slurp
+    (
+        cd "$hyprpaper_dir" || exit 1
+        meson setup build --buildtype=release
+        ninja -C build
+        sudo ninja -C build install
+    )
     
-    # Install notification daemon
-    sudo apt-get install -y mako-notifier
-    
-    # Install file manager
-    sudo apt-get install -y thunar
-    
-    log_success "Hyprland tools installed"
+    log_success "hyprpaper installed"
 }
+
+# Build hypridle
+ubuntu_build_hypridle() {
+    log_info "Building hypridle..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would build hypridle"
+        return 0
+    fi
+    
+    local build_dir="$HOME/.local/src"
+    local hypridle_dir="$build_dir/hypridle"
+    
+    if [[ -d "$hypridle_dir" ]]; then
+        (cd "$hypridle_dir" && git pull)
+    else
+        git clone https://github.com/hyprwm/hypridle.git "$hypridle_dir"
+    fi
+    
+    (
+        cd "$hypridle_dir" || exit 1
+        meson setup build --buildtype=release
+        ninja -C build
+        sudo ninja -C build install
+    )
+    
+    log_success "hypridle installed"
+}
+
+# Build hyprlock
+ubuntu_build_hyprlock() {
+    log_info "Building hyprlock..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would build hyprlock"
+        return 0
+    fi
+    
+    local build_dir="$HOME/.local/src"
+    local hyprlock_dir="$build_dir/hyprlock"
+    
+    if [[ -d "$hyprlock_dir" ]]; then
+        (cd "$hyprlock_dir" && git pull)
+    else
+        git clone https://github.com/hyprwm/hyprlock.git "$hyprlock_dir"
+    fi
+    
+    (
+        cd "$hyprlock_dir" || exit 1
+        meson setup build --buildtype=release
+        ninja -C build
+        sudo ninja -C build install
+    )
+    
+    log_success "hyprlock installed"
+}
+
+# Build hyprpicker
+ubuntu_build_hyprpicker() {
+    log_info "Building hyprpicker..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would build hyprpicker"
+        return 0
+    fi
+    
+    local build_dir="$HOME/.local/src"
+    local hyprpicker_dir="$build_dir/hyprpicker"
+    
+    if [[ -d "$hyprpicker_dir" ]]; then
+        (cd "$hyprpicker_dir" && git pull)
+    else
+        git clone https://github.com/hyprwm/hyprpicker.git "$hyprpicker_dir"
+    fi
+    
+    (
+        cd "$hyprpicker_dir" || exit 1
+        meson setup build --buildtype=release
+        ninja -C build
+        sudo ninja -C build install
+    )
+    
+    log_success "hyprpicker installed"
+}
+
+# Check if Hyprland is installed
+ubuntu_is_hyprland_installed() {
+    command -v Hyprland >/dev/null 2>&1
+}
+
+# Get Hyprland version
+ubuntu_get_hyprland_version() {
+    if ubuntu_is_hyprland_installed; then
+        Hyprland --version 2>/dev/null | head -n1
+    else
+        echo "Not installed"
+    fi
+}
+
+# Uninstall Hyprland
+ubuntu_uninstall_hyprland() {
+    log_info "Uninstalling Hyprland..."
+    
+    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+        log_info "[DRY RUN] Would uninstall Hyprland"
+        return 0
+    fi
+    
+    # Remove desktop entry
+    sudo rm -f /usr/share/wayland-sessions/hyprland.desktop
+    
+    # Remove wrapper script
+    sudo rm -f /usr/local/bin/hyprland-session
+    
+    # Remove environment configuration
+    sudo rm -f /etc/environment.d/hyprland.conf
+    rm -f "$HOME/.config/environment.d/hyprland.conf"
+    
+    # Remove build directories (optional)
+    if ask_yes_no "Remove Hyprland source code directories?"; then
+        rm -rf "$HOME/.local/src/Hyprland"
+        rm -rf "$HOME/.local/src/hyprpaper"
+        rm -rf "$HOME/.local/src/hypridle"
+        rm -rf "$HOME/.local/src/hyprlock"
+        rm -rf "$HOME/.local/src/hyprpicker"
+    fi
+    
+    log_success "Hyprland uninstalled"
+}
+
+# Export functions for external use
+export -f ubuntu_install_hyprland
+export -f ubuntu_install_hyprland_dependencies
+export -f ubuntu_build_hyprland
+export -f ubuntu_install_wayland_tools
+export -f ubuntu_configure_hyprland_session
+export -f ubuntu_configure_hyprland_environment
+export -f ubuntu_install_hyprland_ecosystem
+export -f ubuntu_build_hyprpaper
+export -f ubuntu_build_hypridle
+export -f ubuntu_build_hyprlock
+export -f ubuntu_build_hyprpicker
+export -f ubuntu_is_hyprland_installed
+export -f ubuntu_get_hyprland_version
+export -f ubuntu_uninstall_hyprland
