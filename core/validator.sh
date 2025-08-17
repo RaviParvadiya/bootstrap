@@ -4,10 +4,14 @@
 # This module provides comprehensive system requirements checking, permission validation,
 # dependency verification, and hardware detection capabilities for GPU and system-specific configurations.
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
-source "$SCRIPT_DIR/logger.sh"
+# Set SCRIPT_DIR to project root if not already set
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    # When sourced from core/, get the parent directory (project root)
+    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SCRIPT_DIR="$(dirname "$core_dir")"
+fi
+
+# Note: common.sh and logger.sh should be sourced before this file
 
 # Global validation state
 VALIDATION_ERRORS=()

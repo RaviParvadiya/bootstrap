@@ -1,173 +1,287 @@
 #!/bin/bash
 
-# Test script for package management functionality
-# Tests the modular package management system
+# Test script for package management system
+# Tests parsing, filtering, and validation of package lists
 
 set -euo pipefail
 
-# Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Script directory and paths
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TEST_DIR="$SCRIPT_DIR/tests"
 
 # Source required modules
-source "$PROJECT_ROOT/core/common.sh"
-source "$PROJECT_ROOT/core/logger.sh"
-source "$PROJECT_ROOT/distros/arch/packages.sh"
+source "$SCRIPT_DIR/core/logger.sh"
+source "$SCRIPT_DIR/core/common.sh"
+source "$SCRIPT_DIR/core/package-manager.sh"
 
-# Initialize logging
-init_logger
+# Test configuration
+DRY_RUN=true
+VM_MODE=false
+VERBOSE=true
 
-# Test functions
-test_package_list_parsing() {
+# Initialize test environment
+init_test_environment() {
+    log_info "Initializing test environment..."
+    
+    # Initialize logger
+    init_logger
+    
+    # Initialize package manager
+    init_package_manager || {
+        log_error "Failed to initialize package manager"
+        exit 1
+    }
+    
+    log_success "Test environment initialized"
+}
+
+# Test package list parsing
+test_package_parsing() {
     log_info "Testing package list parsing..."
     
-    # Create a temporary test package list
-    local test_file
-    test_file=$(mktemp)
+    local -i tests_passed=0
+    local -i tests_failed=0
     
-    cat > "$test_file" << 'EOF'
-# Test package list
-# Comments should be ignored
-
-# --- Base packages ---
-git
-curl
-wget
-
-# --- Conditional packages ---
-nvidia-dkms|nvidia
-steam|gaming
-batsignal|laptop
-
-# Empty lines should be ignored
-
-vim
-nano
-EOF
+    # Test Arch packages parsing
+    log_debug "Testing Arch packages parsing..."
+    if parse_package_list "$SCRIPT_DIR/data/arch-packages.lst" >/dev/null; then
+        log_success "Arch packages parsed successfully"
+        ((tests_passed++))
+    else
+        log_error "Failed to parse Arch packages"
+        ((tests_failed++))
+    fi
     
-    # Test parsing with different conditions
-    log_info "Testing with nvidia condition..."
-    DRY_RUN=true arch_install_from_package_list "$test_file" "pacman" "nvidia"
+    # Test Ubuntu packages parsing
+    log_debug "Testing Ubuntu packages parsing..."
+    if parse_package_list "$SCRIPT_DIR/data/ubuntu-packages.lst" >/dev/null; then
+        log_success "Ubuntu packages parsed successfully"
+        ((tests_passed++))
+    else
+        log_error "Failed to parse Ubuntu packages"
+        ((tests_failed++))
+    fi
     
-    log_info "Testing with gaming condition..."
-    DRY_RUN=true arch_install_from_package_list "$test_file" "pacman" "gaming"
+    # Test AUR packages parsing
+    log_debug "Testing AUR packages parsing..."
+    if parse_package_list "$SCRIPT_DIR/data/aur-packages.lst" >/dev/null; then
+        log_success "AUR packages parsed successfully"
+        ((tests_passed++))
+    else
+        log_error "Failed to parse AUR packages"
+        ((tests_failed++))
+    fi
     
-    log_info "Testing with laptop condition..."
-    DRY_RUN=true arch_install_from_package_list "$test_file" "pacman" "laptop"
-    
-    # Clean up
-    rm -f "$test_file"
-    
-    log_success "Package list parsing test completed"
+    log_info "Package parsing tests: $tests_passed passed, $tests_failed failed"
+    return $tests_failed
 }
 
-test_hardware_detection() {
-    log_info "Testing hardware detection..."
+# Test condition checking
+test_condition_checking() {
+    log_info "Testing condition checking..."
     
-    # Test GPU detection
-    if arch_has_nvidia_gpu; then
-        log_info "NVIDIA GPU detected"
+    local -i tests_passed=0
+    local -i tests_failed=0
+    
+    # Test VM condition (should be false in normal environment)
+    if ! check_package_condition "vm"; then
+        log_success "VM condition correctly evaluated as false"
+        ((tests_passed++))
     else
-        log_info "No NVIDIA GPU detected"
+        log_error "VM condition incorrectly evaluated as true"
+        ((tests_failed++))
     fi
     
-    if arch_has_amd_gpu; then
-        log_info "AMD GPU detected"
+    # Test laptop condition
+    if check_package_condition "laptop"; then
+        log_success "Laptop condition evaluated (result may vary by system)"
+        ((tests_passed++))
     else
-        log_info "No AMD GPU detected"
+        log_success "Laptop condition evaluated as false (not a laptop)"
+        ((tests_passed++))
     fi
     
-    if arch_has_intel_gpu; then
-        log_info "Intel GPU detected"
+    # Test unknown condition
+    if ! check_package_condition "unknown_condition"; then
+        log_success "Unknown condition correctly evaluated as false"
+        ((tests_passed++))
     else
-        log_info "No Intel GPU detected"
+        log_error "Unknown condition incorrectly evaluated as true"
+        ((tests_failed++))
     fi
     
-    # Test system type detection
-    if arch_is_laptop; then
-        log_info "Laptop system detected"
-    else
-        log_info "Desktop system detected"
-    fi
-    
-    if arch_is_vm; then
-        log_info "Virtual machine detected"
-    else
-        log_info "Physical hardware detected"
-    fi
-    
-    if arch_is_asus_hardware; then
-        log_info "ASUS hardware detected"
-    else
-        log_info "Non-ASUS hardware detected"
-    fi
-    
-    log_success "Hardware detection test completed"
+    log_info "Condition checking tests: $tests_passed passed, $tests_failed failed"
+    return $tests_failed
 }
 
-test_condition_evaluation() {
-    log_info "Testing condition evaluation..."
+# Test package filtering
+test_package_filtering() {
+    log_info "Testing package filtering..."
     
-    # Test various condition combinations
-    local test_conditions="nvidia,gaming,laptop"
+    local -i tests_passed=0
+    local -i tests_failed=0
     
-    if arch_should_include_condition "nvidia" "$test_conditions"; then
-        log_info "NVIDIA condition correctly included"
+    # Test getting packages by source for Arch
+    log_debug "Testing Arch package filtering by source..."
+    local arch_regular_count
+    arch_regular_count=$(get_packages_by_source "arch" "apt" | wc -l)
+    
+    local arch_aur_count
+    arch_aur_count=$(get_packages_by_source "arch" "aur" | wc -l)
+    
+    if [[ $arch_regular_count -gt 0 ]]; then
+        log_success "Found $arch_regular_count regular Arch packages"
+        ((tests_passed++))
+    else
+        log_error "No regular Arch packages found"
+        ((tests_failed++))
     fi
     
-    if arch_should_include_condition "gaming" "$test_conditions"; then
-        log_info "Gaming condition correctly included"
+    if [[ $arch_aur_count -gt 0 ]]; then
+        log_success "Found $arch_aur_count AUR packages"
+        ((tests_passed++))
+    else
+        log_error "No AUR packages found"
+        ((tests_failed++))
     fi
     
-    if ! arch_should_include_condition "amd" "$test_conditions"; then
-        log_info "AMD condition correctly excluded"
+    # Test getting packages by source for Ubuntu
+    log_debug "Testing Ubuntu package filtering by source..."
+    local ubuntu_apt_count
+    ubuntu_apt_count=$(get_packages_by_source "ubuntu" "apt" | wc -l)
+    
+    local ubuntu_snap_count
+    ubuntu_snap_count=$(get_packages_by_source "ubuntu" "snap" | wc -l)
+    
+    if [[ $ubuntu_apt_count -gt 0 ]]; then
+        log_success "Found $ubuntu_apt_count Ubuntu APT packages"
+        ((tests_passed++))
+    else
+        log_error "No Ubuntu APT packages found"
+        ((tests_failed++))
     fi
     
-    log_success "Condition evaluation test completed"
+    if [[ $ubuntu_snap_count -gt 0 ]]; then
+        log_success "Found $ubuntu_snap_count Ubuntu Snap packages"
+        ((tests_passed++))
+    else
+        log_warn "No Ubuntu Snap packages found (this may be expected)"
+        ((tests_passed++))
+    fi
+    
+    log_info "Package filtering tests: $tests_passed passed, $tests_failed failed"
+    return $tests_failed
 }
 
-test_package_categories() {
-    log_info "Testing package category installation (dry run)..."
+# Test package validation
+test_package_validation() {
+    log_info "Testing package validation..."
     
-    # Test different package categories in dry run mode
-    DRY_RUN=true
-    
-    log_info "Testing base package installation..."
-    arch_install_packages_by_category "base" "nvidia,gaming"
-    
-    log_info "Testing AUR package installation..."
-    arch_install_packages_by_category "aur" "nvidia,gaming"
-    
-    log_success "Package category test completed"
+    if validate_package_lists; then
+        log_success "Package lists validation passed"
+        return 0
+    else
+        log_error "Package lists validation failed"
+        return 1
+    fi
 }
 
-test_auto_package_installation() {
-    log_info "Testing automatic package installation with condition detection..."
+# Test package listing
+test_package_listing() {
+    log_info "Testing package listing functionality..."
     
-    # Test auto-detection and installation (dry run)
-    DRY_RUN=true
-    arch_install_packages_auto "all" "gaming"
+    # Test listing all packages for Arch
+    log_debug "Testing Arch package listing..."
+    local arch_output
+    arch_output=$(list_packages "arch" 2>/dev/null)
     
-    log_success "Auto package installation test completed"
+    if [[ -n "$arch_output" ]]; then
+        log_success "Arch package listing generated output"
+    else
+        log_error "Arch package listing generated no output"
+        return 1
+    fi
+    
+    # Test listing all packages for Ubuntu
+    log_debug "Testing Ubuntu package listing..."
+    local ubuntu_output
+    ubuntu_output=$(list_packages "ubuntu" 2>/dev/null)
+    
+    if [[ -n "$ubuntu_output" ]]; then
+        log_success "Ubuntu package listing generated output"
+    else
+        log_error "Ubuntu package listing generated no output"
+        return 1
+    fi
+    
+    return 0
 }
 
-# Main test execution
+# Run all tests
+run_all_tests() {
+    log_info "Starting package management system tests..."
+    
+    local -i total_failures=0
+    
+    # Initialize test environment
+    init_test_environment
+    
+    # Run individual test suites
+    test_package_parsing || ((total_failures++))
+    echo
+    
+    test_condition_checking || ((total_failures++))
+    echo
+    
+    test_package_filtering || ((total_failures++))
+    echo
+    
+    test_package_validation || ((total_failures++))
+    echo
+    
+    test_package_listing || ((total_failures++))
+    echo
+    
+    # Summary
+    if [[ $total_failures -eq 0 ]]; then
+        log_success "All package management tests passed!"
+        return 0
+    else
+        log_error "$total_failures test suite(s) failed"
+        return 1
+    fi
+}
+
+# Main execution
 main() {
-    log_info "Starting package management tests..."
-    
-    # Set dry run mode for all tests
-    export DRY_RUN=true
-    
-    test_package_list_parsing
-    test_hardware_detection
-    test_condition_evaluation
-    test_package_categories
-    test_auto_package_installation
-    
-    log_success "All package management tests completed successfully!"
+    case "${1:-all}" in
+        "parsing")
+            init_test_environment
+            test_package_parsing
+            ;;
+        "conditions")
+            init_test_environment
+            test_condition_checking
+            ;;
+        "filtering")
+            init_test_environment
+            test_package_filtering
+            ;;
+        "validation")
+            init_test_environment
+            test_package_validation
+            ;;
+        "listing")
+            init_test_environment
+            test_package_listing
+            ;;
+        "all"|*)
+            run_all_tests
+            ;;
+    esac
 }
 
-# Run tests if script is executed directly
+# Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi

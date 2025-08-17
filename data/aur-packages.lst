@@ -8,33 +8,27 @@ paru
 
 # --- Development Tools ---
 visual-studio-code-bin
-github-desktop
+github-desktop-bin
 aurutils
+neovim-git
 
-# --- Applications ---
-bibata-cursor-theme
-gapless
-hardcode-fixer-git
-wlogout
-auto-cpufreq
-hyprpicker
+# --- Terminal and Shell ---
+starship-bin
+zoxide-bin
+kitty-git
+alacritty-git
+
+# --- Window Manager ---
+hyprland-git
+waybar-hyprland-git
+wofi-git
+swaync-git
+hyprpicker-git
 grimblast-git
-arch-update
-python-pywal16
-smile
-clipse
+wlogout
 swayosd-git
 waypaper
-ttf-meslo-nerd-font-powerlevel10k
-python-haishoku
-dopamine-appimage-preview
-python-screeninfo
-python-imageio
-ulauncher-git
-matugen-bin
-python-materialyoucolor
-xwaylandvideobridge
-pinta
+xwaylandvideobridge-git
 
 # --- System Utilities ---
 optimus-manager|nvidia
@@ -42,38 +36,64 @@ optimus-manager-qt|nvidia
 asusctl|asus
 supergfxctl|asus
 rog-control-center|asus
-lact|amd
+lact-git|amd
+auto-cpufreq
+arch-update
+batsignal|laptop
 
 # --- Fonts ---
-ttf-jetbrains-mono
-ttf-fira-code
+ttf-jetbrains-mono-nerd
+ttf-fira-code-nerd
+ttf-meslo-nerd-font-powerlevel10k
 nerd-fonts-complete
 
 # --- Themes and Customization ---
 catppuccin-gtk-theme-mocha
 papirus-icon-theme
 bibata-cursor-theme
+python-pywal16
+matugen-bin
+python-materialyoucolor
+
+# --- Applications ---
+brave-bin
+google-chrome
+firefox-developer-edition-bin
+discord-canary
+telegram-desktop-bin
+spotify
+obsidian-bin
+notion-app-enhanced
 
 # --- Gaming ---
 steam|gaming
 lutris|gaming
 heroic-games-launcher-bin|gaming
+bottles|gaming
 vkbasalt|gaming
 lib32-vkbasalt|gaming
-proton-ge-custom|gaming
+proton-ge-custom-bin|gaming
 dxvk-bin|gaming
-vesktop|gaming
 protontricks|gaming
-goverlay|gaming
+goverlay-bin|gaming
+mangohud-git|gaming
+gamemode-git|gaming
 
 # --- Multimedia ---
 obs-studio-git
 davinci-resolve
+vlc-git
+mpv-git
+gimp-git
 
 # --- Productivity ---
-notion-app
-obsidian
-todoist-nativefier
+ulauncher
+albert
+rofi-git
+dmenu-git
 
-# --- Laptop Specific ---
-batsignal|laptop
+# --- Development ---
+postman-bin
+insomnia-bin
+docker-desktop
+jetbrains-toolbox

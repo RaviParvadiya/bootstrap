@@ -14,9 +14,13 @@ tree
 unzip
 zip
 software-properties-common
+apt-transport-https
+ca-certificates
+gnupg
+lsb-release
+build-essential
 
 # --- Development Tools ---
-build-essential
 gcc
 make
 cmake
@@ -24,15 +28,19 @@ nodejs
 npm
 python3
 python3-pip
-apt:rustc
-apt:golang-go
+python3-venv
+rustc
+golang-go
+gdb
+strace
+valgrind
 
 # --- Terminal and Shell ---
 zsh
 fish
 tmux
-apt:alacritty
-apt:kitty
+alacritty
+kitty-terminfo
 
 # --- Wayland and Graphics ---
 wayland-protocols
@@ -40,12 +48,69 @@ libwayland-dev
 libwayland-client0
 libwayland-cursor0
 libwayland-server0
+libxkbcommon-dev
+libinput-dev
+libdrm-dev
+libegl1-mesa-dev
+libgles2-mesa-dev
+
+# --- Hyprland Build Dependencies ---
+meson
+cmake
+libwayland-dev
+libxkbcommon-dev
+libinput-dev
+libdrm-dev
+libegl1-mesa-dev
+libgles2-mesa-dev
+libpixman-1-dev
+libseat-dev
+libxcb-dri3-dev
+libxcb-present-dev
+libxcb-composite0-dev
+libxcb-ewmh-dev
+libxcb-icccm4-dev
+libxcb-res0-dev
+libxcb-xinput-dev
+libtomlplusplus-dev
+libzip-dev
+librsvg2-dev
+libmagic-dev
+
+# --- Audio ---
+pipewire
+wireplumber
+pipewire-alsa
+pipewire-pulse
+pipewire-jack
+pavucontrol
+alsa-utils
 
 # --- Multimedia ---
-apt:gimp
-apt:vlc
-apt:ffmpeg
-apt:imagemagick
+gimp
+vlc
+ffmpeg
+imagemagick
+gstreamer1.0-plugins-base
+gstreamer1.0-plugins-good
+gstreamer1.0-plugins-bad
+gstreamer1.0-plugins-ugly
+
+# --- System Utilities ---
+systemd
+ufw
+bluez
+blueman
+network-manager
+network-manager-gnome
+polkit-gnome
+gnome-keyring
+
+# --- Fonts ---
+fonts-noto
+fonts-noto-color-emoji
+fonts-liberation
+fonts-dejavu-core
 
 # --- Snap Packages ---
 snap:code
@@ -56,10 +121,26 @@ snap:firefox
 flatpak:org.mozilla.firefox
 flatpak:com.discordapp.Discord
 flatpak:org.gimp.GIMP
+flatpak:org.videolan.VLC
 
 # --- Hardware Specific ---
-apt:nvidia-driver-535|nvidia
+nvidia-driver-535|nvidia
+nvidia-settings|nvidia
+nvidia-utils-535|nvidia
+
+# --- Gaming ---
+steam|gaming
+lutris|gaming
+wine|gaming
+winetricks|gaming
+
+# --- Laptop Specific ---
+tlp|laptop
+tlp-rdw|laptop
+acpi-support|laptop
+laptop-mode-tools|laptop
 
 # --- Virtual Machine ---
-apt:qemu-guest-agent|vm
-apt:spice-vdagent|vm
+qemu-guest-agent|vm
+spice-vdagent|vm
+open-vm-tools|vm

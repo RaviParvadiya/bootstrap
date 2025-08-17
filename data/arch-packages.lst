@@ -15,30 +15,28 @@ zip
 os-prober
 pacman-contrib
 reflector
-man
+man-db
 bc
 cpio
 meson
 cmake
 pkgconf
 fzf
+bat
+fd
+ripgrep
+eza
 zoxide
-zenity
-baobab
-gnome-font-viewer
-ttf-ubuntu-font-family
-python-pillow
-python-scikit-learn
-python-numpy
-qt6-5compat
-qt6-declarative
-qt6-svg
-qt6-virtualkeyboard
-qt6-multimedia-ffmpeg
-adw-gtk-theme
-libadwaita
-gdb
-refind
+base
+base-devel
+linux
+linux-headers
+linux-firmware
+sudo
+which
+less
+gzip
+tar
 
 # --- Development Tools ---
 gcc
@@ -51,14 +49,19 @@ python-pip
 rust
 go
 python-pipx
+git
+gdb
+strace
+valgrind
 
 # --- Terminal and Shell ---
 zsh
 kitty
-micro
+alacritty
+tmux
+starship
 wl-clipboard
-ttf-firacode-nerd
-ttf-meslo-nerd
+xclip
 
 # --- Window Manager (Wayland) ---
 hyprland

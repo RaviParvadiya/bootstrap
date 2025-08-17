@@ -1,199 +1,193 @@
 # Package Management System
 
-This document describes the modular package management system that has been extracted and enhanced from the original install.sh.
+The modular install framework includes a comprehensive package management system that handles structured package lists with support for comments, sections, conditional installation, and multiple package sources.
 
-## Overview
+## Features
 
-The package management system has been completely modularized and now supports:
+- **Structured Package Lists**: Support for organized package lists with sections and comments
+- **Conditional Installation**: Install packages based on system capabilities (GPU, laptop, VM, etc.)
+- **Multiple Sources**: Support for different package managers (pacman, AUR, apt, snap, flatpak)
+- **Cross-Distribution**: Works with both Arch Linux and Ubuntu
+- **Validation**: Built-in validation for package list syntax and structure
+- **Caching**: Intelligent caching of condition evaluations for performance
 
-- **Structured package lists** in data files instead of hardcoded arrays
-- **Conditional package installation** based on hardware and user preferences
-- **Automatic hardware detection** for GPU types, laptop/desktop, VM detection
-- **AUR helper management** with automatic installation and setup
-- **Chaotic-AUR repository** setup and configuration
-- **Enhanced pacman configuration** for better performance
+## Package List Format
+
+### Basic Format
+```
+# Comments start with hash
+package_name
+package_name|condition
+source:package_name
+source:package_name|condition
+```
+
+### Sections
+```
+# --- Section Name ---
+package1
+package2
+package3
+```
+
+### Sources
+- `apt:package` - APT package (Ubuntu default)
+- `snap:package` - Snap package
+- `flatpak:package` - Flatpak package
+- `aur:package` - AUR package (Arch only)
+- No prefix defaults to distribution's primary package manager
+
+### Conditions
+- `nvidia` - NVIDIA GPU detected
+- `amd` - AMD GPU detected
+- `gaming` - Gaming packages (user prompt in interactive mode)
+- `laptop` - Laptop hardware detected
+- `vm` - Virtual machine environment
+- `asus` - ASUS hardware detected
 
 ## File Structure
 
 ```
 data/
-├── arch-packages.lst      # Official Arch packages
-├── aur-packages.lst       # AUR packages
-├── ubuntu-packages.lst    # Ubuntu packages
-└── component-deps.json    # Component dependency mapping
-
-distros/arch/
-├── packages.sh           # Package installation logic
-├── repositories.sh       # Repository management
-└── arch-main.sh         # Main orchestrator
+├── arch-packages.lst     # Arch Linux packages (pacman)
+├── ubuntu-packages.lst   # Ubuntu packages (apt/snap/flatpak)
+├── aur-packages.lst      # AUR packages (Arch only)
+├── component-deps.json   # Component dependency mapping
+└── hardware-profiles.json # Hardware-specific configurations
 ```
 
-## Package List Format
+## API Functions
 
-Package lists use a simple text format with conditional support:
+### Core Functions
 
-```bash
-# Comments start with #
-# Empty lines are ignored
+#### `init_package_manager()`
+Initialize the package management system and clear caches.
 
-# --- Section Headers ---
-git
-curl
-wget
+#### `parse_package_list(file_path, [condition_filter])`
+Parse a package list file and return structured package entries.
 
-# Conditional packages (package|condition)
-nvidia-dkms|nvidia
-steam|gaming
-batsignal|laptop
-```
+#### `check_package_condition(condition)`
+Evaluate whether a package condition is met on the current system.
 
-### Supported Conditions
+### Package Retrieval
 
-- `nvidia` - NVIDIA GPU detected
-- `amd` - AMD GPU detected  
-- `intel` - Intel GPU detected
-- `gaming` - User selected gaming packages
-- `laptop` - Laptop hardware detected
-- `vm` - Virtual machine detected
-- `asus` - ASUS hardware detected
+#### `get_packages_for_distro(distro, [condition_filter])`
+Get all packages for a specific distribution.
 
-## Key Functions
+#### `get_packages_by_source(distro, source, [condition_filter])`
+Get packages filtered by source (apt, snap, aur, etc.).
 
-### Package Installation
+#### `get_packages_by_section(distro, section, [condition_filter])`
+Get packages filtered by section name.
 
-```bash
-# Install from package list with conditions
-arch_install_from_package_list "data/arch-packages.lst" "pacman" "nvidia,gaming"
+### Installation
 
-# Install by category with auto-detection
-arch_install_packages_auto "all" "gaming"
+#### `install_packages_from_list(distro, source, packages...)`
+Install packages using the appropriate package manager.
 
-# Install specific package types
-arch_install_pacman_packages "git" "curl" "wget"
-arch_install_aur_packages "yay" "visual-studio-code-bin"
-```
+#### `install_all_packages(distro, [condition_filter])`
+Install all packages for a distribution with optional filtering.
 
-### Repository Management
+### Utilities
 
-```bash
-# Setup all repositories (multilib + chaotic-aur)
-arch_setup_repositories
+#### `list_packages(distro, [source], [section], [condition_filter])`
+List available packages with optional filtering.
 
-# Individual repository functions
-arch_enable_multilib
-arch_setup_chaotic_aur
-arch_update_package_database
-```
-
-### System Configuration
-
-```bash
-# Complete system setup
-arch_setup_system
-
-# Individual configuration functions
-arch_configure_pacman      # Enable colors, parallel downloads
-arch_configure_makepkg     # Faster compression
-arch_setup_reflector       # Mirror management
-arch_enable_trim          # SSD optimization
-```
-
-### Hardware Detection
-
-```bash
-# GPU detection
-arch_has_nvidia_gpu
-arch_has_amd_gpu
-arch_has_intel_gpu
-
-# System type detection
-arch_is_laptop
-arch_is_vm
-arch_is_asus_hardware
-```
-
-## Migration from Original install.sh
-
-The following functionality has been extracted and modularized:
-
-### ✅ Completed
-
-1. **Package Arrays** → Structured data files (`data/*.lst`)
-2. **AUR Helper Installation** → `arch_ensure_aur_helper()`
-3. **Chaotic-AUR Setup** → `arch_setup_chaotic_aur()`
-4. **Pacman Configuration** → `arch_configure_pacman()`
-5. **Makepkg Optimization** → `arch_configure_makepkg()`
-6. **Hardware Detection** → Hardware detection functions
-7. **Conditional Installation** → Condition-based package filtering
-
-### Original Package Arrays Migrated
-
-- `PACKAGES` array → `data/arch-packages.lst`
-- `YAY_PACKAGES` array → `data/aur-packages.lst`  
-- `GAMING_PACKAGES` array → Gaming section in package lists
-- `GAMING_PACKAGES_YAY` array → Gaming section in AUR packages
-
-### Enhanced Features
-
-- **Auto-detection**: Automatically detects hardware and system type
-- **Dry-run support**: Test installations without making changes
-- **Better error handling**: Graceful failure handling and recovery
-- **Modular design**: Easy to extend with new distributions or package types
-- **Comprehensive logging**: Detailed logging of all operations
+#### `validate_package_lists()`
+Validate all package list files for syntax errors.
 
 ## Usage Examples
 
-### Basic Installation
-
+### Basic Usage
 ```bash
-# Install all packages with auto-detection
-arch_install_packages_auto "all"
+# Source the package manager
+source core/package-manager.sh
 
-# Install with specific preferences
-arch_install_packages_auto "all" "gaming,laptop"
+# Initialize
+init_package_manager
+
+# Get all Arch packages
+get_packages_for_distro "arch"
+
+# Get only AUR packages
+get_packages_by_source "arch" "aur"
+
+# Install packages (dry-run mode)
+DRY_RUN=true install_all_packages "arch"
 ```
 
-### Custom Installation
-
+### Conditional Installation
 ```bash
-# Setup system configuration
-arch_setup_system
+# Install only NVIDIA-related packages
+get_packages_for_distro "arch" "nvidia"
 
-# Setup repositories
-arch_setup_repositories
-
-# Install base packages
-arch_install_packages_by_category "base" "nvidia"
-
-# Install AUR packages
-arch_install_packages_by_category "aur" "gaming"
+# Install gaming packages (will prompt user)
+get_packages_for_distro "arch" "gaming"
 ```
 
-### Testing
+### Cross-Distribution
+```bash
+# Ubuntu APT packages
+get_packages_by_source "ubuntu" "apt"
+
+# Ubuntu Snap packages
+get_packages_by_source "ubuntu" "snap"
+
+# Ubuntu Flatpak packages
+get_packages_by_source "ubuntu" "flatpak"
+```
+
+## Testing
+
+The package management system includes comprehensive tests:
 
 ```bash
-# Run in dry-run mode
-export DRY_RUN=true
-arch_install_packages_auto "all" "gaming"
-
-# Run package management tests
+# Run all tests
 ./tests/test-package-management.sh
+
+# Run specific test suites
+./tests/test-package-management.sh parsing
+./tests/test-package-management.sh conditions
+./tests/test-package-management.sh filtering
+./tests/test-package-management.sh validation
 ```
 
-## Benefits
+## Integration
 
-1. **Maintainability**: Package lists are now in separate, editable files
-2. **Flexibility**: Easy to add new packages or conditions
-3. **Testability**: Comprehensive test suite and dry-run support
-4. **Modularity**: Each function has a single responsibility
-5. **Extensibility**: Easy to add support for new distributions
-6. **Safety**: Backup creation and rollback capabilities
-7. **Performance**: Optimized pacman and makepkg configurations
+The package management system integrates with:
 
-## Future Enhancements
+- **Distribution Handlers**: `distros/arch/` and `distros/ubuntu/`
+- **Component System**: Maps components to required packages
+- **Hardware Detection**: Automatically detects system capabilities
+- **Logging System**: Comprehensive logging and error handling
 
-- Support for additional package managers (flatpak, snap)
-- Package dependency resolution and conflict detection
-- Package installation prioritization and ordering
-- Integration with component-specific package requirements
-- Package update and maintenance utilities
+## Configuration
+
+### Environment Variables
+- `DRY_RUN`: Enable dry-run mode (default: false)
+- `VM_MODE`: Enable VM mode (default: false)
+- `VERBOSE`: Enable verbose logging (default: false)
+- `SCRIPT_DIR`: Project root directory (auto-detected)
+
+### Customization
+- Add new conditions in `check_package_condition()`
+- Add new package sources in `install_packages_from_list()`
+- Modify package lists in `data/` directory
+- Update hardware profiles in `data/hardware-profiles.json`
+
+## Error Handling
+
+The system includes robust error handling:
+
+- **File Validation**: Checks for missing or unreadable files
+- **Syntax Validation**: Validates package list format
+- **Condition Evaluation**: Safe evaluation of system conditions
+- **Package Installation**: Graceful handling of installation failures
+- **Logging**: Comprehensive error logging and user feedback
+
+## Performance
+
+- **Caching**: Condition evaluations are cached for performance
+- **Lazy Loading**: Package lists are parsed on-demand
+- **Parallel Processing**: Support for parallel package installation
+- **Memory Efficient**: Streams large package lists instead of loading entirely into memory

@@ -6,8 +6,13 @@
 # interactive prompts, and system validation.
 
 # Global variables
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Set SCRIPT_DIR to project root if not already set
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    # When sourced from core/, get the parent directory (project root)
+    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SCRIPT_DIR="$(dirname "$core_dir")"
+fi
+PROJECT_ROOT="$SCRIPT_DIR"
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 
