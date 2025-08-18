@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Arch Linux Service Management
-# Handles systemd service configuration without auto-enabling
+# Ubuntu Service Management
+# Handles systemd service configuration for Ubuntu without auto-enabling
 # Requirements: 3.1, 3.2, 3.3, 3.4 - Service management with no-auto-start policy
 
 # Source core utilities
@@ -9,77 +9,79 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/service-manager.sh"
 
+#######################################
+# Ubuntu Service Configuration
+#######################################
+
 # Configure services for installed components (but don't enable them)
+# Arguments: Array of installed components
 # Requirements: 3.1 - Service management functions that respect no-auto-start requirement
-arch_configure_services() {
+ubuntu_configure_services() {
     local components=("$@")
     
-    log_info "Configuring Arch Linux services for installed components..."
+    log_info "Configuring Ubuntu services for installed components..."
     
     # Initialize service registry
     init_service_registry
     
     # Configure services for each component
     for component in "${components[@]}"; do
-        arch_configure_component_services "$component"
+        ubuntu_configure_component_services "$component"
     done
     
-    # Configure system-wide services
-    arch_configure_system_services
+    # Configure system-wide services that might be needed
+    ubuntu_configure_system_services
     
     # Show available services summary
-    arch_show_service_summary "${components[@]}"
+    ubuntu_show_service_summary "${components[@]}"
     
-    log_success "Arch Linux service configuration completed"
+    log_success "Ubuntu service configuration completed"
 }
 
 # Configure services for a specific component
 # Arguments: $1=component_name
-arch_configure_component_services() {
+ubuntu_configure_component_services() {
     local component="$1"
     
-    log_info "Configuring Arch Linux services for component: $component"
+    log_info "Configuring Ubuntu services for component: $component"
     
     case "$component" in
         "hyprland"|"wm")
-            arch_configure_wayland_services "$component"
+            ubuntu_configure_wayland_services "$component"
             ;;
         "docker")
-            arch_configure_docker_service "$component"
+            ubuntu_configure_docker_service "$component"
             ;;
         "bluetooth")
-            arch_configure_bluetooth_service "$component"
+            ubuntu_configure_bluetooth_service "$component"
             ;;
         "networkmanager")
-            arch_configure_networkmanager_service "$component"
+            ubuntu_configure_networkmanager_service "$component"
             ;;
-        "sshd"|"ssh")
-            arch_configure_ssh_service "$component"
+        "ssh"|"sshd")
+            ubuntu_configure_ssh_service "$component"
             ;;
         "cups"|"printing")
-            arch_configure_printing_service "$component"
+            ubuntu_configure_printing_service "$component"
             ;;
         "firewall")
-            arch_configure_firewall_service "$component"
-            ;;
-        "timesyncd")
-            arch_configure_time_service "$component"
+            ubuntu_configure_firewall_service "$component"
             ;;
         "audio"|"pipewire"|"pulseaudio")
-            arch_configure_audio_services "$component"
+            ubuntu_configure_audio_services "$component"
             ;;
         "display")
-            arch_configure_display_manager_services "$component"
+            ubuntu_configure_display_manager_services "$component"
             ;;
         *)
-            log_debug "No specific service configuration for Arch component: $component"
+            log_debug "No specific service configuration for Ubuntu component: $component"
             ;;
     esac
 }
 
 # Configure system-wide services
-arch_configure_system_services() {
-    log_info "Configuring Arch Linux system services..."
+ubuntu_configure_system_services() {
+    log_info "Configuring Ubuntu system services..."
     
     # Time synchronization
     if is_service_available "systemd-timesyncd"; then
@@ -92,21 +94,25 @@ arch_configure_system_services() {
     fi
     
     # System logging
-    if is_service_available "systemd-journald"; then
-        register_service "systemd-journald" "System logging service" "required" "system" "conditional"
+    if is_service_available "rsyslog"; then
+        register_service "rsyslog" "System logging service" "recommended" "system" "conditional"
     fi
     
-    # Package cache cleanup
-    if is_service_available "paccache.timer"; then
-        register_service "paccache.timer" "Automatic package cache cleanup" "optional" "system" "never"
+    # Automatic updates (usually disabled by default, which is good)
+    if is_service_available "unattended-upgrades"; then
+        register_service "unattended-upgrades" "Automatic security updates" "optional" "system" "never"
     fi
 }
 
+#######################################
+# Component-Specific Service Configuration
+#######################################
+
 # Configure Wayland/Hyprland services
-arch_configure_wayland_services() {
+ubuntu_configure_wayland_services() {
     local component="$1"
     
-    log_info "Configuring Wayland services for Arch Linux..."
+    log_info "Configuring Wayland services for Ubuntu..."
     
     # XDG Desktop Portal
     if is_service_available "xdg-desktop-portal"; then
@@ -130,10 +136,10 @@ arch_configure_wayland_services() {
 }
 
 # Configure Docker service
-arch_configure_docker_service() {
+ubuntu_configure_docker_service() {
     local component="$1"
     
-    log_info "Configuring Docker service for Arch Linux..."
+    log_info "Configuring Docker service for Ubuntu..."
     
     if is_service_available "docker"; then
         register_service "docker" "Docker container runtime" "optional" "$component" "never"
@@ -153,13 +159,18 @@ arch_configure_docker_service() {
 }
 
 # Configure Bluetooth service
-arch_configure_bluetooth_service() {
+ubuntu_configure_bluetooth_service() {
     local component="$1"
     
-    log_info "Configuring Bluetooth service for Arch Linux..."
+    log_info "Configuring Bluetooth service for Ubuntu..."
     
     if is_service_available "bluetooth"; then
         register_service "bluetooth" "Bluetooth connectivity" "optional" "$component" "never"
+        
+        # Add user to bluetooth group if it exists
+        if getent group bluetooth >/dev/null 2>&1; then
+            add_user_to_groups "bluetooth"
+        fi
         
         log_info "Bluetooth service registered but not enabled"
         log_info "To use Bluetooth, enable the service manually:"
@@ -168,16 +179,17 @@ arch_configure_bluetooth_service() {
 }
 
 # Configure NetworkManager service
-arch_configure_networkmanager_service() {
+ubuntu_configure_networkmanager_service() {
     local component="$1"
     
-    log_info "Configuring NetworkManager service for Arch Linux..."
+    log_info "Configuring NetworkManager service for Ubuntu..."
     
     if is_service_available "NetworkManager"; then
+        # NetworkManager is usually enabled by default on Ubuntu, but we register it
         register_service "NetworkManager" "Network connection management" "recommended" "$component" "conditional"
         
         log_info "NetworkManager service registered"
-        log_info "Note: NetworkManager may need to be enabled for network connectivity"
+        log_info "Note: NetworkManager is typically enabled by default on Ubuntu"
     fi
     
     # Network-related services
@@ -191,26 +203,26 @@ arch_configure_networkmanager_service() {
 }
 
 # Configure SSH service
-arch_configure_ssh_service() {
+ubuntu_configure_ssh_service() {
     local component="$1"
     
-    log_info "Configuring SSH service for Arch Linux..."
+    log_info "Configuring SSH service for Ubuntu..."
     
-    if is_service_available "sshd"; then
-        register_service "sshd" "SSH server for remote access" "optional" "$component" "never"
+    if is_service_available "ssh"; then
+        register_service "ssh" "SSH server for remote access" "optional" "$component" "never"
         
         # Configure SSH security settings
-        arch_configure_ssh_security
+        ubuntu_configure_ssh_security
         
         log_info "SSH service registered but not enabled"
         log_info "To enable SSH access, start the service manually:"
-        log_info "  sudo systemctl enable sshd"
-        log_info "  sudo systemctl start sshd"
+        log_info "  sudo systemctl enable ssh"
+        log_info "  sudo systemctl start ssh"
     fi
 }
 
 # Configure SSH security settings
-arch_configure_ssh_security() {
+ubuntu_configure_ssh_security() {
     local sshd_config="/etc/ssh/sshd_config"
     
     if [[ ! -f "$sshd_config" ]]; then
@@ -239,7 +251,7 @@ arch_configure_ssh_security() {
         changes_made=true
     fi
     
-    # Configure password authentication
+    # Configure password authentication (keep enabled for Ubuntu)
     if ! grep -q "^PasswordAuthentication yes" "$sshd_config"; then
         sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' "$sshd_config"
         changes_made=true
@@ -260,16 +272,16 @@ arch_configure_ssh_security() {
 }
 
 # Configure printing service
-arch_configure_printing_service() {
+ubuntu_configure_printing_service() {
     local component="$1"
     
-    log_info "Configuring printing service for Arch Linux..."
+    log_info "Configuring printing service for Ubuntu..."
     
     if is_service_available "cups"; then
         register_service "cups" "Common Unix Printing System" "optional" "$component" "never"
         
-        # Add user to lp group for printer access
-        add_user_to_groups "lp"
+        # Add user to lpadmin group for printer management
+        add_user_to_groups "lpadmin"
         
         log_info "CUPS printing service registered but not enabled"
         log_info "To enable printing, start CUPS manually:"
@@ -283,12 +295,12 @@ arch_configure_printing_service() {
 }
 
 # Configure firewall service
-arch_configure_firewall_service() {
+ubuntu_configure_firewall_service() {
     local component="$1"
     
-    log_info "Configuring firewall service for Arch Linux..."
+    log_info "Configuring firewall service for Ubuntu..."
     
-    # UFW (Uncomplicated Firewall)
+    # UFW (Uncomplicated Firewall) - Ubuntu's default
     if is_service_available "ufw"; then
         register_service "ufw" "Uncomplicated Firewall" "recommended" "$component" "never"
         
@@ -303,41 +315,17 @@ arch_configure_firewall_service() {
         register_service "firewalld" "Dynamic firewall management" "optional" "$component" "never"
     fi
     
-    # iptables services
-    if is_service_available "iptables"; then
-        register_service "iptables" "Netfilter iptables" "optional" "$component" "never"
-    fi
-}
-
-# Configure time synchronization service
-arch_configure_time_service() {
-    local component="$1"
-    
-    log_info "Configuring time synchronization service for Arch Linux..."
-    
-    if is_service_available "systemd-timesyncd"; then
-        register_service "systemd-timesyncd" "Network time synchronization" "recommended" "$component" "conditional"
-        
-        log_info "Time synchronization service registered"
-        log_info "Note: systemd-timesyncd is usually enabled by default"
-    fi
-    
-    # Alternative: chrony
-    if is_service_available "chronyd"; then
-        register_service "chronyd" "Chrony NTP daemon" "optional" "$component" "never"
-    fi
-    
-    # Alternative: ntpd
-    if is_service_available "ntpd"; then
-        register_service "ntpd" "Network Time Protocol daemon" "optional" "$component" "never"
+    # iptables-persistent for custom rules
+    if is_service_available "netfilter-persistent"; then
+        register_service "netfilter-persistent" "Persistent iptables rules" "optional" "$component" "never"
     fi
 }
 
 # Configure audio services
-arch_configure_audio_services() {
+ubuntu_configure_audio_services() {
     local component="$1"
     
-    log_info "Configuring audio services for Arch Linux..."
+    log_info "Configuring audio services for Ubuntu..."
     
     # PipeWire (modern audio system)
     if is_service_available "pipewire"; then
@@ -367,14 +355,14 @@ arch_configure_audio_services() {
 }
 
 # Configure display manager services
-arch_configure_display_manager_services() {
+ubuntu_configure_display_manager_services() {
     local component="$1"
     
-    log_info "Configuring display manager services for Arch Linux..."
+    log_info "Configuring display manager services for Ubuntu..."
     
     # GDM (GNOME Display Manager)
-    if is_service_available "gdm"; then
-        register_service "gdm" "GNOME Display Manager" "optional" "$component" "never"
+    if is_service_available "gdm3"; then
+        register_service "gdm3" "GNOME Display Manager" "optional" "$component" "never"
     fi
     
     # LightDM (lightweight display manager)
@@ -387,25 +375,20 @@ arch_configure_display_manager_services() {
         register_service "sddm" "Simple Desktop Display Manager" "optional" "$component" "never"
     fi
     
-    # Ly (TUI display manager)
-    if is_service_available "ly"; then
-        register_service "ly" "TUI Display Manager" "optional" "$component" "never"
-    fi
-    
     log_info "Display manager services registered but not enabled"
     log_info "Note: Only enable one display manager at a time"
     log_info "For Hyprland, you can start it directly from TTY without a display manager"
 }
 
 #######################################
-# Arch Service Management Utilities
+# Ubuntu Service Management Utilities
 #######################################
 
-# Show Arch service summary
-arch_show_service_summary() {
+# Show Ubuntu service summary
+ubuntu_show_service_summary() {
     local components=("$@")
     
-    log_info "=== Arch Linux Service Configuration Summary ==="
+    log_info "=== Ubuntu Service Configuration Summary ==="
     log_info ""
     log_info "Configured components: ${components[*]}"
     log_info ""
@@ -413,13 +396,13 @@ arch_show_service_summary() {
     # Show service status
     show_service_status
     
-    log_info "Arch Linux Service Management Notes:"
+    log_info "Ubuntu Service Management Notes:"
     log_info "• Services are configured but NOT automatically enabled"
-    log_info "• This follows the Arch philosophy of manual system control"
+    log_info "• This follows the principle of manual service control"
     log_info "• Enable only the services you actually need"
-    log_info "• Some services may be required for basic functionality"
+    log_info "• Some services (like NetworkManager) may already be enabled by Ubuntu"
     log_info ""
-    log_info "Common Arch service commands:"
+    log_info "Common Ubuntu service commands:"
     log_info "  sudo systemctl enable <service>   # Enable service to start at boot"
     log_info "  sudo systemctl start <service>    # Start service now"
     log_info "  sudo systemctl status <service>   # Check service status"
@@ -428,8 +411,8 @@ arch_show_service_summary() {
     log_info ""
 }
 
-# Check Arch-specific service dependencies
-arch_check_service_dependencies() {
+# Check Ubuntu-specific service dependencies
+ubuntu_check_service_dependencies() {
     local service_name="$1"
     
     case "$service_name" in
@@ -457,30 +440,30 @@ arch_check_service_dependencies() {
     esac
 }
 
-# Enable Arch service with dependency checking
-arch_enable_service_with_deps() {
+# Enable Ubuntu service with dependency checking
+ubuntu_enable_service_with_deps() {
     local service_name="$1"
     local auto_start="${2:-false}"
     
-    log_info "Enabling Arch service with dependency checking: $service_name"
+    log_info "Enabling Ubuntu service with dependency checking: $service_name"
     
     # Check dependencies first
-    arch_check_service_dependencies "$service_name"
+    ubuntu_check_service_dependencies "$service_name"
     
     # Enable the service
     enable_service_manual "$service_name" "$auto_start"
 }
 
-# Show Arch system integration status
-arch_show_system_integration() {
-    log_info "=== Arch Linux System Integration Status ==="
+# Show Ubuntu system integration status
+ubuntu_show_system_integration() {
+    log_info "=== Ubuntu System Integration Status ==="
     log_info ""
     
     # Show general system integration
     show_system_integration_status
     
-    # Arch-specific integration checks
-    log_info "Arch-Specific Integration:"
+    # Ubuntu-specific integration checks
+    log_info "Ubuntu-Specific Integration:"
     
     # Check if running Wayland
     if [[ "$XDG_SESSION_TYPE" == "wayland" ]]; then
@@ -502,7 +485,7 @@ arch_show_system_integration() {
     local user_groups
     user_groups=$(groups "$current_user")
     
-    local important_groups=("wheel" "video" "audio" "input" "render" "docker" "lp")
+    local important_groups=("video" "audio" "input" "render" "docker" "lpadmin")
     for group in "${important_groups[@]}"; do
         if echo "$user_groups" | grep -q "\b$group\b"; then
             log_info "  ✓ User in group: $group"
@@ -516,43 +499,21 @@ arch_show_system_integration() {
     log_info ""
 }
 
-# Legacy function aliases for backward compatibility
-arch_enable_service() {
-    enable_service_manual "$@"
-}
-
-arch_disable_service() {
-    disable_service_manual "$@"
-}
-
-arch_get_service_status() {
-    get_service_status "$@"
-}
-
-arch_list_all_services() {
-    list_all_system_services
-}
-
-# Export Arch service functions
-export -f arch_configure_services
-export -f arch_configure_component_services
-export -f arch_configure_system_services
-export -f arch_configure_wayland_services
-export -f arch_configure_docker_service
-export -f arch_configure_bluetooth_service
-export -f arch_configure_networkmanager_service
-export -f arch_configure_ssh_service
-export -f arch_configure_ssh_security
-export -f arch_configure_printing_service
-export -f arch_configure_firewall_service
-export -f arch_configure_time_service
-export -f arch_configure_audio_services
-export -f arch_configure_display_manager_services
-export -f arch_show_service_summary
-export -f arch_check_service_dependencies
-export -f arch_enable_service_with_deps
-export -f arch_show_system_integration
-export -f arch_enable_service
-export -f arch_disable_service
-export -f arch_get_service_status
-export -f arch_list_all_services
+# Export Ubuntu service functions
+export -f ubuntu_configure_services
+export -f ubuntu_configure_component_services
+export -f ubuntu_configure_system_services
+export -f ubuntu_configure_wayland_services
+export -f ubuntu_configure_docker_service
+export -f ubuntu_configure_bluetooth_service
+export -f ubuntu_configure_networkmanager_service
+export -f ubuntu_configure_ssh_service
+export -f ubuntu_configure_ssh_security
+export -f ubuntu_configure_printing_service
+export -f ubuntu_configure_firewall_service
+export -f ubuntu_configure_audio_services
+export -f ubuntu_configure_display_manager_services
+export -f ubuntu_show_service_summary
+export -f ubuntu_check_service_dependencies
+export -f ubuntu_enable_service_with_deps
+export -f ubuntu_show_system_integration

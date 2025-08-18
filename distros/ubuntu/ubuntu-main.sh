@@ -12,6 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/validator.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/repositories.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/hyprland.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/services.sh"
 
 # Main Ubuntu installation orchestrator
 ubuntu_main_install() {
@@ -255,43 +256,7 @@ ubuntu_install_component_packages() {
     return $([[ "$install_success" == "true" ]] && echo 0 || echo 1)
 }
 
-# Configure services without enabling them
-ubuntu_configure_services() {
-    local installed_components=("$@")
-    
-    log_info "Configuring services (without auto-enabling)..."
-    
-    # List of services that might be installed with components
-    local potential_services=(
-        "gdm3"
-        "lightdm"
-        "sddm"
-        "docker"
-        "bluetooth"
-        "cups"
-        "NetworkManager"
-    )
-    
-    local available_services=()
-    
-    # Check which services are available
-    for service in "${potential_services[@]}"; do
-        if systemctl list-unit-files "$service.service" >/dev/null 2>&1; then
-            available_services+=("$service")
-        fi
-    done
-    
-    if [[ ${#available_services[@]} -gt 0 ]]; then
-        log_info "Available services (not auto-enabled):"
-        for service in "${available_services[@]}"; do
-            local status
-            status=$(systemctl is-enabled "$service" 2>/dev/null || echo "disabled")
-            log_info "  - $service ($status)"
-        done
-        
-        log_info "To enable services manually, use: sudo systemctl enable <service>"
-    fi
-}
+
 
 # Show installation summary
 ubuntu_show_installation_summary() {
