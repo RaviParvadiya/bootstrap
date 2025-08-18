@@ -95,20 +95,36 @@ create_checkpoint() {
     local modified_configs
     
     # Get installed packages (simplified for checkpoint)
-    case "$(get_distro)" in
-        "arch")
-            installed_packages=$(pacman -Qq 2>/dev/null | head -20 | jq -R . | jq -s .)
-            ;;
-        "ubuntu")
-            installed_packages=$(dpkg --get-selections | grep -v deinstall | cut -f1 | head -20 | jq -R . | jq -s .)
-            ;;
-        *)
-            installed_packages="[]"
-            ;;
-    esac
+    local installed_packages="[]"
+    if command -v jq >/dev/null 2>&1; then
+        case "$(get_distro)" in
+            "arch")
+                if command -v pacman >/dev/null 2>&1; then
+                    installed_packages=$(pacman -Qq 2>/dev/null | head -20 | jq -R . | jq -s . 2>/dev/null || echo "[]")
+                fi
+                ;;
+            "ubuntu")
+                if command -v dpkg >/dev/null 2>&1; then
+                    installed_packages=$(dpkg --get-selections 2>/dev/null | grep -v deinstall | cut -f1 | head -20 | jq -R . | jq -s . 2>/dev/null || echo "[]")
+                fi
+                ;;
+        esac
+    fi
     
     # Get enabled services
-    enabled_services=$(systemctl list-unit-files --state=enabled --type=service --no-legend --no-pager | cut -d' ' -f1 | head -10 | jq -R . | jq -s . 2>/dev/null || echo "[]")
+    local enabled_services="[]"
+    if command -v jq >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
+        enabled_services=$(systemctl list-unit-files --state=enabled --type=service --no-legend --no-pager 2>/dev/null | cut -d' ' -f1 | head -10 | jq -R . | jq -s . 2>/dev/null || echo "[]")
+    fi
+    
+    # Create checkpoint data (with fallback for missing tools)
+    local hostname_val="$(hostname 2>/dev/null || echo 'unknown')"
+    local user_val="$(whoami 2>/dev/null || echo 'unknown')"
+    local distro_val="$(get_distro 2>/dev/null || echo 'unknown')"
+    local distro_version_val="$(get_distro_version 2>/dev/null || echo 'unknown')"
+    local root_usage="$(df / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%' || echo '0')"
+    local home_usage="$(df "$HOME" 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%' || echo '0')"
+    local memory_usage="$(free 2>/dev/null | awk 'NR==2{printf "%.1f", $3*100/$2}' || echo '0')"
     
     # Create checkpoint data
     cat > "$checkpoint_file" << EOF
@@ -117,18 +133,18 @@ create_checkpoint() {
     "description": "$description",
     "timestamp": "$timestamp",
     "system_info": {
-        "hostname": "$(hostname)",
-        "user": "$(whoami)",
-        "distro": "$(get_distro)",
-        "distro_version": "$(get_distro_version)"
+        "hostname": "$hostname_val",
+        "user": "$user_val",
+        "distro": "$distro_val",
+        "distro_version": "$distro_version_val"
     },
     "packages": $installed_packages,
     "services": $enabled_services,
     "disk_usage": {
-        "root": "$(df / | awk 'NR==2 {print $5}' | tr -d '%')",
-        "home": "$(df "$HOME" | awk 'NR==2 {print $5}' | tr -d '%' 2>/dev/null || echo '0')"
+        "root": "$root_usage",
+        "home": "$home_usage"
     },
-    "memory_usage": "$(free | awk 'NR==2{printf "%.1f", $3*100/$2}')"
+    "memory_usage": "$memory_usage"
 }
 EOF
     
@@ -646,11 +662,11 @@ cleanup_old_checkpoints() {
         
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would remove old checkpoint: $(basename "$checkpoint_file")"
-            ((removed_count++))
+            removed_count=$((removed_count + 1))
         else
             if rm -f "$checkpoint_file"; then
                 log_info "Removed old checkpoint: $(basename "$checkpoint_file")"
-                ((removed_count++))
+                removed_count=$((removed_count + 1))
             fi
         fi
     done

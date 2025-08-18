@@ -64,19 +64,33 @@ VERBOSE=false
 SELECTED_COMPONENTS=()
 DETECTED_DISTRO=""
 
-# Source core utilities
-source "$CORE_DIR/common.sh"
-source "$CORE_DIR/logger.sh"
-source "$CORE_DIR/validator.sh"
-source "$CORE_DIR/menu.sh"
-source "$CORE_DIR/error-handler.sh"
-source "$CORE_DIR/error-wrappers.sh"
-source "$CORE_DIR/recovery-system.sh"
+# Source core utilities with error handling
+source_with_error_check() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        source "$file"
+    else
+        echo "ERROR: Required file not found: $file" >&2
+        exit 1
+    fi
+}
 
-# Source dry-run utilities if in dry-run mode
+source_with_error_check "$CORE_DIR/common.sh"
+source_with_error_check "$CORE_DIR/logger.sh"
+source_with_error_check "$CORE_DIR/validator.sh"
+source_with_error_check "$CORE_DIR/menu.sh"
+source_with_error_check "$CORE_DIR/error-handler.sh"
+source_with_error_check "$CORE_DIR/error-wrappers.sh"
+source_with_error_check "$CORE_DIR/recovery-system.sh"
+
+# Source additional utilities based on mode
 if [[ "$DRY_RUN" == "true" ]]; then
-    source "$TESTS_DIR/dry-run.sh"
+    source_with_error_check "$TESTS_DIR/dry-run.sh"
 fi
+
+# Source package manager utilities
+source_with_error_check "$CORE_DIR/package-manager.sh"
+source_with_error_check "$CORE_DIR/service-manager.sh"
 
 # Display usage information
 show_usage() {
@@ -99,6 +113,7 @@ COMMANDS:
     backup              Create system backup
     list                List available components
     dry-run             Run dry-run test mode
+    test                Run comprehensive integration tests
 
 EXAMPLES:
     $0                                  # Interactive installation
@@ -106,6 +121,8 @@ EXAMPLES:
     $0 --components terminal,shell      # Install specific components
     $0 dry-run                         # Interactive dry-run mode
     $0 validate                        # Validate installation
+    $0 test                            # Run integration tests
+    $0 test --components terminal      # Test specific components
 
 EOF
 }
@@ -134,7 +151,7 @@ parse_arguments() {
                 IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
                 shift 2
                 ;;
-            install|restore|validate|backup|list|dry-run)
+            install|restore|validate|backup|list|dry-run|test)
                 COMMAND="$1"
                 shift
                 ;;
@@ -150,149 +167,478 @@ parse_arguments() {
     COMMAND="${COMMAND:-install}"
 }
 
-# Main installation orchestrator
+# Main installation orchestrator with comprehensive error handling
 main() {
-    # Initialize logging
+    local exit_code=0
+    
+    # Initialize logging first
     init_logger
     
-    # Initialize error handling system
-    init_error_handler
+    # Initialize error handling system with comprehensive configuration
+    init_error_handler "/tmp/modular-install-errors-$(date +%Y%m%d_%H%M%S).log"
+    set_error_recovery_mode "graceful"
+    set_rollback_enabled "true"
+    
+    # Initialize recovery system
     init_recovery_system
     
-    log_info "Starting Modular Install Framework"
+    # Create initial system checkpoint
+    create_checkpoint "system_start" "System state before installation"
     
-    # Parse command line arguments
-    parse_arguments "$@"
+    log_info "Starting Modular Install Framework v1.0"
+    log_info "Error handling: graceful recovery mode enabled"
+    log_info "Rollback system: enabled"
+    
+    # Parse command line arguments with error handling
+    if ! parse_arguments "$@"; then
+        handle_error "critical" "Failed to parse command line arguments" "argument_parsing"
+        cleanup_and_exit 1
+    fi
     
     # Set global flags and export for child processes
-    export DRY_RUN VERBOSE VM_MODE
+    export DRY_RUN VERBOSE VM_MODE COMMAND
     
+    # Initialize mode-specific systems
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Running in DRY-RUN mode - no changes will be made"
-        # Source dry-run utilities
-        source "$TESTS_DIR/dry-run.sh"
-        init_dry_run
-        enable_dry_run_overrides
+        # Source dry-run utilities if not already sourced
+        if [[ -f "$TESTS_DIR/dry-run.sh" ]]; then
+            source "$TESTS_DIR/dry-run.sh"
+            init_dry_run
+            enable_dry_run_overrides
+        else
+            handle_error "critical" "Dry-run utilities not found" "dry_run_init"
+            cleanup_and_exit 1
+        fi
     fi
     
     if [[ "$VM_MODE" == "true" ]]; then
         log_info "Running in VM mode - hardware-specific configs will be skipped"
+        # Detect VM environment for better hardware skipping
+        if [[ -f "$TESTS_DIR/vm-test.sh" ]]; then
+            source "$TESTS_DIR/vm-test.sh"
+            detect_vm_environment
+        fi
     fi
     
-    # Detect distribution first
+    # System detection and validation with error handling
+    push_error_context "system_detection" "Detecting and validating system"
+    
     log_info "Detecting Linux distribution..."
-    detect_distro
+    if ! detect_distro; then
+        handle_error "critical" "Failed to detect Linux distribution" "distro_detection"
+        cleanup_and_exit 1
+    fi
+    
     DETECTED_DISTRO=$(get_distro)
     if [[ -z "$DETECTED_DISTRO" ]]; then
-        log_error "Failed to detect Linux distribution"
-        exit 1
+        handle_error "critical" "Distribution detection returned empty result" "distro_detection"
+        cleanup_and_exit 1
     fi
-    log_info "Detected distribution: $DETECTED_DISTRO"
+    
+    log_info "Detected distribution: $DETECTED_DISTRO $(get_distro_version)"
     
     # Validate distribution support
     if ! validate_distro_support; then
-        log_error "Distribution not supported or validation failed"
-        exit 1
+        handle_error "critical" "Distribution not supported or validation failed" "distro_validation"
+        cleanup_and_exit 1
     fi
     
     # Validate system prerequisites
     log_info "Validating system requirements..."
-    validate_system || {
-        log_error "System validation failed"
-        exit 1
-    }
+    if ! validate_system; then
+        handle_error "critical" "System validation failed" "system_validation"
+        cleanup_and_exit 1
+    fi
     
-    # Execute command
+    pop_error_context
+    
+    # Execute command with comprehensive error handling
+    push_error_context "command_execution" "Executing command: $COMMAND"
+    
     case "$COMMAND" in
         install)
-            run_installation
+            if ! run_installation; then
+                exit_code=1
+            fi
             ;;
         restore)
-            run_restoration
+            if ! run_restoration; then
+                exit_code=1
+            fi
             ;;
         validate)
-            run_validation
+            if ! run_validation; then
+                exit_code=1
+            fi
             ;;
         backup)
-            run_backup
+            if ! run_backup; then
+                exit_code=1
+            fi
             ;;
         list)
             list_components
             ;;
         dry-run)
-            run_dry_run_mode
+            if ! run_dry_run_mode; then
+                exit_code=1
+            fi
+            ;;
+        test)
+            if ! run_integration_tests; then
+                exit_code=1
+            fi
             ;;
         *)
-            log_error "Unknown command: $COMMAND"
-            exit 1
+            handle_error "critical" "Unknown command: $COMMAND" "command_execution"
+            exit_code=1
             ;;
     esac
     
-    # Finalize dry-run if enabled
+    pop_error_context
+    
+    # Finalize systems
     if [[ "$DRY_RUN" == "true" ]]; then
         finalize_dry_run
         disable_dry_run_overrides
     fi
     
-    log_success "Operation completed successfully"
+    # Show error summary if there were any issues
+    if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
+        show_error_summary
+        log_warn "Installation completed with ${#FAILED_OPERATIONS[@]} issues"
+        exit_code=1
+    fi
+    
+    # Create final checkpoint
+    create_checkpoint "system_end" "System state after installation"
+    
+    if [[ $exit_code -eq 0 ]]; then
+        log_success "Operation completed successfully ✓"
+    else
+        log_warn "Operation completed with issues (exit code: $exit_code)"
+    fi
+    
+    # Clean up old checkpoints
+    cleanup_old_checkpoints 5
+    
+    exit $exit_code
 }
 
-# Run installation process
+# Run installation process with comprehensive error handling and recovery
 run_installation() {
-    log_info "Starting installation process..."
+    push_error_context "installation" "Main installation process"
     
-    # Component selection
+    log_info "Starting installation process..."
+    local installation_success=true
+    
+    # Create pre-installation checkpoint
+    create_checkpoint "pre_installation" "System state before installation"
+    
+    # Component selection with error handling
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
         log_info "Opening component selection menu..."
-        select_components
+        if ! select_components; then
+            handle_error "critical" "Component selection failed" "component_selection"
+            pop_error_context
+            return 1
+        fi
     else
         log_info "Using pre-selected components: ${SELECTED_COMPONENTS[*]}"
     fi
     
-    # Create pre-installation backup
-    if ask_yes_no "Create backup before installation?"; then
-        log_info "Creating pre-installation backup..."
-        source "$CONFIGS_DIR/backup.sh"
-        create_system_backup
+    # Validate component selection
+    if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
+        handle_error "critical" "No components selected for installation" "component_selection"
+        pop_error_context
+        return 1
     fi
     
-    # Route to distribution-specific handler
+    # Create pre-installation backup with error handling
+    if ask_yes_no "Create backup before installation?" "y"; then
+        log_info "Creating pre-installation backup..."
+        push_error_context "backup" "Creating pre-installation backup"
+        
+        if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
+            source "$CONFIGS_DIR/backup.sh"
+            if ! safe_execute_command "create_system_backup" "Create system backup"; then
+                handle_error "config" "Failed to create pre-installation backup" "backup_creation"
+                if ask_yes_no "Continue installation without backup?" "n"; then
+                    log_warn "Continuing installation without backup"
+                else
+                    pop_error_context
+                    pop_error_context
+                    return 1
+                fi
+            else
+                log_success "Pre-installation backup created successfully"
+            fi
+        else
+            handle_error "config" "Backup utilities not found" "backup_utilities"
+        fi
+        
+        pop_error_context
+    fi
+    
+    # Route to distribution-specific handler with error handling
+    push_error_context "distro_install" "Distribution-specific installation"
+    
     case "$DETECTED_DISTRO" in
         "arch")
-            source "$DISTROS_DIR/arch/arch-main.sh"
-            arch_main_install "${SELECTED_COMPONENTS[@]}"
+            log_info "Starting Arch Linux installation..."
+            if [[ -f "$DISTROS_DIR/arch/arch-main.sh" ]]; then
+                source "$DISTROS_DIR/arch/arch-main.sh"
+                if ! arch_main_install "${SELECTED_COMPONENTS[@]}"; then
+                    handle_error "package" "Arch Linux installation failed" "arch_installation"
+                    installation_success=false
+                fi
+            else
+                handle_error "critical" "Arch Linux installer not found" "arch_installer"
+                pop_error_context
+                pop_error_context
+                return 1
+            fi
             ;;
         "ubuntu")
-            source "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
-            ubuntu_main_install "${SELECTED_COMPONENTS[@]}"
+            log_info "Starting Ubuntu installation..."
+            if [[ -f "$DISTROS_DIR/ubuntu/ubuntu-main.sh" ]]; then
+                source "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
+                if ! ubuntu_main_install "${SELECTED_COMPONENTS[@]}"; then
+                    handle_error "package" "Ubuntu installation failed" "ubuntu_installation"
+                    installation_success=false
+                fi
+            else
+                handle_error "critical" "Ubuntu installer not found" "ubuntu_installer"
+                pop_error_context
+                pop_error_context
+                return 1
+            fi
             ;;
         *)
-            log_error "Unsupported distribution: $DETECTED_DISTRO"
-            exit 1
+            handle_error "critical" "Unsupported distribution: $DETECTED_DISTRO" "distro_support"
+            pop_error_context
+            pop_error_context
+            return 1
             ;;
     esac
     
-    # Apply dotfiles configurations
-    log_info "Applying dotfiles configurations..."
-    source "$CONFIGS_DIR/dotfiles-manager.sh"
-    manage_dotfiles "${SELECTED_COMPONENTS[@]}"
+    pop_error_context
     
-    # Post-installation validation
+    # Apply dotfiles configurations with error handling
+    push_error_context "dotfiles" "Applying dotfiles configurations"
+    
+    log_info "Applying dotfiles configurations..."
+    if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
+        source "$CONFIGS_DIR/dotfiles-manager.sh"
+        if ! manage_dotfiles "${SELECTED_COMPONENTS[@]}"; then
+            handle_error "config" "Failed to apply dotfiles configurations" "dotfiles_management"
+            installation_success=false
+        else
+            log_success "Dotfiles configurations applied successfully"
+        fi
+    else
+        handle_error "config" "Dotfiles manager not found" "dotfiles_manager"
+        installation_success=false
+    fi
+    
+    pop_error_context
+    
+    # Post-installation validation with error handling
+    push_error_context "validation" "Post-installation validation"
+    
     log_info "Running post-installation validation..."
     if [[ -f "$TESTS_DIR/validate.sh" ]]; then
         source "$TESTS_DIR/validate.sh"
-        validate_installation
+        if ! validate_installation "${SELECTED_COMPONENTS[@]}"; then
+            handle_error "validation" "Post-installation validation failed" "post_install_validation"
+            installation_success=false
+        else
+            log_success "Post-installation validation passed"
+        fi
+    else
+        log_warn "Validation utilities not found, skipping validation"
     fi
     
-    log_success "Installation process completed successfully!"
+    pop_error_context
+    
+    # Create post-installation checkpoint
+    create_checkpoint "post_installation" "System state after installation"
+    
+    # Final status
+    if [[ "$installation_success" == "true" ]]; then
+        log_success "Installation process completed successfully! ✓"
+        
+        # Show installation summary
+        show_installation_summary "${SELECTED_COMPONENTS[@]}"
+        
+        pop_error_context
+        return 0
+    else
+        log_error "Installation process completed with errors"
+        
+        # Offer recovery options
+        offer_recovery_options
+        
+        pop_error_context
+        return 1
+    fi
 }
 
-# Run restoration process
+# Show installation summary
+show_installation_summary() {
+    local components=("$@")
+    
+    log_section "INSTALLATION SUMMARY"
+    
+    echo "Installed components:"
+    for component in "${components[@]}"; do
+        echo "  ✓ $component"
+    done
+    echo
+    
+    echo "System information:"
+    echo "  Distribution: $(get_distro) $(get_distro_version)"
+    echo "  Installation mode: ${DRY_RUN:+DRY-RUN }${VM_MODE:+VM }NORMAL"
+    echo "  Error recovery: $ERROR_RECOVERY_MODE"
+    echo
+    
+    if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
+        echo "Issues encountered: ${#FAILED_OPERATIONS[@]}"
+        echo "Recovery actions taken: ${#RECOVERY_ACTIONS[@]}"
+        echo
+    fi
+    
+    echo "Next steps:"
+    echo "  1. Review any error messages above"
+    echo "  2. Restart your session to apply shell changes"
+    echo "  3. Run 'validate' command to verify installation"
+    echo "  4. Check service status with 'systemctl --user status'"
+    echo
+}
+
+# Offer recovery options after failed installation
+offer_recovery_options() {
+    log_section "RECOVERY OPTIONS"
+    
+    echo "The installation encountered errors. What would you like to do?"
+    echo
+    echo "1. Continue anyway (ignore errors)"
+    echo "2. Retry failed operations"
+    echo "3. Rollback to previous state"
+    echo "4. Generate error report"
+    echo "5. Exit"
+    echo
+    
+    local choice
+    read -r -p "Enter your choice (1-5): " choice
+    
+    case "$choice" in
+        1)
+            log_info "Continuing with errors ignored"
+            ;;
+        2)
+            log_info "Retrying failed operations..."
+            retry_failed_operations
+            ;;
+        3)
+            log_info "Rolling back to previous state..."
+            if perform_emergency_rollback; then
+                log_success "Rollback completed successfully"
+            else
+                log_error "Rollback failed"
+            fi
+            ;;
+        4)
+            log_info "Generating error report..."
+            local report_file
+            report_file=$(generate_error_report)
+            log_info "Error report generated: $report_file"
+            ;;
+        5)
+            log_info "Exiting..."
+            cleanup_and_exit 1
+            ;;
+        *)
+            log_warn "Invalid choice, continuing anyway"
+            ;;
+    esac
+}
+
+# Retry failed operations
+retry_failed_operations() {
+    if [[ ${#FAILED_OPERATIONS[@]} -eq 0 ]]; then
+        log_info "No failed operations to retry"
+        return 0
+    fi
+    
+    log_info "Retrying ${#FAILED_OPERATIONS[@]} failed operations..."
+    
+    # This is a simplified retry - in a full implementation,
+    # we would re-execute the specific failed operations
+    for failed_op in "${FAILED_OPERATIONS[@]}"; do
+        local operation="${failed_op#*|*|}"
+        operation="${operation%%|*}"
+        log_info "Would retry operation: $operation"
+    done
+    
+    log_info "Retry functionality is simplified in this implementation"
+}
+
+# Run integration tests
+run_integration_tests() {
+    push_error_context "integration_tests" "Comprehensive integration testing"
+    
+    log_info "Starting comprehensive integration tests..."
+    
+    # Source integration test utilities with error handling
+    if [[ -f "$TESTS_DIR/integration-test.sh" ]]; then
+        source "$TESTS_DIR/integration-test.sh"
+    else
+        handle_error "critical" "Integration test utilities not found" "integration_test_utilities"
+        pop_error_context
+        return 1
+    fi
+    
+    local test_mode="full"
+    local test_components=()
+    
+    # Use selected components if provided
+    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
+        test_components=("${SELECTED_COMPONENTS[@]}")
+        log_info "Running integration tests for components: ${test_components[*]}"
+    else
+        log_info "Running full integration test suite"
+    fi
+    
+    # Run integration tests
+    if run_integration_tests "$test_mode" "${test_components[@]}"; then
+        log_success "Integration tests completed successfully ✓"
+        pop_error_context
+        return 0
+    else
+        handle_error "validation" "Integration tests failed" "integration_testing"
+        pop_error_context
+        return 1
+    fi
+}
+
+# Run restoration process with error handling
 run_restoration() {
+    push_error_context "restoration" "System restoration process"
+    
     log_info "Starting restoration process..."
     
-    # Source restoration utilities
-    source "$CONFIGS_DIR/restore.sh"
+    # Source restoration utilities with error handling
+    if [[ -f "$CONFIGS_DIR/restore.sh" ]]; then
+        source "$CONFIGS_DIR/restore.sh"
+    else
+        handle_error "critical" "Restoration utilities not found" "restore_utilities"
+        pop_error_context
+        return 1
+    fi
+    
+    local restore_success=true
     
     # Check if specific backup file provided
     if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
@@ -301,60 +647,149 @@ run_restoration() {
         
         if [[ -f "$backup_file" ]]; then
             log_info "Restoring from specified backup: $backup_file"
-            restore_from_backup "$backup_file"
+            if ! safe_execute_command "restore_from_backup \"$backup_file\"" "Restore from backup"; then
+                handle_error "config" "Failed to restore from backup: $backup_file" "backup_restore"
+                restore_success=false
+            fi
         else
-            log_error "Backup file not found: $backup_file"
-            exit 1
+            handle_error "config" "Backup file not found: $backup_file" "backup_file"
+            restore_success=false
         fi
     else
         # Interactive restoration
-        interactive_restore
+        log_info "Starting interactive restoration..."
+        if ! safe_execute_command "interactive_restore" "Interactive restoration"; then
+            handle_error "config" "Interactive restoration failed" "interactive_restore"
+            restore_success=false
+        fi
+    fi
+    
+    if [[ "$restore_success" == "true" ]]; then
+        log_success "Restoration process completed successfully ✓"
+        pop_error_context
+        return 0
+    else
+        log_error "Restoration process completed with errors"
+        pop_error_context
+        return 1
     fi
 }
 
-# Run validation process
+# Run validation process with error handling
 run_validation() {
+    push_error_context "validation" "System validation process"
+    
     log_info "Starting validation process..."
     
-    # Source validation utilities
-    source "$TESTS_DIR/validate.sh"
+    # Source validation utilities with error handling
+    if [[ -f "$TESTS_DIR/validate.sh" ]]; then
+        source "$TESTS_DIR/validate.sh"
+    else
+        handle_error "critical" "Validation utilities not found" "validation_utilities"
+        pop_error_context
+        return 1
+    fi
     
     # Validate system state
-    validate_installation
+    if validate_installation "${SELECTED_COMPONENTS[@]}"; then
+        log_success "System validation completed successfully ✓"
+        pop_error_context
+        return 0
+    else
+        handle_error "validation" "System validation failed" "system_validation"
+        pop_error_context
+        return 1
+    fi
 }
 
-# Run backup process
+# Run backup process with error handling
 run_backup() {
+    push_error_context "backup" "System backup process"
+    
     log_info "Starting backup process..."
     
-    # Source backup utilities
-    source "$CONFIGS_DIR/backup.sh"
+    # Source backup utilities with error handling
+    if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
+        source "$CONFIGS_DIR/backup.sh"
+    else
+        handle_error "critical" "Backup utilities not found" "backup_utilities"
+        pop_error_context
+        return 1
+    fi
+    
+    local backup_success=true
     
     if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
         # Backup specific components
+        log_info "Creating component-specific backups for: ${SELECTED_COMPONENTS[*]}"
         for component in "${SELECTED_COMPONENTS[@]}"; do
-            create_config_backup "$component"
+            if ! safe_execute_command "create_config_backup \"$component\"" "Backup component: $component"; then
+                handle_error "config" "Failed to backup component: $component" "component_backup"
+                backup_success=false
+            fi
         done
     else
         # Create comprehensive system backup
-        create_system_backup
+        log_info "Creating comprehensive system backup..."
+        if ! safe_execute_command "create_system_backup" "Create system backup"; then
+            handle_error "config" "Failed to create system backup" "system_backup"
+            backup_success=false
+        fi
+    fi
+    
+    if [[ "$backup_success" == "true" ]]; then
+        log_success "Backup process completed successfully ✓"
+        pop_error_context
+        return 0
+    else
+        log_error "Backup process completed with errors"
+        pop_error_context
+        return 1
     fi
 }
 
-# Run dry-run mode
+# Run dry-run mode with error handling
 run_dry_run_mode() {
+    push_error_context "dry_run" "Dry-run testing mode"
+    
     log_info "Starting dry-run mode..."
     
-    # Source dry-run utilities
-    source "$TESTS_DIR/dry-run.sh"
+    # Source dry-run utilities with error handling
+    if [[ -f "$TESTS_DIR/dry-run.sh" ]]; then
+        source "$TESTS_DIR/dry-run.sh"
+    else
+        handle_error "critical" "Dry-run utilities not found" "dry_run_utilities"
+        pop_error_context
+        return 1
+    fi
     
-    # Run interactive dry-run
+    local dry_run_success=true
+    
+    # Run dry-run test
     if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
         # Run dry-run test with pre-selected components
-        run_dry_run_test "${SELECTED_COMPONENTS[@]}"
+        log_info "Running dry-run test for components: ${SELECTED_COMPONENTS[*]}"
+        if ! run_dry_run_test "${SELECTED_COMPONENTS[@]}"; then
+            handle_error "validation" "Dry-run test failed for selected components" "dry_run_test"
+            dry_run_success=false
+        fi
     else
         # Interactive dry-run mode
-        interactive_dry_run
+        log_info "Starting interactive dry-run mode..."
+        if ! interactive_dry_run; then
+            handle_error "validation" "Interactive dry-run failed" "interactive_dry_run"
+            dry_run_success=false
+        fi
+    fi
+    
+    if [[ "$dry_run_success" == "true" ]]; then
+        log_success "Dry-run mode completed successfully ✓"
+        pop_error_context
+        return 0
+    else
+        log_error "Dry-run mode completed with errors"
+        pop_error_context
+        return 1
     fi
 }
 

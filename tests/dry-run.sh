@@ -16,9 +16,13 @@ if [[ -z "${SCRIPT_DIR:-}" ]]; then
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
-# Source required modules
-source "$SCRIPT_DIR/core/common.sh"
-source "$SCRIPT_DIR/core/logger.sh"
+# Source required modules (only if not already sourced)
+if [[ -z "${COMMON_SOURCED:-}" ]]; then
+    source "$SCRIPT_DIR/core/common.sh"
+fi
+if [[ -z "${LOGGER_SOURCED:-}" ]]; then
+    source "$SCRIPT_DIR/core/logger.sh"
+fi
 
 # Dry-run configuration
 DRY_RUN_LOG_FILE=""
