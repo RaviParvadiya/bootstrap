@@ -5,6 +5,12 @@
 # distribution detection, internet connectivity checks, package installation,
 # interactive prompts, and system validation.
 
+# Prevent multiple sourcing
+if [[ -n "${COMMON_SOURCED:-}" ]]; then
+    return 0
+fi
+readonly COMMON_SOURCED=1
+
 # Global variables
 # Set SCRIPT_DIR to project root if not already set
 if [[ -z "${SCRIPT_DIR:-}" ]]; then

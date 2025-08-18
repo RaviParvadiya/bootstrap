@@ -27,6 +27,9 @@ source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/validator.sh"
 source "$CORE_DIR/menu.sh"
+source "$CORE_DIR/error-handler.sh"
+source "$CORE_DIR/error-wrappers.sh"
+source "$CORE_DIR/recovery-system.sh"
 
 # Source dry-run utilities if in dry-run mode
 if [[ "$DRY_RUN" == "true" ]]; then
@@ -109,6 +112,10 @@ parse_arguments() {
 main() {
     # Initialize logging
     init_logger
+    
+    # Initialize error handling system
+    init_error_handler
+    init_recovery_system
     
     log_info "Starting Modular Install Framework"
     
