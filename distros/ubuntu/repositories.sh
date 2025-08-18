@@ -24,6 +24,9 @@ ubuntu_setup_repositories() {
     # Setup common PPAs for development
     ubuntu_setup_development_ppas
     
+    # Setup Hyprland-specific PPAs
+    ubuntu_setup_hyprland_ppas
+    
     # Setup flatpak if not already done
     ubuntu_setup_flatpak
     
@@ -100,6 +103,29 @@ ubuntu_setup_development_ppas() {
         
         # Kitty terminal
         "ppa:aslatter/ppa"
+        
+        # Graphics drivers
+        "ppa:graphics-drivers/ppa"
+        
+        # OBS Studio
+        "ppa:obsproject/obs-studio"
+    )
+    
+    for ppa in "${ppas[@]}"; do
+        ubuntu_add_ppa "$ppa"
+    done
+}
+
+# Setup Hyprland-specific repositories
+ubuntu_setup_hyprland_ppas() {
+    log_info "Setting up Hyprland-related PPAs..."
+    
+    local ppas=(
+        # Waybar
+        "ppa:alexmurray/waybar"
+        
+        # Wayland utilities
+        "ppa:wayland-team/wayland"
     )
     
     for ppa in "${ppas[@]}"; do
@@ -409,6 +435,7 @@ export -f ubuntu_setup_repositories
 export -f ubuntu_enable_universe
 export -f ubuntu_enable_multiverse
 export -f ubuntu_setup_development_ppas
+export -f ubuntu_setup_hyprland_ppas
 export -f ubuntu_add_ppa
 export -f ubuntu_remove_ppa
 export -f ubuntu_add_external_repository

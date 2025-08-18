@@ -44,6 +44,12 @@ ubuntu_main_install() {
         return 1
     fi
     
+    # Install packages from Ubuntu package list
+    if ! ubuntu_install_packages_from_list; then
+        log_warn "Some packages from Ubuntu package list failed to install"
+        # Continue with installation as some packages may be optional
+    fi
+    
     # Install and configure Hyprland
     if ! ubuntu_install_hyprland; then
         log_error "Failed to install Hyprland"
@@ -182,6 +188,10 @@ ubuntu_install_component() {
         return 1
     fi
     
+    # Set Ubuntu-specific environment for component installation
+    export DISTRO="ubuntu"
+    export PACKAGE_MANAGER="apt"
+    
     # Source and execute component installation
     if source "$found_script" && command -v "install_$component" >/dev/null 2>&1; then
         "install_$component"
@@ -191,6 +201,58 @@ ubuntu_install_component() {
     fi
     
     return 0
+}
+
+# Install component-specific packages for Ubuntu
+ubuntu_install_component_packages() {
+    local component="$1"
+    shift
+    local packages=("$@")
+    
+    if [[ ${#packages[@]} -eq 0 ]]; then
+        log_warn "No packages specified for component: $component"
+        return 0
+    fi
+    
+    log_info "Installing packages for component $component: ${packages[*]}"
+    
+    # Separate packages by type (similar to package list parsing)
+    local apt_packages=()
+    local snap_packages=()
+    local flatpak_packages=()
+    
+    for package in "${packages[@]}"; do
+        if [[ "$package" =~ ^snap: ]]; then
+            snap_packages+=("${package#snap:}")
+        elif [[ "$package" =~ ^flatpak: ]]; then
+            flatpak_packages+=("${package#flatpak:}")
+        else
+            apt_packages+=("$package")
+        fi
+    done
+    
+    # Install packages by type
+    local install_success=true
+    
+    if [[ ${#apt_packages[@]} -gt 0 ]]; then
+        if ! ubuntu_install_apt_packages "${apt_packages[@]}"; then
+            install_success=false
+        fi
+    fi
+    
+    if [[ ${#snap_packages[@]} -gt 0 ]]; then
+        if ! ubuntu_install_snap_packages "${snap_packages[@]}"; then
+            install_success=false
+        fi
+    fi
+    
+    if [[ ${#flatpak_packages[@]} -gt 0 ]]; then
+        if ! ubuntu_install_flatpak_packages "${flatpak_packages[@]}"; then
+            install_success=false
+        fi
+    fi
+    
+    return $([[ "$install_success" == "true" ]] && echo 0 || echo 1)
 }
 
 # Configure services without enabling them
@@ -288,6 +350,7 @@ export -f ubuntu_main_install
 export -f validate_ubuntu_system
 export -f ubuntu_update_system
 export -f ubuntu_install_component
+export -f ubuntu_install_component_packages
 export -f ubuntu_configure_services
 export -f ubuntu_show_installation_summary
 export -f ubuntu_is_wayland_session

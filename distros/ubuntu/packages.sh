@@ -133,75 +133,134 @@ ubuntu_install_flatpak_packages() {
 # Install packages from package list file
 ubuntu_install_from_package_list() {
     local package_list_file="$1"
-    local package_type="${2:-apt}"  # apt, snap, or flatpak
+    local package_type="${2:-auto}"  # apt, snap, flatpak, or auto
     
     if [[ ! -f "$package_list_file" ]]; then
         log_error "Package list file not found: $package_list_file"
         return 1
     fi
     
-    log_info "Installing packages from: $package_list_file (type: $package_type)"
+    log_info "Installing packages from: $package_list_file"
     
-    # Read packages from file, ignoring comments and empty lines
-    local packages=()
+    # Separate packages by type
+    local apt_packages=()
+    local snap_packages=()
+    local flatpak_packages=()
+    
     while IFS= read -r line; do
         # Skip comments and empty lines
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${line// }" ]] && continue
         
         # Handle conditional packages (package|condition)
+        local package_entry="$line"
+        local condition=""
         if [[ "$line" =~ \| ]]; then
-            local package="${line%%|*}"
-            local condition="${line##*|}"
+            package_entry="${line%%|*}"
+            condition="${line##*|}"
             
-            # Simple condition evaluation (can be extended)
+            # Evaluate condition
+            local include_package=false
             case "$condition" in
                 "nvidia")
-                    if ubuntu_has_nvidia_gpu; then
-                        packages+=("$package")
-                    fi
+                    ubuntu_has_nvidia_gpu && include_package=true
                     ;;
                 "intel")
-                    if ubuntu_has_intel_gpu; then
-                        packages+=("$package")
-                    fi
+                    ubuntu_has_intel_gpu && include_package=true
+                    ;;
+                "amd")
+                    ubuntu_has_amd_gpu && include_package=true
                     ;;
                 "wayland")
-                    if ubuntu_is_wayland_session; then
-                        packages+=("$package")
-                    fi
+                    ubuntu_is_wayland_session && include_package=true
+                    ;;
+                "x11")
+                    ubuntu_is_x11_session && include_package=true
+                    ;;
+                "gaming"|"laptop"|"vm")
+                    # These conditions can be set as environment variables
+                    [[ "${!condition^^}" == "TRUE" || "${!condition^^}" == "1" ]] && include_package=true
                     ;;
                 *)
                     # Default: include package
-                    packages+=("$package")
+                    include_package=true
+                    ;;
+            esac
+            
+            if [[ "$include_package" != "true" ]]; then
+                continue
+            fi
+        fi
+        
+        # Parse package source prefix (snap:, flatpak:, or default to apt)
+        local package_source="apt"
+        local package_name="$package_entry"
+        
+        if [[ "$package_entry" =~ ^(snap|flatpak): ]]; then
+            package_source="${package_entry%%:*}"
+            package_name="${package_entry#*:}"
+        fi
+        
+        # Add to appropriate array based on source or specified type
+        if [[ "$package_type" == "auto" ]]; then
+            case "$package_source" in
+                "apt")
+                    apt_packages+=("$package_name")
+                    ;;
+                "snap")
+                    snap_packages+=("$package_name")
+                    ;;
+                "flatpak")
+                    flatpak_packages+=("$package_name")
                     ;;
             esac
         else
-            packages+=("$line")
+            # Force specific package type
+            case "$package_type" in
+                "apt")
+                    apt_packages+=("$package_name")
+                    ;;
+                "snap")
+                    snap_packages+=("$package_name")
+                    ;;
+                "flatpak")
+                    flatpak_packages+=("$package_name")
+                    ;;
+            esac
         fi
     done < "$package_list_file"
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No packages to install from $package_list_file"
-        return 0
+    # Install packages by type
+    local install_success=true
+    
+    if [[ ${#apt_packages[@]} -gt 0 ]]; then
+        log_info "Installing ${#apt_packages[@]} APT packages..."
+        if ! ubuntu_install_apt_packages "${apt_packages[@]}"; then
+            install_success=false
+        fi
     fi
     
-    # Install packages based on type
-    case "$package_type" in
-        "apt")
-            ubuntu_install_apt_packages "${packages[@]}"
-            ;;
-        "snap")
-            ubuntu_install_snap_packages "${packages[@]}"
-            ;;
-        "flatpak")
-            ubuntu_install_flatpak_packages "${packages[@]}"
-            ;;
-        *)
-            log_error "Unknown package type: $package_type"
-            return 1
-            ;;
-    esac
+    if [[ ${#snap_packages[@]} -gt 0 ]]; then
+        log_info "Installing ${#snap_packages[@]} snap packages..."
+        if ! ubuntu_install_snap_packages "${snap_packages[@]}"; then
+            install_success=false
+        fi
+    fi
+    
+    if [[ ${#flatpak_packages[@]} -gt 0 ]]; then
+        log_info "Installing ${#flatpak_packages[@]} flatpak packages..."
+        if ! ubuntu_install_flatpak_packages "${flatpak_packages[@]}"; then
+            install_success=false
+        fi
+    fi
+    
+    if [[ "$install_success" == "true" ]]; then
+        log_success "Package installation from $package_list_file completed successfully"
+        return 0
+    else
+        log_warn "Some packages from $package_list_file failed to install"
+        return 1
+    fi
 }
 
 # Install base packages required for Hyprland environment
@@ -272,6 +331,19 @@ ubuntu_install_base_packages() {
     )
     
     ubuntu_install_apt_packages "${base_packages[@]}"
+}
+
+# Install packages from Ubuntu package list
+ubuntu_install_packages_from_list() {
+    local package_list_file="${1:-$(dirname "${BASH_SOURCE[0]}")/../../data/ubuntu-packages.lst}"
+    
+    if [[ ! -f "$package_list_file" ]]; then
+        log_error "Ubuntu package list not found: $package_list_file"
+        return 1
+    fi
+    
+    log_info "Installing packages from Ubuntu package list..."
+    ubuntu_install_from_package_list "$package_list_file" "auto"
 }
 
 # Hardware detection helpers
@@ -417,6 +489,7 @@ export -f ubuntu_install_snap_packages
 export -f ubuntu_install_flatpak_packages
 export -f ubuntu_install_from_package_list
 export -f ubuntu_install_base_packages
+export -f ubuntu_install_packages_from_list
 export -f ubuntu_has_nvidia_gpu
 export -f ubuntu_has_intel_gpu
 export -f ubuntu_has_amd_gpu
