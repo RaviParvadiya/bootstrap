@@ -43,9 +43,33 @@ declare -A KITTY_THEME_PACKAGES=(
 # Kitty Installation Functions
 #######################################
 
-# Check if Kitty is already installed
-# Returns: 0 if installed, 1 if not installed
+# Check if Kitty terminal emulator is already installed on the system
+# This function performs comprehensive detection by checking both the command
+# availability and package manager installation status to ensure accurate
+# detection across different installation methods.
+# 
+# Arguments: None
+# 
+# Returns:
+#   0 if Kitty is installed and available
+#   1 if Kitty is not installed or not available
+# 
+# Global Variables:
+#   Uses get_distro() to determine distribution-specific package checking
+# 
+# Side Effects: None (read-only function)
+# 
 # Requirements: 7.1 - Component installation detection
+# 
+# Usage Examples:
+#   if is_kitty_installed; then
+#       echo "Kitty is already installed"
+#   else
+#       echo "Kitty needs to be installed"
+#   fi
+#   
+#   # Use in conditional installation
+#   is_kitty_installed || install_kitty_packages
 is_kitty_installed() {
     if command -v kitty >/dev/null 2>&1; then
         return 0
@@ -310,9 +334,51 @@ set_kitty_as_default() {
 # Main Installation Function
 #######################################
 
-# Main Kitty installation function
-# Returns: 0 if successful, 1 if failed
+# Main Kitty terminal emulator installation and configuration function
+# This is the primary entry point for installing Kitty terminal emulator.
+# It handles the complete installation process including package installation,
+# configuration deployment, theme setup, and post-installation validation.
+# The function is designed to be idempotent and safe to run multiple times.
+# 
+# Arguments: None
+# 
+# Returns:
+#   0 if installation and configuration completed successfully
+#   1 if installation failed at any step
+# 
+# Global Variables:
+#   DRY_RUN - If "true", shows what would be done without making changes
+#   VERBOSE - If "true", provides detailed progress information
+# 
+# Side Effects:
+#   - Installs Kitty package via system package manager
+#   - Installs recommended fonts (JetBrains Mono Nerd Font)
+#   - Creates symlinks to dotfiles configuration
+#   - Downloads and installs Kitty themes
+#   - Creates backup of existing configuration
+#   - Validates installation completeness
+# 
+# Dependencies:
+#   - Requires internet connection for package downloads
+#   - Requires sudo privileges for package installation
+#   - Requires dotfiles repository structure in PROJECT_ROOT/dotfiles/
+# 
 # Requirements: 7.1, 7.2 - Complete component installation
+# 
+# Usage Examples:
+#   # Standard installation
+#   install_kitty
+#   
+#   # Check installation result
+#   if install_kitty; then
+#       echo "Kitty installation completed successfully"
+#   else
+#       echo "Kitty installation failed"
+#       exit 1
+#   fi
+#   
+#   # Use in dry-run mode
+#   DRY_RUN=true install_kitty
 install_kitty() {
     log_section "Installing Kitty Terminal Emulator"
     

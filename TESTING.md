@@ -388,12 +388,22 @@ Recommendations:
 5. **Test edge cases** - Network failures, permission issues, etc.
 6. **Validate thoroughly** - Don't just check if it runs, check if it works correctly
 
+## Additional Documentation
+
+For more comprehensive information, see:
+
+- **[docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)** - Detailed usage examples and troubleshooting scenarios
+- **[docs/FUNCTION_REFERENCE.md](docs/FUNCTION_REFERENCE.md)** - Complete function documentation for developers
+- **[README.md](README.md)** - Main installation and usage guide
+
 ## Contributing to Testing
 
 When contributing to the framework:
 
-1. Add tests for new features
-2. Update test documentation
-3. Ensure VM compatibility
-4. Test on multiple distributions
-5. Include dry-run support in all new features
+1. **Add tests for new features** - Every new component should include test procedures
+2. **Update test documentation** - Keep TESTING.md and examples up to date
+3. **Ensure VM compatibility** - All features should work in VM environments
+4. **Test on multiple distributions** - Verify Arch and Ubuntu compatibility
+5. **Include dry-run support** - All new features must support `--dry-run` mode
+6. **Document test procedures** - Add examples to `docs/USAGE_EXAMPLES.md`
+7. **Follow function documentation standards** - Use patterns from `docs/FUNCTION_REFERENCE.md`

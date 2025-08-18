@@ -350,9 +350,21 @@ validate_distro_support() {
 # Internet Connectivity Functions
 #######################################
 
-# Check internet connectivity
+# Check internet connectivity by testing multiple endpoints
+# This function tests connectivity to multiple reliable endpoints to ensure
+# internet access is available for package downloads and repository updates.
+# 
+# Arguments: None
 # Returns: 0 if connected, 1 if not connected
+# Global Variables: None modified
 # Requirements: 10.4 - System validation functions
+# 
+# Usage Examples:
+#   if check_internet; then
+#       echo "Internet connection available"
+#   else
+#       echo "No internet connection"
+#   fi
 check_internet() {
     local test_urls=(
         "8.8.8.8"           # Google DNS
@@ -394,10 +406,38 @@ check_internet_retry() {
 # Package Installation Functions
 #######################################
 
-# Universal package installation wrapper
-# Arguments: $1 - package name, $2 - package manager (optional)
-# Returns: 0 if successful, 1 if failed
+# Universal package installation wrapper that works across distributions
+# This function provides a unified interface for package installation across
+# different Linux distributions, automatically detecting the appropriate package
+# manager and handling distribution-specific installation procedures.
+# 
+# Arguments: 
+#   $1 - package name (required): Name of the package to install
+#   $2 - package manager (optional): Specific package manager to use
+#        Valid values: "auto" (default), "pacman", "apt", "yay", "paru"
+#        "auto" will detect the appropriate package manager automatically
+# 
+# Returns: 
+#   0 if package installation successful
+#   1 if package installation failed
+# 
+# Global Variables: 
+#   DRY_RUN - If "true", only shows what would be installed
+#   VERBOSE - If "true", shows detailed installation output
+# 
 # Requirements: 1.1 - Universal package installation
+# 
+# Usage Examples:
+#   install_package "git"                    # Auto-detect package manager
+#   install_package "firefox" "apt"         # Force APT usage
+#   install_package "yay-bin" "yay"         # Install AUR package
+#   
+#   # Check if installation was successful
+#   if install_package "neovim"; then
+#       echo "Neovim installed successfully"
+#   else
+#       echo "Failed to install Neovim"
+#   fi
 install_package() {
     local package="$1"
     local pm="${2:-auto}"
@@ -524,10 +564,41 @@ is_package_installed() {
 # Interactive Confirmation Functions
 #######################################
 
-# Interactive yes/no confirmation prompt
-# Arguments: $1 - prompt message, $2 - default answer (y/n, optional)
-# Returns: 0 for yes, 1 for no
+# Interactive yes/no confirmation prompt with default option support
+# This function displays a user-friendly prompt and waits for user input.
+# It supports default values and handles various input formats gracefully.
+# In dry-run mode, it automatically returns the default or assumes "yes".
+# 
+# Arguments:
+#   $1 - prompt message (required): The question to ask the user
+#   $2 - default answer (optional): Default response if user presses Enter
+#        Valid values: "y", "yes", "n", "no" (case insensitive)
+#        If not provided, user must explicitly choose
+# 
+# Returns:
+#   0 for yes/y/Y responses
+#   1 for no/n/N responses
+# 
+# Global Variables:
+#   DRY_RUN - If "true", automatically returns the default or 0 if no default
+# 
 # Requirements: 1.1 - Interactive confirmation prompts
+# 
+# Usage Examples:
+#   # Simple yes/no question
+#   if ask_yes_no "Do you want to continue?"; then
+#       echo "User chose yes"
+#   fi
+#   
+#   # With default value
+#   if ask_yes_no "Install NVIDIA drivers?" "y"; then
+#       install_nvidia_drivers
+#   fi
+#   
+#   # With default no
+#   if ask_yes_no "Delete existing config?" "n"; then
+#       rm -rf ~/.config/app
+#   fi
 ask_yes_no() {
     local prompt="$1"
     local default="${2:-}"
@@ -594,10 +665,45 @@ ask_choice() {
 # File and Symlink Management Functions
 #######################################
 
-# Create safe symlink with backup
-# Arguments: $1 - source file, $2 - target location
-# Returns: 0 if successful, 1 if failed
+# Create safe symlink with automatic backup of existing files
+# This function creates symbolic links while safely handling existing files
+# by creating timestamped backups. It ensures no data loss during configuration
+# deployment and provides rollback capabilities.
+# 
+# Arguments:
+#   $1 - source file (required): Path to the source file/directory to link from
+#        Must be an absolute path or relative to current directory
+#   $2 - target location (required): Path where the symlink should be created
+#        Parent directories will be created automatically if needed
+# 
+# Returns:
+#   0 if symlink creation successful
+#   1 if symlink creation failed (missing args, source doesn't exist, etc.)
+# 
+# Global Variables:
+#   DRY_RUN - If "true", only shows what would be done
+#   HOME - Used for backup directory location
+# 
+# Side Effects:
+#   - Creates backup directory: ~/.config/install-backups/YYYYMMDD_HHMMSS/
+#   - Backs up existing target file/directory before creating symlink
+#   - Creates parent directories for target if they don't exist
+# 
 # Requirements: 1.1 - Safe symlink creation functions
+# 
+# Usage Examples:
+#   # Link dotfile configuration
+#   create_symlink "$HOME/dotfiles/kitty" "$HOME/.config/kitty"
+#   
+#   # Link single configuration file
+#   create_symlink "$PWD/configs/zshrc" "$HOME/.zshrc"
+#   
+#   # Check if symlink creation was successful
+#   if create_symlink "$source" "$target"; then
+#       echo "Configuration linked successfully"
+#   else
+#       echo "Failed to create symlink"
+#   fi
 create_symlink() {
     local source="$1"
     local target="$2"

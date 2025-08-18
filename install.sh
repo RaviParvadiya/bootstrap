@@ -1,8 +1,50 @@
 #!/bin/bash
 
+#######################################
 # Modular Install Framework
-# Main entry point for the installation system
-# Supports Arch Linux and Ubuntu distributions
+# 
+# Main entry point for the modular installation system that automates
+# Linux development environment setup across multiple distributions.
+# 
+# Supported Distributions:
+#   - Arch Linux (complete installation from scratch)
+#   - Ubuntu 18.04+ (Hyprland environment installation)
+# 
+# Features:
+#   - Interactive component selection
+#   - Hardware detection (NVIDIA, ASUS TUF)
+#   - Safety modes (dry-run, VM testing, backups)
+#   - Modular architecture for easy extension
+#   - Comprehensive logging and error handling
+# 
+# Usage:
+#   ./install.sh [OPTIONS]
+# 
+# Options:
+#   --dry-run          Preview operations without making changes
+#   --test             VM-safe mode (skips hardware-specific configs)
+#   --verbose          Enable detailed output
+#   --components LIST  Install specific components (comma-separated)
+#   --help             Show help message
+# 
+# Examples:
+#   ./install.sh                           # Interactive installation
+#   ./install.sh --dry-run                 # Preview mode
+#   ./install.sh --components terminal,shell  # Install specific components
+#   ./install.sh --test --verbose          # VM testing with detailed output
+# 
+# Requirements:
+#   - Linux system (Arch Linux or Ubuntu 18.04+)
+#   - Internet connection
+#   - Sudo access (do not run as root)
+#   - Basic tools: curl, git, tar, unzip
+# 
+# Documentation:
+#   - README.md - Main installation guide
+#   - TESTING.md - Safety testing procedures
+#   - docs/USAGE_EXAMPLES.md - Comprehensive examples
+#   - docs/FUNCTION_REFERENCE.md - Developer reference
+#######################################
 
 set -euo pipefail
 
