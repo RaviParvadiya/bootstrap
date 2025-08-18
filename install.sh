@@ -28,6 +28,11 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/validator.sh"
 source "$CORE_DIR/menu.sh"
 
+# Source dry-run utilities if in dry-run mode
+if [[ "$DRY_RUN" == "true" ]]; then
+    source "$TESTS_DIR/dry-run.sh"
+fi
+
 # Display usage information
 show_usage() {
     cat << EOF
@@ -48,11 +53,13 @@ COMMANDS:
     validate            Validate current installation
     backup              Create system backup
     list                List available components
+    dry-run             Run dry-run test mode
 
 EXAMPLES:
     $0                                  # Interactive installation
     $0 --dry-run install               # Preview installation
     $0 --components terminal,shell      # Install specific components
+    $0 dry-run                         # Interactive dry-run mode
     $0 validate                        # Validate installation
 
 EOF
@@ -82,7 +89,7 @@ parse_arguments() {
                 IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
                 shift 2
                 ;;
-            install|restore|validate|backup|list)
+            install|restore|validate|backup|list|dry-run)
                 COMMAND="$1"
                 shift
                 ;;
@@ -108,9 +115,15 @@ main() {
     # Parse command line arguments
     parse_arguments "$@"
     
-    # Set global flags
+    # Set global flags and export for child processes
+    export DRY_RUN VERBOSE VM_MODE
+    
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Running in DRY-RUN mode - no changes will be made"
+        # Source dry-run utilities
+        source "$TESTS_DIR/dry-run.sh"
+        init_dry_run
+        enable_dry_run_overrides
     fi
     
     if [[ "$VM_MODE" == "true" ]]; then
@@ -157,11 +170,20 @@ main() {
         list)
             list_components
             ;;
+        dry-run)
+            run_dry_run_mode
+            ;;
         *)
             log_error "Unknown command: $COMMAND"
             exit 1
             ;;
     esac
+    
+    # Finalize dry-run if enabled
+    if [[ "$DRY_RUN" == "true" ]]; then
+        finalize_dry_run
+        disable_dry_run_overrides
+    fi
     
     log_success "Operation completed successfully"
 }
@@ -267,6 +289,23 @@ run_backup() {
     else
         # Create comprehensive system backup
         create_system_backup
+    fi
+}
+
+# Run dry-run mode
+run_dry_run_mode() {
+    log_info "Starting dry-run mode..."
+    
+    # Source dry-run utilities
+    source "$TESTS_DIR/dry-run.sh"
+    
+    # Run interactive dry-run
+    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
+        # Run dry-run test with pre-selected components
+        run_dry_run_test "${SELECTED_COMPONENTS[@]}"
+    else
+        # Interactive dry-run mode
+        interactive_dry_run
     fi
 }
 

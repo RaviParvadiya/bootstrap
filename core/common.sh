@@ -420,7 +420,7 @@ install_package() {
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        echo "[DRY RUN] Would install package: $package using $pm"
+        log_dry_run "Install package: $package" "using $pm"
         return 0
     fi
 
@@ -608,9 +608,9 @@ create_symlink() {
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        echo "[DRY RUN] Would create symlink: $target -> $source"
+        log_dry_run "Create symlink: $target -> $source"
         if [[ -e "$target" ]]; then
-            echo "[DRY RUN] Would backup existing file: $target"
+            log_dry_run "Backup existing file: $target"
         fi
         return 0
     fi

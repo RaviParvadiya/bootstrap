@@ -33,16 +33,24 @@ LOG_TO_FILE=false
 
 # Initialize logging system
 init_logger() {
-    # Create log file if not in dry-run mode
-    if [[ "$DRY_RUN" != "true" ]]; then
-        LOG_FILE="/tmp/modular-install-$(date +%Y%m%d-%H%M%S).log"
-        LOG_TO_FILE=true
-        touch "$LOG_FILE"
+    # Create log file (different naming for dry-run vs real execution)
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    if [[ "$DRY_RUN" == "true" ]]; then
+        LOG_FILE="/tmp/dry-run-modular-install-$timestamp.log"
+    else
+        LOG_FILE="/tmp/modular-install-$timestamp.log"
     fi
+    LOG_TO_FILE=true
+    touch "$LOG_FILE"
     
     # Set log level based on verbose flag
     if [[ "$VERBOSE" == "true" ]]; then
         LOG_LEVEL=$LOG_DEBUG
+    fi
+    
+    # Log initialization
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "Dry-run mode enabled - no changes will be made"
     fi
 }
 
@@ -102,6 +110,30 @@ log_custom() {
     local prefix="$2"
     local message="$3"
     _log $LOG_INFO "$color" "$prefix" "$message"
+}
+
+# Log dry-run operation
+log_dry_run() {
+    local operation="$1"
+    local details="${2:-}"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        if [[ -n "$details" ]]; then
+            _log $LOG_INFO "$CYAN" "DRY-RUN" "$operation ($details)"
+        else
+            _log $LOG_INFO "$CYAN" "DRY-RUN" "$operation"
+        fi
+    fi
+}
+
+# Log operation that would be executed
+log_would_execute() {
+    local command="$1"
+    local description="${2:-$command}"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        _log $LOG_INFO "$PURPLE" "WOULD-EXEC" "$description"
+    fi
 }
 
 # Progress indicator for long-running operations
