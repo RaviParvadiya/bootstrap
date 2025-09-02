@@ -7,8 +7,9 @@
 
 set -euo pipefail
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 TEST_LOG="/tmp/comprehensive-test-$(date +%Y%m%d_%H%M%S).log"
 
 # Test configuration
@@ -94,31 +95,31 @@ test_framework_structure() {
     log_test "Testing framework structure..."
     
     local required_files=(
-        "install.sh"
-        "core/common.sh"
-        "core/logger.sh"
-        "core/validator.sh"
-        "core/menu.sh"
-        "core/error-handler.sh"
-        "core/error-wrappers.sh"
-        "core/recovery-system.sh"
-        "core/package-manager.sh"
-        "core/service-manager.sh"
-        "tests/dry-run.sh"
-        "tests/validate.sh"
-        "tests/vm-test.sh"
-        "tests/integration-test.sh"
-        "distros/arch/arch-main.sh"
-        "distros/ubuntu/ubuntu-main.sh"
-        "configs/backup.sh"
-        "configs/restore.sh"
-        "configs/dotfiles-manager.sh"
+        "$SCRIPT_DIR/install.sh"
+        "$CORE_DIR/common.sh"
+        "$CORE_DIR/logger.sh"
+        "$CORE_DIR/validator.sh"
+        "$CORE_DIR/menu.sh"
+        "$CORE_DIR/error-handler.sh"
+        "$CORE_DIR/error-wrappers.sh"
+        "$CORE_DIR/recovery-system.sh"
+        "$CORE_DIR/package-manager.sh"
+        "$CORE_DIR/service-manager.sh"
+        "$TESTS_DIR/dry-run.sh"
+        "$TESTS_DIR/validate.sh"
+        "$TESTS_DIR/vm-test.sh"
+        "$TESTS_DIR/integration-test.sh"
+        "$DISTROS_DIR/arch/arch-main.sh"
+        "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
+        "$CONFIGS_DIR/backup.sh"
+        "$CONFIGS_DIR/restore.sh"
+        "$CONFIGS_DIR/dotfiles-manager.sh"
     )
     
     local missing_files=()
     for file in "${required_files[@]}"; do
-        if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
-            missing_files+=("$file")
+        if [[ ! -f "$file" ]]; then
+            missing_files+=("${file#$SCRIPT_DIR/}")
         fi
     done
     
@@ -137,16 +138,16 @@ test_core_module_loading() {
     
     # Test loading core modules
     local core_modules=(
-        "core/common.sh"
-        "core/logger.sh"
-        "core/validator.sh"
-        "core/error-handler.sh"
+        "$CORE_DIR/common.sh"
+        "$CORE_DIR/logger.sh"
+        "$CORE_DIR/validator.sh"
+        "$CORE_DIR/error-handler.sh"
     )
     
     local failed_modules=()
     for module in "${core_modules[@]}"; do
-        if ! source "$SCRIPT_DIR/$module" 2>/dev/null; then
-            failed_modules+=("$module")
+        if ! source "$module" 2>/dev/null; then
+            failed_modules+=("${module#$SCRIPT_DIR/}")
         fi
     done
     
@@ -164,11 +165,11 @@ test_distribution_detection() {
     log_test "Testing distribution detection..."
     
     # Source required modules with proper path resolution
-    if [[ -f "$SCRIPT_DIR/core/common.sh" ]]; then
-        source "$SCRIPT_DIR/core/common.sh"
-        source "$SCRIPT_DIR/core/logger.sh"
+    if [[ -f "$CORE_DIR/common.sh" ]]; then
+        source "$CORE_DIR/common.sh"
+        source "$CORE_DIR/logger.sh"
     else
-        log_fail "Core modules not found at expected path: $SCRIPT_DIR/core/"
+        log_fail "Core modules not found at expected path: $CORE_DIR/"
         return 1
     fi
     
@@ -197,7 +198,7 @@ test_system_validation() {
     log_test "Testing system validation..."
     
     # Source required modules
-    source "$SCRIPT_DIR/core/validator.sh"
+    source "$CORE_DIR/validator.sh"
     
     # Test system validation
     if validate_system; then
@@ -214,8 +215,8 @@ test_error_handling_system() {
     log_test "Testing error handling system..."
     
     # Source error handling modules
-    source "$SCRIPT_DIR/core/error-handler.sh"
-    source "$SCRIPT_DIR/core/recovery-system.sh"
+    source "$CORE_DIR/error-handler.sh"
+    source "$CORE_DIR/recovery-system.sh"
     
     # Initialize error handling
     init_error_handler "/tmp/test-error-handler.log"
@@ -272,8 +273,8 @@ test_vm_detection() {
     log_test "Testing VM detection..."
     
     # Source VM test module
-    if [[ -f "$SCRIPT_DIR/tests/vm-test.sh" ]]; then
-        source "$SCRIPT_DIR/tests/vm-test.sh"
+    if [[ -f "$TESTS_DIR/vm-test.sh" ]]; then
+        source "$TESTS_DIR/vm-test.sh"
         
         # Test VM detection (will work on both VM and physical hardware)
         detect_vm_environment >/dev/null 2>&1
@@ -298,32 +299,32 @@ test_component_structure() {
     log_test "Testing component structure..."
     
     local component_dirs=(
-        "components/terminal"
-        "components/shell"
-        "components/editor"
-        "components/wm"
-        "components/dev-tools"
+        "$COMPONENTS_DIR/terminal"
+        "$COMPONENTS_DIR/shell"
+        "$COMPONENTS_DIR/editor"
+        "$COMPONENTS_DIR/wm"
+        "$COMPONENTS_DIR/dev-tools"
     )
     
     local missing_dirs=()
     for dir in "${component_dirs[@]}"; do
-        if [[ ! -d "$SCRIPT_DIR/$dir" ]]; then
-            missing_dirs+=("$dir")
+        if [[ ! -d "$dir" ]]; then
+            missing_dirs+=("${dir#$SCRIPT_DIR/}")
         fi
     done
     
     # Check for component scripts
     local component_scripts=(
-        "components/terminal/kitty.sh"
-        "components/terminal/alacritty.sh"
-        "components/shell/zsh.sh"
-        "components/shell/starship.sh"
+        "$COMPONENTS_DIR/terminal/kitty.sh"
+        "$COMPONENTS_DIR/terminal/alacritty.sh"
+        "$COMPONENTS_DIR/shell/zsh.sh"
+        "$COMPONENTS_DIR/shell/starship.sh"
     )
     
     local missing_scripts=()
     for script in "${component_scripts[@]}"; do
-        if [[ ! -f "$SCRIPT_DIR/$script" ]]; then
-            missing_scripts+=("$script")
+        if [[ ! -f "$script" ]]; then
+            missing_scripts+=("${script#$SCRIPT_DIR/}")
         fi
     done
     
@@ -342,17 +343,17 @@ test_configuration_management() {
     log_test "Testing configuration management..."
     
     # Check dotfiles structure
-    if [[ -d "$SCRIPT_DIR/dotfiles" ]]; then
+    if [[ -d "$DOTFILES_DIR" ]]; then
         local config_dirs=(
-            "dotfiles/kitty"
-            "dotfiles/alacritty"
-            "dotfiles/zshrc"
-            "dotfiles/starship"
+            "$DOTFILES_DIR/kitty"
+            "$DOTFILES_DIR/alacritty"
+            "$DOTFILES_DIR/zshrc"
+            "$DOTFILES_DIR/starship"
         )
         
         local found_configs=0
         for config_dir in "${config_dirs[@]}"; do
-            if [[ -d "$SCRIPT_DIR/$config_dir" ]]; then
+            if [[ -d "$config_dir" ]]; then
                 ((found_configs++))
             fi
         done
@@ -375,15 +376,15 @@ test_package_data_files() {
     log_test "Testing package data files..."
     
     local data_files=(
-        "data/arch-packages.lst"
-        "data/ubuntu-packages.lst"
-        "data/aur-packages.lst"
+        "$DATA_DIR/arch-packages.lst"
+        "$DATA_DIR/ubuntu-packages.lst"
+        "$DATA_DIR/aur-packages.lst"
     )
     
     local missing_files=()
     for file in "${data_files[@]}"; do
-        if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
-            missing_files+=("$file")
+        if [[ ! -f "$file" ]]; then
+            missing_files+=("${file#$SCRIPT_DIR/}")
         fi
     done
     
@@ -431,9 +432,9 @@ test_main_script_functionality() {
 test_integration_test_module() {
     log_test "Testing integration test module..."
     
-    if [[ -f "$SCRIPT_DIR/tests/integration-test.sh" ]]; then
+    if [[ -f "$TESTS_DIR/integration-test.sh" ]]; then
         # Test that integration test module loads
-        if source "$SCRIPT_DIR/tests/integration-test.sh" 2>/dev/null; then
+        if source "$TESTS_DIR/integration-test.sh" 2>/dev/null; then
             # Test that key functions exist
             if declare -f run_integration_tests >/dev/null && \
                declare -f test_complete_installation_flow >/dev/null; then

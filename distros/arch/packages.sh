@@ -3,9 +3,12 @@
 # Arch Linux Package Management
 # Handles pacman and AUR package installation
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Install packages using pacman
 arch_install_pacman_packages() {
@@ -224,7 +227,7 @@ arch_should_include_condition() {
 arch_install_packages_by_category() {
     local category="$1"
     local conditions="${2:-}"
-    local data_dir="${3:-$(dirname "${BASH_SOURCE[0]}")/../../data}"
+    local data_dir="${3:-$DATA_DIR}"
     
     log_info "Installing $category packages with conditions: $conditions"
     
