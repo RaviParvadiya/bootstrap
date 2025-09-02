@@ -1,0 +1,99 @@
+# AUR (Arch User Repository) package list
+# These packages are only available on Arch Linux through AUR
+# Comments start with #
+
+# --- AUR Helpers ---
+yay
+paru
+
+# --- Development Tools ---
+visual-studio-code-bin
+github-desktop-bin
+aurutils
+neovim-git
+
+# --- Terminal and Shell ---
+starship-bin
+zoxide-bin
+kitty-git
+alacritty-git
+
+# --- Window Manager ---
+hyprland-git
+waybar-hyprland-git
+wofi-git
+swaync-git
+hyprpicker-git
+grimblast-git
+wlogout
+swayosd-git
+waypaper
+xwaylandvideobridge-git
+
+# --- System Utilities ---
+optimus-manager|nvidia
+optimus-manager-qt|nvidia
+asusctl|asus
+supergfxctl|asus
+rog-control-center|asus
+lact-git|amd
+auto-cpufreq
+arch-update
+batsignal|laptop
+
+# --- Fonts ---
+ttf-jetbrains-mono-nerd
+ttf-fira-code-nerd
+ttf-meslo-nerd-font-powerlevel10k
+nerd-fonts-complete
+
+# --- Themes and Customization ---
+catppuccin-gtk-theme-mocha
+papirus-icon-theme
+bibata-cursor-theme
+python-pywal16
+matugen-bin
+python-materialyoucolor
+
+# --- Applications ---
+brave-bin
+google-chrome
+firefox-developer-edition-bin
+discord-canary
+telegram-desktop-bin
+spotify
+obsidian-bin
+notion-app-enhanced
+
+# --- Gaming ---
+steam|gaming
+lutris|gaming
+heroic-games-launcher-bin|gaming
+bottles|gaming
+vkbasalt|gaming
+lib32-vkbasalt|gaming
+proton-ge-custom-bin|gaming
+dxvk-bin|gaming
+protontricks|gaming
+goverlay-bin|gaming
+mangohud-git|gaming
+gamemode-git|gaming
+
+# --- Multimedia ---
+obs-studio-git
+davinci-resolve
+vlc-git
+mpv-git
+gimp-git
+
+# --- Productivity ---
+ulauncher
+albert
+rofi-git
+dmenu-git
+
+# --- Development ---
+postman-bin
+insomnia-bin
+docker-desktop
+jetbrains-toolbox
