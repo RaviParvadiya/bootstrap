@@ -3,9 +3,12 @@
 # Package Manager and Dependency Resolution System
 # Handles component dependencies, conflicts, and hardware requirements
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 # Source required modules
-source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
 # Global variables
 COMPONENT_DEPS_FILE="data/component-deps.json"

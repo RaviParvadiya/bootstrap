@@ -3,9 +3,12 @@
 # Interactive component selection system
 # Provides multi-select menus and dependency resolution
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 # Source required utilities
-source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Global variables
 declare -A COMPONENTS=()

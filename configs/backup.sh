@@ -10,13 +10,12 @@ if [[ -n "${BACKUP_UTILS_SOURCED:-}" ]]; then
 fi
 readonly BACKUP_UTILS_SOURCED=1
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source core utilities
-source "$PROJECT_ROOT/core/common.sh"
-source "$PROJECT_ROOT/core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Global configuration
 BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-$HOME/.config/install-backups}"
@@ -305,8 +304,8 @@ backup_component_configs() {
     fi
     
     # Source dotfiles manager to get component configuration structure
-    if [[ -f "$PROJECT_ROOT/configs/dotfiles-manager.sh" ]]; then
-        source "$PROJECT_ROOT/configs/dotfiles-manager.sh"
+    if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
+        source "$CONFIGS_DIR/dotfiles-manager.sh"
     else
         log_error "Dotfiles manager not found, cannot determine component configurations"
         return 1
@@ -485,8 +484,8 @@ create_full_system_backup() {
     fi
     
     # Backup all available components
-    if [[ -f "$PROJECT_ROOT/configs/dotfiles-manager.sh" ]]; then
-        source "$PROJECT_ROOT/configs/dotfiles-manager.sh"
+    if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
+        source "$CONFIGS_DIR/dotfiles-manager.sh"
         
         local components
         if components=$(discover_dotfiles_components 2>/dev/null); then

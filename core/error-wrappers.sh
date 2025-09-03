@@ -10,19 +10,18 @@ if [[ -n "${ERROR_WRAPPERS_SOURCED:-}" ]]; then
 fi
 readonly ERROR_WRAPPERS_SOURCED=1
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Only source if not already sourced
 if [[ -z "${ERROR_HANDLER_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/error-handler.sh"
+    source "$CORE_DIR/error-handler.sh"
 fi
 if [[ -z "${COMMON_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/common.sh"
+    source "$CORE_DIR/common.sh"
 fi
 if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/logger.sh"
+    source "$CORE_DIR/logger.sh"
 fi
 
 #######################################

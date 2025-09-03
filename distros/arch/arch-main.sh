@@ -3,18 +3,21 @@
 # Arch Linux Main Orchestrator
 # Main entry point for Arch Linux installations
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/validator.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/validator.sh"
 
 # Source Arch-specific modules
-source "$(dirname "${BASH_SOURCE[0]}")/packages.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/repositories.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/services.sh"
+source "$DISTROS_DIR/arch/packages.sh"
+source "$DISTROS_DIR/arch/repositories.sh"
+source "$DISTROS_DIR/arch/services.sh"
 
 # Source hardware modules
-source "$(dirname "${BASH_SOURCE[0]}")/hardware/nvidia.sh"
+source "$DISTROS_DIR/arch/hardware/nvidia.sh"
 
 # Main Arch Linux installation orchestrator
 arch_main_install() {
@@ -173,23 +176,19 @@ arch_install_component() {
     
     log_info "Installing Arch component: $component"
     
-    # Check if component script exists
-    local component_script="$(dirname "${BASH_SOURCE[0]}")/../../components/$component"
-    
     # Try different possible locations for the component
     local possible_locations=(
-        "../../components/terminal/$component.sh"
-        "../../components/shell/$component.sh"
-        "../../components/editor/$component.sh"
-        "../../components/wm/$component.sh"
-        "../../components/dev-tools/$component.sh"
+        "$COMPONENTS_DIR/terminal/$component.sh"
+        "$COMPONENTS_DIR/shell/$component.sh"
+        "$COMPONENTS_DIR/editor/$component.sh"
+        "$COMPONENTS_DIR/wm/$component.sh"
+        "$COMPONENTS_DIR/dev-tools/$component.sh"
     )
     
     local found_script=""
     for location in "${possible_locations[@]}"; do
-        local full_path="$(dirname "${BASH_SOURCE[0]}")/$location"
-        if [[ -f "$full_path" ]]; then
-            found_script="$full_path"
+        if [[ -f "$location" ]]; then
+            found_script="$location"
             break
         fi
     done

@@ -4,21 +4,20 @@
 # This module handles the installation and configuration of Neovim with
 # plugin management via lazy.nvim, language server support, and cross-distribution compatibility.
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 
 # Source core modules if not already loaded
 if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/logger.sh"
+    source "$CORE_DIR/logger.sh"
 fi
 if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$PROJECT_ROOT/core/common.sh"
+    source "$CORE_DIR/common.sh"
 fi
 
 # Component metadata
 readonly NEOVIM_COMPONENT_NAME="neovim"
-readonly NEOVIM_CONFIG_SOURCE="$PROJECT_ROOT/dotfiles/nvim/.config/nvim"
+readonly NEOVIM_CONFIG_SOURCE="$DOTFILES_DIR/nvim/.config/nvim"
 readonly NEOVIM_CONFIG_TARGET="$HOME/.config/nvim"
 
 # Package definitions per distribution

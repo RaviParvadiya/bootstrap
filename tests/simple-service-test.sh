@@ -3,8 +3,11 @@
 # Simple service management test
 export DRY_RUN=true
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 # Source the service manager directly
-source core/service-manager.sh
+source "$CORE_DIR/service-manager.sh"
 
 echo "=== Simple Service Management Test ==="
 echo ""

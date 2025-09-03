@@ -3,9 +3,12 @@
 # Arch Linux Repository Management
 # Handles multilib and chaotic-aur repository setup
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Setup all Arch Linux repositories
 arch_setup_repositories() {

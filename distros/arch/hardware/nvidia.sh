@@ -4,9 +4,10 @@
 # Handles NVIDIA driver installation, MUX switch support, and environment configuration
 # Extracted from original install.sh and modularized for the framework
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../../core/init-paths.sh"
+
 # Source core utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_DIR="$SCRIPT_DIR/../../../core"
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 

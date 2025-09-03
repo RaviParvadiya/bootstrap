@@ -12,13 +12,12 @@ fi
 readonly COMMON_SOURCED=1
 
 # Global variables
-# Set SCRIPT_DIR to project root if not already set
+# Initialize all project paths if not already done
 if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    # When sourced from core/, get the parent directory (project root)
-    core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SCRIPT_DIR="$(dirname "$core_dir")"
+    # When sourced from core/, initialize paths from the parent directory
+    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$(dirname "$core_dir")/core/init-paths.sh"
 fi
-PROJECT_ROOT="$SCRIPT_DIR"
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 

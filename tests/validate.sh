@@ -10,14 +10,12 @@ if [[ -n "${VALIDATE_SOURCED:-}" ]]; then
 fi
 readonly VALIDATE_SOURCED=1
 
-# Get script directory
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-fi
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source required modules
-source "$SCRIPT_DIR/core/common.sh"
-source "$SCRIPT_DIR/core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Validation configuration
 VALIDATION_LOG_FILE=""

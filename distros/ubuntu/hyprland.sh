@@ -3,9 +3,12 @@
 # Ubuntu Hyprland Installation
 # Builds and configures Hyprland from source on Ubuntu
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Hyprland version to build (can be overridden by environment variable)
 HYPRLAND_VERSION="${HYPRLAND_VERSION:-v0.34.0}"

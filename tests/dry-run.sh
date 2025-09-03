@@ -11,17 +11,17 @@ if [[ -n "${DRY_RUN_SOURCED:-}" ]]; then
 fi
 readonly DRY_RUN_SOURCED=1
 
-# Get script directory
+# Initialize all project paths (only if not already initialized)
 if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 fi
 
 # Source required modules (only if not already sourced)
 if [[ -z "${COMMON_SOURCED:-}" ]]; then
-    source "$SCRIPT_DIR/core/common.sh"
+    source "$CORE_DIR/common.sh"
 fi
 if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$SCRIPT_DIR/core/logger.sh"
+    source "$CORE_DIR/logger.sh"
 fi
 
 # Dry-run configuration
@@ -569,7 +569,7 @@ test_component_dry_run() {
     
     # Check different component directories
     for dir in terminal shell editor wm dev-tools; do
-        local script_path="$SCRIPT_DIR/components/$dir/$component.sh"
+        local script_path="$COMPONENTS_DIR/$dir/$component.sh"
         if [[ -f "$script_path" ]]; then
             component_script="$script_path"
             break
