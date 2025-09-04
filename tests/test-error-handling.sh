@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # tests/test-error-handling.sh - Test script for error handling and recovery system
 # Demonstrates various error scenarios and recovery mechanisms

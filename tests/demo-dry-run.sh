@@ -1,17 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Demo script to show dry-run functionality working
 # This demonstrates the core dry-run features without dependencies
 
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source required modules
-source "$SCRIPT_DIR/core/common.sh"
-source "$SCRIPT_DIR/core/logger.sh"
-source "$SCRIPT_DIR/tests/dry-run.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$TESTS_DIR/dry-run.sh"
 
 # Demo function
 demo_dry_run() {

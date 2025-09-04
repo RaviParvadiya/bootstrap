@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # core/service-manager.sh - Universal service management system
 # Provides cross-distribution service management with no-auto-start policy
@@ -10,9 +10,12 @@ if [[ -n "${SERVICE_MANAGER_SOURCED:-}" ]]; then
 fi
 readonly SERVICE_MANAGER_SOURCED=1
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Global service registry
 SERVICE_REGISTRY_FILE="/tmp/modular_install_services_registry.txt"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # core/error-handler.sh - Comprehensive error handling and recovery system
 # Provides categorized error handling, graceful degradation, and rollback capabilities
@@ -10,16 +10,15 @@ if [[ -n "${ERROR_HANDLER_SOURCED:-}" ]]; then
 fi
 readonly ERROR_HANDLER_SOURCED=1
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Only source if not already sourced
 if [[ -z "${COMMON_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/common.sh"
+    source "$CORE_DIR/common.sh"
 fi
 if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/logger.sh"
+    source "$CORE_DIR/logger.sh"
 fi
 
 # Global error handling configuration

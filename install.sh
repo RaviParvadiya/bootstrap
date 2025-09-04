@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #######################################
 # Modular Install Framework
@@ -48,14 +48,8 @@
 
 set -euo pipefail
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_DIR="$SCRIPT_DIR/core"
-DISTROS_DIR="$SCRIPT_DIR/distros"
-COMPONENTS_DIR="$SCRIPT_DIR/components"
-CONFIGS_DIR="$SCRIPT_DIR/configs"
-DATA_DIR="$SCRIPT_DIR/data"
-TESTS_DIR="$SCRIPT_DIR/tests"
+# Initialize project paths (centralized path resolution)
+source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
 DRY_RUN=false

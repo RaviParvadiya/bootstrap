@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Logging and output management system
 # Provides color-coded output, file logging, and progress indicators

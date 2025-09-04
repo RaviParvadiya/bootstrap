@@ -1,17 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Test script for dry-run functionality
 # This script tests the dry-run mode to ensure it works correctly
 
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TESTS_DIR="$SCRIPT_DIR/tests"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source required modules
-source "$SCRIPT_DIR/core/common.sh"
-source "$SCRIPT_DIR/core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Test dry-run functionality
 test_dry_run_basic() {

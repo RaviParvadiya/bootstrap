@@ -1,14 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # core/validator.sh - System validation and hardware detection module
 # This module provides comprehensive system requirements checking, permission validation,
 # dependency verification, and hardware detection capabilities for GPU and system-specific configurations.
 
-# Set SCRIPT_DIR to project root if not already set
+# Initialize all project paths if not already done
 if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    # When sourced from core/, get the parent directory (project root)
+    # When sourced from core/, initialize paths from the parent directory
     local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SCRIPT_DIR="$(dirname "$core_dir")"
+    source "$(dirname "$core_dir")/core/init-paths.sh"
 fi
 
 # Note: common.sh and logger.sh should be sourced before this file

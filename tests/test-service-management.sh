@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Test script for service management functionality
 # Tests the new service management and system integration features

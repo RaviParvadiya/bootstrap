@@ -1,28 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # components/wm/hyprland.sh - Hyprland window manager installation and configuration
 # This module handles the installation and configuration of Hyprland window manager
 # with proper dotfiles integration, session setup, and cross-distribution support.
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 
 # Source core modules if not already loaded
 if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$PROJECT_ROOT/core/logger.sh"
+    source "$CORE_DIR/logger.sh"
 fi
 if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$PROJECT_ROOT/core/common.sh"
+    source "$CORE_DIR/common.sh"
 fi
 
 # Component metadata
 readonly HYPRLAND_COMPONENT_NAME="hyprland"
-readonly HYPRLAND_CONFIG_SOURCE="$PROJECT_ROOT/dotfiles/hyprland/.config/hypr"
+readonly HYPRLAND_CONFIG_SOURCE="$DOTFILES_DIR/hyprland/.config/hypr"
 readonly HYPRLAND_CONFIG_TARGET="$HOME/.config/hypr"
-readonly HYPRMOCHA_CONFIG_SOURCE="$PROJECT_ROOT/dotfiles/hyprmocha/.config/hypr"
-readonly HYPRLOCK_CONFIG_SOURCE="$PROJECT_ROOT/dotfiles/hyprlock/.config/hypr"
-readonly HYPRPAPER_CONFIG_SOURCE="$PROJECT_ROOT/dotfiles/hyprpaper/.config/hypr"
+readonly HYPRMOCHA_CONFIG_SOURCE="$DOTFILES_DIR/hyprmocha/.config/hypr"
+readonly HYPRLOCK_CONFIG_SOURCE="$DOTFILES_DIR/hyprlock/.config/hypr"
+readonly HYPRPAPER_CONFIG_SOURCE="$DOTFILES_DIR/hyprpaper/.config/hypr"
 
 # Package definitions per distribution
 declare -A HYPRLAND_PACKAGES=(
@@ -348,7 +347,7 @@ configure_hyprland() {
 # Setup wallpapers for Hyprland
 # Returns: 0 if successful, 1 if failed
 setup_hyprland_wallpapers() {
-    local wallpapers_source="$PROJECT_ROOT/dotfiles/backgrounds/.config/backgrounds"
+    local wallpapers_source="$DOTFILES_DIR/backgrounds/.config/backgrounds"
     local wallpapers_target="$HOME/.config/backgrounds"
     
     if [[ "$DRY_RUN" == "true" ]]; then

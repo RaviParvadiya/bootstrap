@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Git version control installation and configuration
 # Placeholder for future implementation

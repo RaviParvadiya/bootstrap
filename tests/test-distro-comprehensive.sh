@@ -1,14 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Comprehensive test script for distribution detection functionality
 # Tests all aspects of the distribution detection system
 
-# Get the script directory and source common functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source the common functions
-source "$PROJECT_ROOT/core/common.sh"
+source "$CORE_DIR/common.sh"
 
 echo "=============================================="
 echo "COMPREHENSIVE DISTRIBUTION DETECTION TEST"

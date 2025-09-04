@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Docker containerization platform installation and configuration
 # Placeholder for future implementation

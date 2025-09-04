@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # core/common.sh - Common utility functions for the modular install framework
 # This module provides shared functions used across all components including
@@ -12,13 +12,12 @@ fi
 readonly COMMON_SOURCED=1
 
 # Global variables
-# Set SCRIPT_DIR to project root if not already set
+# Initialize all project paths if not already done
 if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    # When sourced from core/, get the parent directory (project root)
-    core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    SCRIPT_DIR="$(dirname "$core_dir")"
+    # When sourced from core/, initialize paths from the parent directory
+    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$(dirname "$core_dir")/core/init-paths.sh"
 fi
-PROJECT_ROOT="$SCRIPT_DIR"
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 
@@ -901,16 +900,6 @@ validate_component_prereqs() {
 #######################################
 # Utility Helper Functions
 #######################################
-
-# Get script directory
-get_script_dir() {
-    echo "$SCRIPT_DIR"
-}
-
-# Get project root directory
-get_project_root() {
-    echo "$PROJECT_ROOT"
-}
 
 # Check if running in dry-run mode
 is_dry_run() {

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Test script for NVIDIA module functionality
 # This script tests the NVIDIA configuration module in dry-run mode

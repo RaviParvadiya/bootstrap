@@ -1,11 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Ubuntu Repository Management
 # Handles PPA and external repository setup
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
 # Source core utilities
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../../core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Setup all Ubuntu repositories
 ubuntu_setup_repositories() {

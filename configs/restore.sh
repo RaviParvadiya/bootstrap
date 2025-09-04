@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # configs/restore.sh - Configuration restoration and rollback utilities
 # This module provides configuration restoration and rollback capabilities from backup sessions
@@ -10,16 +10,15 @@ if [[ -n "${RESTORE_UTILS_SOURCED:-}" ]]; then
 fi
 readonly RESTORE_UTILS_SOURCED=1
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source core utilities
-source "$PROJECT_ROOT/core/common.sh"
-source "$PROJECT_ROOT/core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Source backup utilities for session management
-source "$PROJECT_ROOT/configs/backup.sh"
+source "$CONFIGS_DIR/backup.sh"
 
 # Global configuration
 RESTORE_TEMP_DIR="/tmp/install_restore_$$"
@@ -295,8 +294,8 @@ restore_component_configs() {
     log_info "Restoring configurations for component: $component"
     
     # Source dotfiles manager to get component configuration structure
-    if [[ -f "$PROJECT_ROOT/configs/dotfiles-manager.sh" ]]; then
-        source "$PROJECT_ROOT/configs/dotfiles-manager.sh"
+    if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
+        source "$CONFIGS_DIR/dotfiles-manager.sh"
     else
         log_error "Dotfiles manager not found, cannot determine restore targets"
         return 1

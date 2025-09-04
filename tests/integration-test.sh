@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # tests/integration-test.sh - Comprehensive integration testing for the modular install framework
 # This module provides end-to-end testing of the complete installation flow on both
@@ -11,19 +11,17 @@ if [[ -n "${INTEGRATION_TEST_SOURCED:-}" ]]; then
 fi
 readonly INTEGRATION_TEST_SOURCED=1
 
-# Get script directory
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-fi
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source required modules
-source "$SCRIPT_DIR/core/common.sh"
-source "$SCRIPT_DIR/core/logger.sh"
-source "$SCRIPT_DIR/core/error-handler.sh"
-source "$SCRIPT_DIR/core/recovery-system.sh"
-source "$SCRIPT_DIR/tests/dry-run.sh"
-source "$SCRIPT_DIR/tests/validate.sh"
-source "$SCRIPT_DIR/tests/vm-test.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/error-handler.sh"
+source "$CORE_DIR/recovery-system.sh"
+source "$TESTS_DIR/dry-run.sh"
+source "$TESTS_DIR/validate.sh"
+source "$TESTS_DIR/vm-test.sh"
 
 # Integration test configuration
 INTEGRATION_TEST_LOG=""
@@ -622,8 +620,8 @@ test_backup_creation() {
     log_info "Testing backup creation..."
     
     # Source backup utilities
-    if [[ -f "$SCRIPT_DIR/configs/backup.sh" ]]; then
-        source "$SCRIPT_DIR/configs/backup.sh"
+    if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
+        source "$CONFIGS_DIR/backup.sh"
         
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would create system backup"
@@ -674,8 +672,8 @@ test_restore_functionality() {
     log_info "Testing restore functionality..."
     
     # Source restore utilities
-    if [[ -f "$SCRIPT_DIR/configs/restore.sh" ]]; then
-        source "$SCRIPT_DIR/configs/restore.sh"
+    if [[ -f "$CONFIGS_DIR/restore.sh" ]]; then
+        source "$CONFIGS_DIR/restore.sh"
         
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would test restore functionality"

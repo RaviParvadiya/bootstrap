@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ASUS TUF specific configurations
 # Handles ASUS TUF Dash F15 specific tweaks and optimizations

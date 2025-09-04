@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # configs/dotfiles-manager.sh - Dotfiles management module
 # This module handles symlink creation, configuration file discovery,
@@ -11,16 +11,15 @@ if [[ -n "${DOTFILES_MANAGER_SOURCED:-}" ]]; then
 fi
 readonly DOTFILES_MANAGER_SOURCED=1
 
-# Source required modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source core utilities
-source "$PROJECT_ROOT/core/common.sh"
-source "$PROJECT_ROOT/core/logger.sh"
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
 
 # Global configuration
-DOTFILES_DIR="$PROJECT_ROOT/dotfiles"
+DOTFILES_DIR="$DOTFILES_DIR"
 BACKUP_BASE_DIR="$HOME/.config/install-backups"
 CURRENT_BACKUP_DIR=""
 
@@ -700,7 +699,7 @@ show_component_details() {
             fi
         fi
         
-        local relative_source="${source_file#$PROJECT_ROOT/}"
+        local relative_source="${source_file#$SCRIPT_DIR/}"
         local relative_target="${target_path#$HOME/}"
         echo "  $relative_source -> ~/$relative_target [$status]"
     done < <(get_component_config_structure "$component")

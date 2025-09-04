@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Programming languages and tools installation
 # Placeholder for future implementation
