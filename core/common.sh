@@ -901,16 +901,6 @@ validate_component_prereqs() {
 # Utility Helper Functions
 #######################################
 
-# Get script directory
-get_script_dir() {
-    echo "$SCRIPT_DIR"
-}
-
-# Get project root directory
-get_project_root() {
-    echo "$PROJECT_ROOT"
-}
-
 # Check if running in dry-run mode
 is_dry_run() {
     [[ "$DRY_RUN" == "true" ]]

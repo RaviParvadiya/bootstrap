@@ -620,8 +620,8 @@ test_backup_creation() {
     log_info "Testing backup creation..."
     
     # Source backup utilities
-    if [[ -f "$SCRIPT_DIR/configs/backup.sh" ]]; then
-        source "$SCRIPT_DIR/configs/backup.sh"
+    if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
+        source "$CONFIGS_DIR/backup.sh"
         
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would create system backup"
@@ -672,8 +672,8 @@ test_restore_functionality() {
     log_info "Testing restore functionality..."
     
     # Source restore utilities
-    if [[ -f "$SCRIPT_DIR/configs/restore.sh" ]]; then
-        source "$SCRIPT_DIR/configs/restore.sh"
+    if [[ -f "$CONFIGS_DIR/restore.sh" ]]; then
+        source "$CONFIGS_DIR/restore.sh"
         
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would test restore functionality"
