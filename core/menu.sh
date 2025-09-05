@@ -153,11 +153,12 @@ select_components() {
         show_details=false
         
         # Read key input
-        read -rsn1 key
+	    # Disable IFS splitting here to capture space/Enter keys correctly
+        IFS= read -rsn1 key
         
         case "$key" in
             $'\x1b')  # Escape sequence
-                read -rsn2 key
+                IFS= read -rsn2 key
                 case "$key" in
                     '[A')  # Up arrow
                         ((current > 0)) && ((current--))
