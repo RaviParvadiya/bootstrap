@@ -3,8 +3,10 @@
 # Package Manager and Dependency Resolution System
 # Handles component dependencies, conflicts, and hardware requirements
 
-# Initialize all project paths
-source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+# Initialize all project paths (only if not already initialized)
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
+fi
 
 # Source required modules
 source "$CORE_DIR/logger.sh"

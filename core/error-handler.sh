@@ -10,8 +10,10 @@ if [[ -n "${ERROR_HANDLER_SOURCED:-}" ]]; then
 fi
 readonly ERROR_HANDLER_SOURCED=1
 
-# Initialize all project paths
-source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+# Initialize all project paths (only if not already initialized)
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
+fi
 
 # Only source if not already sourced
 if [[ -z "${COMMON_SOURCED:-}" ]]; then
@@ -31,7 +33,7 @@ RECOVERY_ACTIONS=()
 ROLLBACK_STACK=()
 
 # Error categories and their handling policies
-declare -A ERROR_CATEGORIES=(
+declare -gA ERROR_CATEGORIES=(
     ["critical"]="stop"      # Stop execution immediately
     ["package"]="continue"   # Continue with remaining operations
     ["config"]="rollback"    # Attempt rollback and continue

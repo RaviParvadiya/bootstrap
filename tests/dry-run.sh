@@ -11,10 +11,8 @@ if [[ -n "${DRY_RUN_SOURCED:-}" ]]; then
 fi
 readonly DRY_RUN_SOURCED=1
 
-# Initialize all project paths (only if not already initialized)
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
-fi
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
 # Source required modules (only if not already sourced)
 if [[ -z "${COMMON_SOURCED:-}" ]]; then

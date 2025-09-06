@@ -11,13 +11,12 @@ if [[ -n "${COMMON_SOURCED:-}" ]]; then
 fi
 readonly COMMON_SOURCED=1
 
-# Global variables
-# Initialize all project paths if not already done
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
-    # When sourced from core/, initialize paths from the parent directory
-    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "$(dirname "$core_dir")/core/init-paths.sh"
+# Initialize all project paths (only if not already initialized)
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
 fi
+
+# Global variables
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 

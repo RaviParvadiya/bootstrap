@@ -10,8 +10,10 @@ if [[ -n "${ERROR_WRAPPERS_SOURCED:-}" ]]; then
 fi
 readonly ERROR_WRAPPERS_SOURCED=1
 
-# Initialize all project paths
-source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+# Initialize all project paths (only if not already initialized)
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
+fi
 
 # Only source if not already sourced
 if [[ -z "${ERROR_HANDLER_SOURCED:-}" ]]; then
