@@ -10,8 +10,10 @@ if [[ -n "${RECOVERY_SYSTEM_SOURCED:-}" ]]; then
 fi
 readonly RECOVERY_SYSTEM_SOURCED=1
 
-# Initialize all project paths
-source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+# Initialize all project paths (only if not already initialized)
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
+fi
 
 # Only source if not already sourced
 if [[ -z "${ERROR_HANDLER_SOURCED:-}" ]]; then
@@ -30,7 +32,7 @@ RECOVERY_CHECKPOINT_DIR="/tmp/modular-install-checkpoints"
 RECOVERY_ACTIONS_LOG="/tmp/modular-install-recovery-actions.log"
 
 # Recovery strategies
-declare -A RECOVERY_STRATEGIES=(
+declare -gA RECOVERY_STRATEGIES=(
     ["package_install_failed"]="retry_with_update,try_alternative_source,skip_optional"
     ["config_file_conflict"]="backup_and_overwrite,merge_configs,skip_config"
     ["network_timeout"]="retry_with_backoff,try_alternative_mirror,continue_offline"

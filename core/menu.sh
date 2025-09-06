@@ -11,13 +11,14 @@ source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 
 # Global variables
-declare -A COMPONENTS=()
-declare -A COMPONENT_DEPS=()
-declare -A COMPONENT_CONFLICTS=()
-declare -A COMPONENT_OPTIONS=()
-declare -A COMPONENT_PACKAGES=()
-SELECTED_COMPONENTS=()
-COMPONENT_METADATA_FILE="data/component-deps.json"
+# NOTE: use -g so these remain global when menu.sh is sourced via install.sh
+declare -gA COMPONENTS=()
+declare -gA COMPONENT_DEPS=()
+declare -gA COMPONENT_CONFLICTS=()
+declare -gA COMPONENT_OPTIONS=()
+declare -gA COMPONENT_PACKAGES=()
+declare -ga SELECTED_COMPONENTS=()
+declare -g COMPONENT_METADATA_FILE="data/component-deps.json"
 
 # Load component metadata from JSON file
 load_component_metadata() {
@@ -152,11 +153,12 @@ select_components() {
         show_details=false
         
         # Read key input
-        read -rsn1 key
+	    # Disable IFS splitting here to capture space/Enter keys correctly
+        IFS= read -rsn1 key
         
         case "$key" in
             $'\x1b')  # Escape sequence
-                read -rsn2 key
+                IFS= read -rsn2 key
                 case "$key" in
                     '[A')  # Up arrow
                         ((current > 0)) && ((current--))

@@ -47,6 +47,7 @@
 #######################################
 
 set -euo pipefail
+IFS=$'\n\t'
 
 # Initialize project paths (centralized path resolution)
 source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"

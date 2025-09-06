@@ -5,10 +5,9 @@
 # dependency verification, and hardware detection capabilities for GPU and system-specific configurations.
 
 # Initialize all project paths if not already done
-if [[ -z "${SCRIPT_DIR:-}" ]]; then
+if [[ -z "${PATHS_SOURCED:-}" ]]; then
     # When sourced from core/, initialize paths from the parent directory
-    local core_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "$(dirname "$core_dir")/core/init-paths.sh"
+    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
 fi
 
 # Note: common.sh and logger.sh should be sourced before this file
