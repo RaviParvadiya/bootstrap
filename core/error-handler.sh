@@ -849,8 +849,8 @@ cleanup_and_exit() {
     
     log_info "Cleaning up and exiting with code: $exit_code"
     
-    # Perform cleanup
-    cleanup_error_handler
+    # Manual cleanup call removed because EXIT trap already runs cleanup_error_handler
+    # cleanup_error_handler
     
     # Exit with specified code
     exit "$exit_code"
