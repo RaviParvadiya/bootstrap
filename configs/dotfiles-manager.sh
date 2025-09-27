@@ -47,7 +47,7 @@ discover_dotfiles_components() {
         
         # Skip non-component files and directories
         case "$component_name" in
-            ".*"|"install.sh"|"update.sh"|"README.md"|"TODO.txt"|"pkglist-"*)
+            ".*"|".git"|"install.sh"|"update.sh"|"README.md"|"TODO.txt"|"pkglist-"*|"banner")
                 continue
                 ;;
             *)

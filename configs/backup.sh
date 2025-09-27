@@ -55,8 +55,8 @@ create_backup_session() {
 SESSION_NAME=$session_name
 TIMESTAMP=$timestamp
 CREATED_BY=$USER
-CREATED_ON=$(hostname)
-CREATED_AT=$(date -Iseconds)
+CREATED_ON=$(uname -n 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo "unknown")
+CREATED_AT=$(date -Iseconds 2>/dev/null || date)
 BACKUP_VERSION=1.0
 EOF
     
@@ -165,7 +165,7 @@ list_backup_sessions() {
 backup_path() {
     local source_path="$1"
     local session_dir="$2"
-    local relative_path="$3"
+    local relative_path="${3:-}"
     
     if [[ -z "$source_path" || -z "$session_dir" ]]; then
         log_error "Source path and session directory are required"
