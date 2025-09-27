@@ -5,11 +5,10 @@
 
 set -euo pipefail
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-CORE_DIR="$PROJECT_ROOT/core"
-NVIDIA_MODULE="$PROJECT_ROOT/distros/arch/hardware/nvidia.sh"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
+NVIDIA_MODULE="$DISTROS_DIR/arch/hardware/nvidia.sh"
 
 # Source required modules
 source "$CORE_DIR/common.sh"

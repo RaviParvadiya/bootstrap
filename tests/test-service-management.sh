@@ -3,39 +3,17 @@
 # Test script for service management functionality
 # Tests the new service management and system integration features
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
+
 # Set up test environment
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 export DRY_RUN=true
 export VERBOSE=true
 
-# Debug path information
-echo "Script dir: $SCRIPT_DIR"
-echo "Project root: $PROJECT_ROOT"
-echo "Looking for: $PROJECT_ROOT/core/common.sh"
-ls -la "$PROJECT_ROOT/core/" || echo "Core directory not found"
-
 # Source required modules
-if [[ -f "$PROJECT_ROOT/core/common.sh" ]]; then
-    source "$PROJECT_ROOT/core/common.sh"
-else
-    echo "Error: Cannot find common.sh at $PROJECT_ROOT/core/common.sh"
-    exit 1
-fi
-
-if [[ -f "$PROJECT_ROOT/core/logger.sh" ]]; then
-    source "$PROJECT_ROOT/core/logger.sh"
-else
-    echo "Error: Cannot find logger.sh at $PROJECT_ROOT/core/logger.sh"
-    exit 1
-fi
-
-if [[ -f "$PROJECT_ROOT/core/service-manager.sh" ]]; then
-    source "$PROJECT_ROOT/core/service-manager.sh"
-else
-    echo "Error: Cannot find service-manager.sh at $PROJECT_ROOT/core/service-manager.sh"
-    exit 1
-fi
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/service-manager.sh"
 
 # Test function wrapper
 run_test() {
