@@ -3,6 +3,17 @@
 # Git version control installation and configuration
 # Placeholder for future implementation
 
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+
+# Source core modules if not already loaded
+if [[ -z "${LOGGER_SOURCED:-}" ]]; then
+    source "$CORE_DIR/logger.sh"
+fi
+if ! declare -f detect_distro >/dev/null 2>&1; then
+    source "$CORE_DIR/common.sh"
+fi
+
 install_git() {
     log_info "Installing Git version control..."
     

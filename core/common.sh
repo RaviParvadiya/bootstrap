@@ -900,7 +900,7 @@ install_missing_tools() {
         if [[ "$DRY_RUN" == "true" ]]; then
             log_dry_run "Install tool: $tool" "$install_cmd $tool"
         else
-            if $install_cmd "$tool" >/dev/null 2>&1; then
+            if eval "$install_cmd \"$tool\"" >/dev/null 2>&1; then
                 echo "✓ Successfully installed $tool"
             else
                 echo "✗ Failed to install $tool"

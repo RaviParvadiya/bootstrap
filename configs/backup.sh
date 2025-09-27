@@ -463,6 +463,43 @@ backup_system_configs() {
     backup_multiple_paths "$session_dir" "${existing_configs[@]}"
 }
 
+# Create a system backup (wrapper for create_full_system_backup)
+# Arguments: $1 - session name (optional)
+# Returns: 0 if successful, 1 if failed
+create_system_backup() {
+    local session_name="${1:-system}"
+    create_full_system_backup "$session_name"
+}
+
+# Create a backup for a specific component configuration
+# Arguments: $1 - component name
+# Returns: 0 if successful, 1 if failed
+create_config_backup() {
+    local component="$1"
+    
+    if [[ -z "$component" ]]; then
+        log_error "Component name is required for config backup"
+        return 1
+    fi
+    
+    log_info "Creating configuration backup for component: $component"
+    
+    # Create backup session for this component
+    local session_dir
+    if ! session_dir=$(create_backup_session "config_${component}"); then
+        return 1
+    fi
+    
+    # Backup the component configurations
+    if backup_component_configs "$component" "$session_dir"; then
+        log_success "Configuration backup completed for $component: $session_dir"
+        return 0
+    else
+        log_error "Failed to backup configurations for component: $component"
+        return 1
+    fi
+}
+
 # Create a full system backup
 # Arguments: $1 - session name (optional)
 # Returns: 0 if successful, 1 if failed
