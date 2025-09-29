@@ -23,6 +23,7 @@ source "$DISTROS_DIR/arch/hardware/nvidia.sh"
 arch_main_install() {
     local selected_components=("$@")
     local dry_run="${DRY_RUN:-false}"
+    local use_minimal="${USE_MINIMAL_PACKAGES:-true}"
     
     log_info "Starting Arch Linux installation process..."
     
@@ -57,7 +58,7 @@ arch_main_install() {
     fi
     
     # Install base packages
-    if ! arch_install_base_packages; then
+    if ! arch_install_base_packages "$use_minimal"; then
         log_error "Failed to install base packages"
         return 1
     fi
@@ -71,8 +72,13 @@ arch_main_install() {
     fi
     
     # Install main package set with auto-detection
-    log_info "Installing packages with auto-detected system conditions..."
-    if ! arch_install_packages_auto "all" "$user_preferences"; then
+    if [[ "$use_minimal" == "true" ]]; then
+        log_info "Installing minimal package set for post-installation setup..."
+    else
+        log_info "Installing full package set for fresh installation..."
+    fi
+    
+    if ! arch_install_packages_auto "all" "$user_preferences" "$use_minimal"; then
         log_warn "Some packages failed to install, continuing..."
         # Don't return error here, continue with installation
     fi

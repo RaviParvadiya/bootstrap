@@ -95,14 +95,31 @@ arch_setup_chaotic_aur() {
         return 1
     fi
     
-    # Install chaotic keyring and mirrorlist packages
-    if ! sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'; then
-        log_error "Failed to install chaotic-keyring"
-        return 1
+    # Install chaotic keyring and mirrorlist packages - try each separately for better error handling
+    local keyring_installed=false
+    local mirrorlist_installed=false
+    
+    # Try to install keyring first
+    if sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'; then
+        keyring_installed=true
+        log_success "Chaotic keyring installed successfully"
+    else
+        log_warn "Failed to install chaotic-keyring from primary mirror"
     fi
     
-    if ! sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; then
-        log_error "Failed to install chaotic-mirrorlist"
+    # Try to install mirrorlist
+    if sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; then
+        mirrorlist_installed=true
+        log_success "Chaotic mirrorlist installed successfully"
+    else
+        log_warn "Failed to install chaotic-mirrorlist from primary mirror"
+    fi
+    
+    # If either failed, skip chaotic-aur setup but don't fail the entire installation
+    if [[ "$keyring_installed" == "false" || "$mirrorlist_installed" == "false" ]]; then
+        log_warn "Chaotic-aur packages could not be installed - repository will be skipped"
+        log_info "This is not critical - you can install chaotic-aur manually later if needed"
+        log_info "Run: sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'"
         return 1
     fi
     
