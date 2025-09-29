@@ -17,6 +17,7 @@ pacman-contrib
 reflector
 man-db
 bc
+inetutils
 cpio
 meson
 cmake

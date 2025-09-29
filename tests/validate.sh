@@ -63,7 +63,7 @@ log_validation_header() {
         echo "=========================================="
         echo "Date: $(date)"
         echo "Distribution: $distro $version"
-        echo "Hostname: $(hostname)"
+        echo "Hostname: $(hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo 'unknown')"
         echo "User: $(whoami)"
         echo "VM Mode: ${VM_MODE:-false}"
         echo "Dry Run: ${DRY_RUN:-false}"
@@ -576,20 +576,38 @@ validate_system_health() {
     local cpu_cores
     cpu_cores=$(nproc)
     
-    if (( $(echo "$load_avg < $cpu_cores" | bc -l) )); then
-        record_validation_result "System load" "PASS" "load average: $load_avg (cores: $cpu_cores)"
+    # Use bc if available, otherwise use awk for floating point comparison
+    if command -v bc >/dev/null 2>&1; then
+        if (( $(echo "$load_avg < $cpu_cores" | bc -l) )); then
+            record_validation_result "System load" "PASS" "load average: $load_avg (cores: $cpu_cores)"
+        else
+            record_validation_result "System load" "FAIL" "high load average: $load_avg (cores: $cpu_cores)"
+        fi
     else
-        record_validation_result "System load" "FAIL" "high load average: $load_avg (cores: $cpu_cores)"
+        if awk "BEGIN {exit !($load_avg < $cpu_cores)}"; then
+            record_validation_result "System load" "PASS" "load average: $load_avg (cores: $cpu_cores)"
+        else
+            record_validation_result "System load" "FAIL" "high load average: $load_avg (cores: $cpu_cores)"
+        fi
     fi
     
     # Check memory usage
     local mem_usage
     mem_usage=$(free | awk 'NR==2{printf "%.1f", $3*100/$2}')
     
-    if (( $(echo "$mem_usage < 90" | bc -l) )); then
-        record_validation_result "Memory usage" "PASS" "${mem_usage}% used"
+    # Use bc if available, otherwise use awk for floating point comparison
+    if command -v bc >/dev/null 2>&1; then
+        if (( $(echo "$mem_usage < 90" | bc -l) )); then
+            record_validation_result "Memory usage" "PASS" "${mem_usage}% used"
+        else
+            record_validation_result "Memory usage" "FAIL" "high memory usage: ${mem_usage}%"
+        fi
     else
-        record_validation_result "Memory usage" "FAIL" "high memory usage: ${mem_usage}%"
+        if awk "BEGIN {exit !($mem_usage < 90)}"; then
+            record_validation_result "Memory usage" "PASS" "${mem_usage}% used"
+        else
+            record_validation_result "Memory usage" "FAIL" "high memory usage: ${mem_usage}%"
+        fi
     fi
     
     # Check disk usage
@@ -985,7 +1003,7 @@ generate_validation_report() {
         echo "=========================================="
         echo "Generated: $(date)"
         echo "System: $(get_distro) $(get_distro_version)"
-        echo "Hostname: $(hostname)"
+        echo "Hostname: $(hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo 'unknown')"
         echo "User: $(whoami)"
         echo
         

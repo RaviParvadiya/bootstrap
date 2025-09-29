@@ -19,6 +19,7 @@ ca-certificates
 gnupg
 lsb-release
 build-essential
+hostname
 
 # --- Development Tools ---
 gcc
