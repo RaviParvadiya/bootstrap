@@ -74,6 +74,7 @@ arch_main_install() {
     log_info "Installing packages with auto-detected system conditions..."
     if ! arch_install_packages_auto "all" "$user_preferences"; then
         log_warn "Some packages failed to install, continuing..."
+        # Don't return error here, continue with installation
     fi
     
     # Check for hardware-specific configurations

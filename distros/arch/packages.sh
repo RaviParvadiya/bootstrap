@@ -60,13 +60,32 @@ arch_install_aur_packages() {
         return 0
     fi
     
-    # Install AUR packages
-    if ! $aur_helper -S --needed --noconfirm "${packages[@]}"; then
-        log_error "Failed to install some AUR packages"
+    # Install AUR packages one by one to handle missing packages gracefully
+    local failed_packages=()
+    local successful_packages=()
+    
+    for package in "${packages[@]}"; do
+        log_info "Installing AUR package: $package"
+        if $aur_helper -S --needed --noconfirm "$package"; then
+            successful_packages+=("$package")
+            log_success "Successfully installed: $package"
+        else
+            failed_packages+=("$package")
+            log_warn "Failed to install AUR package: $package"
+        fi
+    done
+    
+    # Report results
+    if [[ ${#successful_packages[@]} -gt 0 ]]; then
+        log_success "Successfully installed ${#successful_packages[@]} AUR packages: ${successful_packages[*]}"
+    fi
+    
+    if [[ ${#failed_packages[@]} -gt 0 ]]; then
+        log_error "Failed to install ${#failed_packages[@]} AUR packages: ${failed_packages[*]}"
         return 1
     fi
     
-    log_success "AUR packages installed successfully"
+    log_success "All AUR packages installed successfully"
     return 0
 }
 
@@ -233,16 +252,39 @@ arch_install_packages_by_category() {
     
     case "$category" in
         "base"|"system")
-            arch_install_from_package_list "$data_dir/arch-packages.lst" "pacman" "$conditions"
+            if ! arch_install_from_package_list "$data_dir/arch-packages.lst" "pacman" "$conditions"; then
+                log_error "Failed to install some pacman packages"
+                return 1
+            fi
             ;;
         "aur")
             # Ensure AUR helper is available first
-            arch_ensure_aur_helper
-            arch_install_from_package_list "$data_dir/aur-packages.lst" "aur" "$conditions"
+            if ! arch_ensure_aur_helper; then
+                log_error "Failed to setup AUR helper"
+                return 1
+            fi
+            
+            if ! arch_install_from_package_list "$data_dir/aur-packages.lst" "aur" "$conditions"; then
+                log_error "Failed to install some AUR packages"
+                return 1
+            fi
             ;;
         "all")
-            arch_install_packages_by_category "base" "$conditions" "$data_dir"
-            arch_install_packages_by_category "aur" "$conditions" "$data_dir"
+            local base_success=true
+            local aur_success=true
+            
+            if ! arch_install_packages_by_category "base" "$conditions" "$data_dir"; then
+                base_success=false
+            fi
+            
+            if ! arch_install_packages_by_category "aur" "$conditions" "$data_dir"; then
+                aur_success=false
+            fi
+            
+            if [[ "$base_success" == "false" || "$aur_success" == "false" ]]; then
+                log_warn "Some packages failed to install, but continuing..."
+                return 1
+            fi
             ;;
         *)
             log_error "Unknown package category: $category"

@@ -13,14 +13,13 @@ aurutils
 neovim-git
 
 # --- Terminal and Shell ---
-starship-bin
-zoxide-bin
+# starship and zoxide are available in official repos
 kitty-git
 alacritty-git
 
 # --- Window Manager ---
 hyprland-git
-waybar-hyprland-git
+waybar-git
 wofi-git
 swaync-git
 hyprpicker-git
@@ -43,9 +42,9 @@ batsignal|laptop
 
 # --- Fonts ---
 ttf-jetbrains-mono-nerd
-ttf-fira-code-nerd
+ttf-firacode-nerd
 ttf-meslo-nerd-font-powerlevel10k
-nerd-fonts-complete
+# nerd-fonts is too large, use specific fonts instead
 
 # --- Themes and Customization ---
 catppuccin-gtk-theme-mocha
