@@ -17,6 +17,7 @@ pacman-contrib
 reflector
 man-db
 bc
+inetutils
 cpio
 meson
 cmake
@@ -27,6 +28,7 @@ fd
 ripgrep
 eza
 zoxide
+starship
 base
 base-devel
 linux

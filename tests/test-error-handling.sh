@@ -5,22 +5,15 @@
 
 set -euo pipefail
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Initialize all project paths
+source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 
-# Ensure we're in the right directory
-if [[ ! -f "$TEST_PROJECT_ROOT/core/common.sh" ]]; then
-    echo "Error: Cannot find core modules. Please run from project root."
-    exit 1
-fi
-
-# Source required modules (common.sh will set its own PROJECT_ROOT)
-source "$TEST_PROJECT_ROOT/core/common.sh"
-source "$TEST_PROJECT_ROOT/core/logger.sh"
-source "$TEST_PROJECT_ROOT/core/error-handler.sh"
-source "$TEST_PROJECT_ROOT/core/error-wrappers.sh"
-source "$TEST_PROJECT_ROOT/core/recovery-system.sh"
+# Source required modules
+source "$CORE_DIR/common.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/error-handler.sh"
+source "$CORE_DIR/error-wrappers.sh"
+source "$CORE_DIR/recovery-system.sh"
 
 # Test configuration
 DRY_RUN="${DRY_RUN:-true}"

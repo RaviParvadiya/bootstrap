@@ -47,7 +47,7 @@ discover_dotfiles_components() {
         
         # Skip non-component files and directories
         case "$component_name" in
-            ".*"|"install.sh"|"update.sh"|"README.md"|"TODO.txt"|"pkglist-"*)
+            ".*"|".git"|"install.sh"|"update.sh"|"README.md"|"TODO.txt"|"pkglist-"*|"banner")
                 continue
                 ;;
             *)
@@ -816,6 +816,38 @@ main() {
             exit 1
             ;;
     esac
+}
+
+#######################################
+# Main Dotfiles Management Function
+#######################################
+
+# Main dotfiles management function called by install.sh
+# Arguments: Array of component names
+# Returns: 0 if successful, 1 if failed
+manage_dotfiles() {
+    local components=("$@")
+    
+    if [[ ${#components[@]} -eq 0 ]]; then
+        log_error "No components specified for dotfiles management"
+        return 1
+    fi
+    
+    log_info "Managing dotfiles for components: ${components[*]}"
+    
+    # Initialize the dotfiles manager
+    if ! init_dotfiles_manager; then
+        return 1
+    fi
+    
+    # Apply configurations for all specified components
+    if ! apply_multiple_components "${components[@]}"; then
+        log_error "Failed to apply dotfiles configurations"
+        return 1
+    fi
+    
+    log_success "Dotfiles management completed successfully"
+    return 0
 }
 
 # Allow script to be sourced or executed directly

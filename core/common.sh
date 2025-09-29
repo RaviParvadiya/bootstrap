@@ -16,6 +16,11 @@ if [[ -z "${PATHS_SOURCED:-}" ]]; then
     source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
 fi
 
+# Source logger functions (only if not already sourced)
+if [[ -z "${LOGGER_SOURCED:-}" ]]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
+fi
+
 # Global variables
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
@@ -824,6 +829,99 @@ validate_permissions() {
     return 0
 }
 
+# Install missing system tools automatically
+# Arguments: Array of missing tool names
+# Returns: 0 if all tools installed successfully, 1 if any failed
+# Requirements: Auto-install missing tools instead of failing
+install_missing_tools() {
+    local missing_tools=("$@")
+    local distro
+    local package_manager=""
+    local install_cmd=""
+
+    if [[ ${#missing_tools[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    distro=$(get_distro)
+
+    # Detect package manager and set install command
+    case "$distro" in
+        "arch")
+            if command -v pacman >/dev/null 2>&1; then
+                package_manager="pacman"
+                install_cmd="sudo pacman -S --noconfirm"
+            else
+                echo "Error: pacman not found on Arch-based system"
+                return 1
+            fi
+            ;;
+        "ubuntu")
+            if command -v apt-get >/dev/null 2>&1; then
+                package_manager="apt-get"
+                install_cmd="sudo apt-get install -y"
+            else
+                echo "Error: apt-get not found on Ubuntu/Debian system"
+                return 1
+            fi
+            ;;
+        *)
+            echo "Error: No supported package manager found for distribution: $distro"
+            echo "This script supports:"
+            echo "  • Arch Linux (pacman)"
+            echo "  • Ubuntu/Debian (apt-get)"
+            return 1
+            ;;
+    esac
+
+    echo "=============================================="
+    echo "INSTALLING MISSING TOOLS"
+    echo "=============================================="
+    echo "Distribution: $distro"
+    echo "Package Manager: $package_manager"
+    echo "Missing tools: ${missing_tools[*]}"
+    echo
+
+    # Update package database first for Ubuntu/Debian
+    if [[ "$package_manager" == "apt-get" ]]; then
+        echo "Updating package database..."
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_dry_run "Update package database" "sudo apt-get update"
+        else
+            sudo apt-get update >/dev/null 2>&1
+        fi
+    fi
+
+    # Install each missing tool
+    local failed_tools=()
+    for tool in "${missing_tools[@]}"; do
+        echo "Installing $tool..."
+        
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_dry_run "Install tool: $tool" "$install_cmd $tool"
+        else
+            if eval "$install_cmd \"$tool\"" >/dev/null 2>&1; then
+                echo "✓ Successfully installed $tool"
+            else
+                echo "✗ Failed to install $tool"
+                failed_tools+=("$tool")
+            fi
+        fi
+    done
+
+    # Report results
+    if [[ ${#failed_tools[@]} -gt 0 ]]; then
+        echo
+        echo "Failed to install the following tools: ${failed_tools[*]}"
+        echo "Please install them manually and run the script again"
+        return 1
+    fi
+
+    echo
+    echo "✓ All required tools installed successfully"
+    return 0
+}
+
 # Check system prerequisites
 # Returns: 0 if all prerequisites met, 1 if missing prerequisites
 # Requirements: 10.4 - System requirements checking
@@ -861,10 +959,11 @@ validate_system() {
         return 1
     fi
 
+    # Install missing tools automatically
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
-        echo "Error: Missing required tools: ${missing_tools[*]}"
-        echo "Please install these tools before running the script"
-        return 1
+        if ! install_missing_tools "${missing_tools[@]}"; then
+            return 1
+        fi
     fi
 
     return 0

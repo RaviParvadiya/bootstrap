@@ -60,13 +60,32 @@ arch_install_aur_packages() {
         return 0
     fi
     
-    # Install AUR packages
-    if ! $aur_helper -S --needed --noconfirm "${packages[@]}"; then
-        log_error "Failed to install some AUR packages"
+    # Install AUR packages one by one to handle missing packages gracefully
+    local failed_packages=()
+    local successful_packages=()
+    
+    for package in "${packages[@]}"; do
+        log_info "Installing AUR package: $package"
+        if $aur_helper -S --needed --noconfirm "$package"; then
+            successful_packages+=("$package")
+            log_success "Successfully installed: $package"
+        else
+            failed_packages+=("$package")
+            log_warn "Failed to install AUR package: $package"
+        fi
+    done
+    
+    # Report results
+    if [[ ${#successful_packages[@]} -gt 0 ]]; then
+        log_success "Successfully installed ${#successful_packages[@]} AUR packages: ${successful_packages[*]}"
+    fi
+    
+    if [[ ${#failed_packages[@]} -gt 0 ]]; then
+        log_error "Failed to install ${#failed_packages[@]} AUR packages: ${failed_packages[*]}"
         return 1
     fi
     
-    log_success "AUR packages installed successfully"
+    log_success "All AUR packages installed successfully"
     return 0
 }
 
@@ -228,21 +247,57 @@ arch_install_packages_by_category() {
     local category="$1"
     local conditions="${2:-}"
     local data_dir="${3:-$DATA_DIR}"
+    local use_minimal="${4:-true}"  # Use minimal lists by default
     
     log_info "Installing $category packages with conditions: $conditions"
     
+    # Choose package list based on minimal flag
+    local arch_list="arch-packages.lst"
+    local aur_list="aur-packages.lst"
+    
+    if [[ "$use_minimal" == "true" ]]; then
+        arch_list="arch-packages-minimal.lst"
+        aur_list="aur-packages-minimal.lst"
+        log_info "Using minimal package lists for post-installation setup"
+    else
+        log_info "Using full package lists for complete installation"
+    fi
+    
     case "$category" in
         "base"|"system")
-            arch_install_from_package_list "$data_dir/arch-packages.lst" "pacman" "$conditions"
+            if ! arch_install_from_package_list "$data_dir/$arch_list" "pacman" "$conditions"; then
+                log_error "Failed to install some pacman packages"
+                return 1
+            fi
             ;;
         "aur")
             # Ensure AUR helper is available first
-            arch_ensure_aur_helper
-            arch_install_from_package_list "$data_dir/aur-packages.lst" "aur" "$conditions"
+            if ! arch_ensure_aur_helper; then
+                log_error "Failed to setup AUR helper"
+                return 1
+            fi
+            
+            if ! arch_install_from_package_list "$data_dir/$aur_list" "aur" "$conditions"; then
+                log_error "Failed to install some AUR packages"
+                return 1
+            fi
             ;;
         "all")
-            arch_install_packages_by_category "base" "$conditions" "$data_dir"
-            arch_install_packages_by_category "aur" "$conditions" "$data_dir"
+            local base_success=true
+            local aur_success=true
+            
+            if ! arch_install_packages_by_category "base" "$conditions" "$data_dir" "$use_minimal"; then
+                base_success=false
+            fi
+            
+            if ! arch_install_packages_by_category "aur" "$conditions" "$data_dir" "$use_minimal"; then
+                aur_success=false
+            fi
+            
+            if [[ "$base_success" == "false" || "$aur_success" == "false" ]]; then
+                log_warn "Some packages failed to install, but continuing..."
+                return 1
+            fi
             ;;
         *)
             log_error "Unknown package category: $category"
@@ -253,21 +308,36 @@ arch_install_packages_by_category() {
 
 # Install base packages required for the framework
 arch_install_base_packages() {
-    log_info "Installing base packages for Arch Linux..."
+    local use_minimal="${1:-true}"
     
-    local base_packages=(
-        "base-devel"
-        "git"
-        "curl"
-        "wget"
-        "unzip"
-        "tar"
-        "gzip"
-        "sudo"
-        "which"
-        "man-db"
-        "man-pages"
-    )
+    if [[ "$use_minimal" == "true" ]]; then
+        log_info "Installing minimal base packages for post-installation setup..."
+        
+        # Only install essential tools that might be missing
+        local base_packages=(
+            "git"
+            "curl"
+            "wget"
+            "unzip"
+            "tar"
+        )
+    else
+        log_info "Installing full base packages for fresh installation..."
+        
+        local base_packages=(
+            "base-devel"
+            "git"
+            "curl"
+            "wget"
+            "unzip"
+            "tar"
+            "gzip"
+            "sudo"
+            "which"
+            "man-db"
+            "man-pages"
+        )
+    fi
     
     arch_install_pacman_packages "${base_packages[@]}"
 }
@@ -476,6 +546,7 @@ arch_setup_system() {
 arch_install_packages_auto() {
     local category="$1"
     local user_preferences="${2:-}"
+    local use_minimal="${3:-true}"  # Use minimal lists by default for post-installation
     
     # Detect system conditions automatically
     local conditions=()
@@ -517,8 +588,8 @@ arch_install_packages_auto() {
     
     log_info "Auto-detected conditions: $conditions_str"
     
-    # Install packages with detected conditions
-    arch_install_packages_by_category "$category" "$conditions_str"
+    # Install packages with detected conditions using minimal lists by default
+    arch_install_packages_by_category "$category" "$conditions_str" "$DATA_DIR" "$use_minimal"
 }
 
 # Export new functions

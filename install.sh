@@ -56,6 +56,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 DRY_RUN=false
 VM_MODE=false
 VERBOSE=false
+USE_MINIMAL_PACKAGES=true  # Use minimal package lists by default for post-installation
 SELECTED_COMPONENTS=()
 DETECTED_DISTRO=""
 
@@ -100,6 +101,8 @@ OPTIONS:
     -d, --dry-run       Show what would be done without executing
     -t, --test          Run in test mode (VM-safe)
     -c, --components    Comma-separated list of components to install
+    -m, --minimal       Use minimal package lists (default for post-installation)
+    -f, --full          Use full package lists (for fresh installations)
 
 COMMANDS:
     install             Run interactive installation (default)
@@ -145,6 +148,14 @@ parse_arguments() {
             -c|--components)
                 IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
                 shift 2
+                ;;
+            -m|--minimal)
+                USE_MINIMAL_PACKAGES=true
+                shift
+                ;;
+            -f|--full)
+                USE_MINIMAL_PACKAGES=false
+                shift
                 ;;
             install|restore|validate|backup|list|dry-run|test)
                 COMMAND="$1"
