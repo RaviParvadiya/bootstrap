@@ -983,7 +983,7 @@ display_validation_results() {
                 colored_status="${RED}FAIL${NC}"
             fi
             
-            printf "%-40s %-10s %s\n" "$test_name" "$colored_status" "$details"
+            printf "%-40s %-10s %s\n" "$test_name" "$(echo -e "$colored_status")" "$details"
         else
             printf "%-40s %-10s %s\n" "$result" "UNKNOWN" ""
         fi
