@@ -257,6 +257,56 @@ main() {
         cleanup_and_exit 1
     fi
     
+    # Check and setup dotfiles repository
+    log_info "Checking dotfiles repository..."
+    if [[ -d "$SCRIPT_DIR/dotfiles" ]]; then
+        if [[ -d "$SCRIPT_DIR/dotfiles/.git" ]]; then
+            log_info "Dotfiles repository found and is a valid git repository"
+            log_info "Fetching latest changes from remote repository..."
+            
+            # Change to dotfiles directory and fetch latest changes
+            pushd "$SCRIPT_DIR/dotfiles" > /dev/null
+            if ! git fetch origin; then
+                handle_error "config" "Failed to fetch latest changes from dotfiles repository" "dotfiles_fetch"
+                log_warn "Continuing with existing dotfiles version"
+            else
+                # Pull latest changes if we're on a branch that tracks origin
+                local current_branch
+                current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+                if [[ -n "$current_branch" && "$current_branch" != "HEAD" ]]; then
+                    if git rev-parse --verify "origin/$current_branch" >/dev/null 2>&1; then
+                        if ! git pull origin "$current_branch"; then
+                            handle_error "config" "Failed to pull latest changes from dotfiles repository" "dotfiles_pull"
+                            log_warn "Continuing with existing dotfiles version"
+                        else
+                            log_success "Dotfiles repository updated to latest version"
+                        fi
+                    else
+                        log_info "Current branch does not track origin, skipping pull"
+                    fi
+                else
+                    log_info "Not on a named branch, skipping pull"
+                fi
+            fi
+            popd > /dev/null
+        else
+            log_warn "Dotfiles directory exists but is not a git repository"
+            log_info "Removing existing dotfiles directory and cloning repository..."
+            rm -rf "$SCRIPT_DIR/dotfiles"
+            if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
+                handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
+                cleanup_and_exit 1
+            fi
+            log_success "Dotfiles repository cloned successfully"
+        fi
+    else
+        log_info "Dotfiles directory not found, cloning repository..."
+        if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
+            handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
+            cleanup_and_exit 1
+        fi
+        log_success "Dotfiles repository cloned successfully"
+    fi
     pop_error_context
     
     # Execute command with comprehensive error handling
