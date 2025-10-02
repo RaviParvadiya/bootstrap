@@ -323,30 +323,22 @@ execute_retry_with_update() {
     
     log_info "Updating package database before retry"
     
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would update package database and retry installation: $package"
+        return 0
+    fi
+    
     case "$(get_distro)" in
         "arch")
-            if [[ "$DRY_RUN" == "true" ]]; then
-                log_info "[DRY RUN] Would update package database: sudo pacman -Sy"
-            else
-                sudo pacman -Sy >/dev/null 2>&1
-            fi
+            sudo pacman -Sy >/dev/null 2>&1
             ;;
         "ubuntu")
-            if [[ "$DRY_RUN" == "true" ]]; then
-                log_info "[DRY RUN] Would update package database: sudo apt update"
-            else
-                sudo apt update >/dev/null 2>&1
-            fi
+            sudo apt update >/dev/null 2>&1
             ;;
     esac
     
     # Retry package installation
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would retry package installation: $package"
-        return 0
-    else
-        install_package "$package"
-    fi
+    install_package "$package"
 }
 
 # Try alternative package source
