@@ -39,6 +39,9 @@ test_config_error() {
     
     push_error_context "test" "Config error test"
     
+    # Register a rollback action for the test_config operation
+    register_rollback_action "test_config" "echo 'Test config rollback executed'" "Test config rollback action"
+    
     # Simulate config file error
     if ! safe_copy_file "/nonexistent/source" "/tmp/test-dest"; then
         log_info "Config error handled correctly"

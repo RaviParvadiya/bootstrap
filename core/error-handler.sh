@@ -543,6 +543,7 @@ perform_operation_rollback() {
             
             if [[ "$DRY_RUN" == "true" ]]; then
                 log_info "[DRY RUN] Would execute rollback: $rollback_cmd"
+                rollback_performed=true
             else
                 if eval "$rollback_cmd"; then
                     log_success "Rollback successful: $description"

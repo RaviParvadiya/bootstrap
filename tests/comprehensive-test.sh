@@ -225,17 +225,21 @@ test_error_handling_system() {
     # Test error categorization
     local test_passed=true
     
+    # Register rollback actions for test operations before triggering errors
+    register_rollback_action "test_package" "echo 'Test package rollback executed'" "Test package rollback action"
+    register_rollback_action "test_config" "echo 'Test config rollback executed'" "Test config rollback action"
+    
     # Test different error types
-    if ! handle_error "package" "Test package error" "test_operation" 4; then
+    if ! handle_error "package" "Test package error" "test_package" 4; then
         log_info "Package error handled (expected behavior)"
     fi
     
-    if ! handle_error "config" "Test config error" "test_operation" 4; then
+    if ! handle_error "config" "Test config error" "test_config" 4; then
         log_info "Config error handled (expected behavior)"
     fi
     
     # Test rollback registration
-    register_rollback_action "test_rollback" "echo 'Test rollback'" "Test rollback action"
+    register_rollback_action "test_rollback" "echo 'Test rollback executed'" "Test rollback action"
     
     if [[ ${#ROLLBACK_STACK[@]} -gt 0 ]]; then
         log_info "Rollback action registered successfully"
