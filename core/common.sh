@@ -39,9 +39,7 @@ DISTRO_COMPATIBLE=""
 # Returns: Sets DETECTED_DISTRO, DISTRO_VERSION, DISTRO_CODENAME, and DISTRO_COMPATIBLE global variables
 # Requirements: 1.1 - Auto-detect Arch Linux vs Ubuntu, 1.5 - Fallback handling for unsupported distributions
 detect_distro() {
-    if [[ -n "$DETECTED_DISTRO" ]]; then
-        return 0  # Already detected
-    fi
+    [[ -n "$DETECTED_DISTRO" ]] && return 0  # Already detected
 
     # Initialize variables
     DETECTED_DISTRO=""
@@ -51,25 +49,21 @@ detect_distro() {
 
     # Primary detection method: /etc/os-release
     if [[ -f /etc/os-release ]]; then
-        # Read os-release variables safely
-        local id version_id version_codename id_like name
+        local id version_id version_codename id_like
         
         # Parse /etc/os-release line by line
         while IFS='=' read -r key value; do
-            # Remove quotes from value
-            value=$(echo "$value" | sed 's/^"//;s/"$//')
+            value=${value//\"/}  # Remove quotes from value
             
             case "$key" in
                 "ID") id="$value" ;;
                 "VERSION_ID") version_id="$value" ;;
                 "VERSION_CODENAME") version_codename="$value" ;;
                 "ID_LIKE") id_like="$value" ;;
-                "NAME") name="$value" ;;
             esac
         done < /etc/os-release
         
         if [[ -n "$id" ]]; then
-            
             case "$id" in
                 "arch")
                     DETECTED_DISTRO="arch"
@@ -82,27 +76,12 @@ detect_distro() {
                     DISTRO_VERSION="$version_id"
                     DISTRO_CODENAME="$version_codename"
                     # Check Ubuntu version compatibility (18.04+)
-                    if _is_ubuntu_version_supported "$version_id"; then
-                        DISTRO_COMPATIBLE="true"
-                    else
-                        DISTRO_COMPATIBLE="false"
-                    fi
+                    DISTRO_COMPATIBLE=$(_is_ubuntu_version_supported "$version_id" && echo "true" || echo "false")
                     ;;
-                "manjaro")
-                    DETECTED_DISTRO="arch"  # Treat Manjaro as Arch-based
-                    DISTRO_VERSION="manjaro-${version_id:-unknown}"
-                    DISTRO_CODENAME="$version_codename"
-                    DISTRO_COMPATIBLE="true"
-                    ;;
-                "endeavouros")
-                    DETECTED_DISTRO="arch"  # Treat EndeavourOS as Arch-based
-                    DISTRO_VERSION="endeavouros-${version_id:-unknown}"
-                    DISTRO_CODENAME="$version_codename"
-                    DISTRO_COMPATIBLE="true"
-                    ;;
-                "garuda")
-                    DETECTED_DISTRO="arch"  # Treat Garuda as Arch-based
-                    DISTRO_VERSION="garuda-${version_id:-unknown}"
+                "manjaro"|"endeavouros"|"garuda")
+                    # Treat Arch-based distributions as Arch
+                    DETECTED_DISTRO="arch"
+                    DISTRO_VERSION="${id}-${version_id:-unknown}"
                     DISTRO_CODENAME="$version_codename"
                     DISTRO_COMPATIBLE="true"
                     ;;
@@ -130,17 +109,15 @@ detect_distro() {
     fi
 
     # Fallback detection methods if /etc/os-release failed
-    if [[ -z "$DETECTED_DISTRO" || "$DETECTED_DISTRO" == "unsupported" ]]; then
-        _fallback_distro_detection
-    fi
+    [[ -z "$DETECTED_DISTRO" || "$DETECTED_DISTRO" == "unsupported" ]] && _fallback_distro_detection
 
     # Final validation and logging
-    if [[ "$VERBOSE" == "true" ]]; then
+    [[ "$VERBOSE" == "true" ]] && {
         echo "Detected distribution: $DETECTED_DISTRO"
         echo "Version: $DISTRO_VERSION"
         echo "Codename: $DISTRO_CODENAME"
         echo "Compatible: $DISTRO_COMPATIBLE"
-    fi
+    }
 
     return 0
 }
@@ -150,21 +127,13 @@ detect_distro() {
 # Returns: 0 if supported, 1 if not supported
 _is_ubuntu_version_supported() {
     local version="$1"
-    
-    if [[ -z "$version" ]]; then
-        return 1
-    fi
+    [[ -z "$version" ]] && return 1
 
-    # Extract major and minor version numbers
     local major minor
     IFS='.' read -r major minor <<< "$version"
     
     # Support Ubuntu 18.04 and newer
-    if [[ $major -gt 18 ]] || [[ $major -eq 18 && $minor -ge 4 ]]; then
-        return 0
-    fi
-    
-    return 1
+    [[ $major -gt 18 ]] || [[ $major -eq 18 && $minor -ge 4 ]]
 }
 
 # Fallback distribution detection using various system indicators
@@ -192,20 +161,13 @@ _fallback_distro_detection() {
         DISTRO_CODENAME="unknown"
         DISTRO_COMPATIBLE="true"
         return 0
-    elif [[ -f /etc/lsb-release ]]; then
+    elif [[ -f /etc/lsb-release ]] && grep -q "Ubuntu" /etc/lsb-release 2>/dev/null; then
         # Try to parse LSB release info
-        if grep -q "Ubuntu" /etc/lsb-release 2>/dev/null; then
-            DETECTED_DISTRO="ubuntu"
-            DISTRO_VERSION=$(grep "DISTRIB_RELEASE" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-            DISTRO_CODENAME=$(grep "DISTRIB_CODENAME" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-            
-            if _is_ubuntu_version_supported "$DISTRO_VERSION"; then
-                DISTRO_COMPATIBLE="true"
-            else
-                DISTRO_COMPATIBLE="false"
-            fi
-            return 0
-        fi
+        DETECTED_DISTRO="ubuntu"
+        DISTRO_VERSION=$(grep "DISTRIB_RELEASE" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+        DISTRO_CODENAME=$(grep "DISTRIB_CODENAME" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+        DISTRO_COMPATIBLE=$(_is_ubuntu_version_supported "$DISTRO_VERSION" && echo "true" || echo "false")
+        return 0
     fi
 
     # Method 3: Check /proc/version
@@ -263,9 +225,8 @@ is_supported_distro() {
 # Check if current distribution is compatible (may work but not fully tested)
 # Returns: 0 if compatible, 1 if incompatible
 is_compatible_distro() {
-    local distro
-    distro=$(get_distro)
-    [[ "$distro" == "arch" || "$distro" == "ubuntu" ]]
+    detect_distro
+    [[ "$DETECTED_DISTRO" == "arch" || "$DETECTED_DISTRO" == "ubuntu" ]]
 }
 
 # Get detailed distribution information
@@ -330,23 +291,16 @@ handle_unsupported_distro() {
 
 # Validate distribution compatibility and handle unsupported cases
 # Returns: 0 if can proceed, 1 if should abort
-# Requirements: 1.1, 1.5 - Auto-detect and handle unsupported distributions
 validate_distro_support() {
     detect_distro
     
     if is_supported_distro; then
-        if [[ "$VERBOSE" == "true" ]]; then
-            echo "Distribution validation passed: $(get_distro) $(get_distro_version)"
-        fi
+        [[ "$VERBOSE" == "true" ]] && echo "Distribution validation passed: $(get_distro) $(get_distro_version)"
         return 0
     fi
     
     # Handle unsupported distribution
-    if ! handle_unsupported_distro; then
-        return 1
-    fi
-    
-    return 0
+    handle_unsupported_distro
 }
 
 #######################################
@@ -360,14 +314,6 @@ validate_distro_support() {
 # Arguments: None
 # Returns: 0 if connected, 1 if not connected
 # Global Variables: None modified
-# Requirements: 10.4 - System validation functions
-# 
-# Usage Examples:
-#   if check_internet; then
-#       echo "Internet connection available"
-#   else
-#       echo "No internet connection"
-#   fi
 check_internet() {
     local test_urls=(
         "8.8.8.8"           # Google DNS
@@ -388,18 +334,15 @@ check_internet() {
 # Arguments: $1 - number of retries (default: 3)
 # Returns: 0 if connected, 1 if failed after retries
 check_internet_retry() {
-    local retries="${1:-3}"
-    local count=0
+    local retries="${1:-3}" count=0
 
     while [[ $count -lt $retries ]]; do
-        if check_internet; then
-            return 0
-        fi
+        check_internet && return 0
         ((count++))
-        if [[ $count -lt $retries ]]; then
+        [[ $count -lt $retries ]] && {
             echo "Internet connectivity check failed, retrying in 2 seconds... ($count/$retries)"
             sleep 2
-        fi
+        }
     done
 
     return 1
@@ -428,8 +371,6 @@ check_internet_retry() {
 #   DRY_RUN - If "true", only shows what would be installed
 #   VERBOSE - If "true", shows detailed installation output
 # 
-# Requirements: 1.1 - Universal package installation
-# 
 # Usage Examples:
 #   install_package "git"                    # Auto-detect package manager
 #   install_package "firefox" "apt"         # Force APT usage
@@ -442,58 +383,29 @@ check_internet_retry() {
 #       echo "Failed to install Neovim"
 #   fi
 install_package() {
-    local package="$1"
-    local pm="${2:-auto}"
-    local distro
+    local package="$1" pm="${2:-auto}"
 
-    if [[ -z "$package" ]]; then
-        echo "Error: Package name is required"
-        return 1
-    fi
+    [[ -z "$package" ]] && { echo "Error: Package name is required"; return 1; }
 
-    distro=$(get_distro)
+    local distro=$(get_distro)
     
     if [[ "$pm" == "auto" ]]; then
         case "$distro" in
-            "arch")
-                pm="pacman"
-                ;;
-            "ubuntu")
-                pm="apt"
-                ;;
-            *)
-                echo "Error: Unsupported distribution for auto package manager detection"
-                return 1
-                ;;
+            "arch") pm="pacman" ;;
+            "ubuntu") pm="apt" ;;
+            *) echo "Error: Unsupported distribution for auto package manager detection"; return 1 ;;
         esac
     fi
 
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_dry_run "Install package: $package" "using $pm"
-        return 0
-    fi
+    [[ "$DRY_RUN" == "true" ]] && { log_dry_run "Install package: $package" "using $pm"; return 0; }
 
     case "$pm" in
-        "pacman")
-            sudo pacman -S --noconfirm "$package"
-            ;;
-        "yay"|"paru")
-            "$pm" -S --noconfirm "$package"
-            ;;
-        "apt")
-            sudo apt-get update >/dev/null 2>&1
-            sudo apt-get install -y "$package"
-            ;;
-        "snap")
-            sudo snap install "$package"
-            ;;
-        "flatpak")
-            flatpak install -y flathub "$package"
-            ;;
-        *)
-            echo "Error: Unsupported package manager: $pm"
-            return 1
-            ;;
+        "pacman") sudo pacman -S --noconfirm "$package" ;;
+        "yay"|"paru") "$pm" -S --noconfirm "$package" ;;
+        "apt") sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y "$package" ;;
+        "snap") sudo snap install "$package" ;;
+        "flatpak") flatpak install -y flathub "$package" ;;
+        *) echo "Error: Unsupported package manager: $pm"; return 1 ;;
     esac
 }
 
@@ -501,9 +413,7 @@ install_package() {
 # Arguments: Array of package names
 # Returns: 0 if all successful, 1 if any failed
 install_packages() {
-    local packages=("$@")
-    local failed_packages=()
-    local success_count=0
+    local packages=("$@") failed_packages=() success_count=0
 
     for package in "${packages[@]}"; do
         if install_package "$package"; then
@@ -527,39 +437,22 @@ install_packages() {
 # Arguments: $1 - package name, $2 - package manager (optional)
 # Returns: 0 if installed, 1 if not installed
 is_package_installed() {
-    local package="$1"
-    local pm="${2:-auto}"
-    local distro
+    local package="$1" pm="${2:-auto}"
 
-    distro=$(get_distro)
-    
     if [[ "$pm" == "auto" ]]; then
+        local distro=$(get_distro)
         case "$distro" in
-            "arch")
-                pm="pacman"
-                ;;
-            "ubuntu")
-                pm="apt"
-                ;;
+            "arch") pm="pacman" ;;
+            "ubuntu") pm="apt" ;;
         esac
     fi
 
     case "$pm" in
-        "pacman")
-            pacman -Qi "$package" >/dev/null 2>&1
-            ;;
-        "apt")
-            dpkg -l "$package" >/dev/null 2>&1
-            ;;
-        "snap")
-            snap list "$package" >/dev/null 2>&1
-            ;;
-        "flatpak")
-            flatpak list | grep -q "$package"
-            ;;
-        *)
-            return 1
-            ;;
+        "pacman") pacman -Qi "$package" >/dev/null 2>&1 ;;
+        "apt") dpkg -l "$package" >/dev/null 2>&1 ;;
+        "snap") snap list "$package" >/dev/null 2>&1 ;;
+        "flatpak") flatpak list | grep -q "$package" ;;
+        *) return 1 ;;
     esac
 }
 
@@ -585,8 +478,6 @@ is_package_installed() {
 # Global Variables:
 #   DRY_RUN - If "true", automatically returns the default or 0 if no default
 # 
-# Requirements: 1.1 - Interactive confirmation prompts
-# 
 # Usage Examples:
 #   # Simple yes/no question
 #   if ask_yes_no "Do you want to continue?"; then
@@ -603,37 +494,25 @@ is_package_installed() {
 #       rm -rf ~/.config/app
 #   fi
 ask_yes_no() {
-    local prompt="$1"
-    local default="${2:-}"
-    local response
+    local prompt="$1" default="${2:-}" response
 
     # Format prompt with default indication
-    if [[ "$default" == "y" ]]; then
-        prompt="$prompt [Y/n]: "
-    elif [[ "$default" == "n" ]]; then
-        prompt="$prompt [y/N]: "
-    else
-        prompt="$prompt [y/n]: "
-    fi
+    case "$default" in
+        "y") prompt="$prompt [Y/n]: " ;;
+        "n") prompt="$prompt [y/N]: " ;;
+        *) prompt="$prompt [y/n]: " ;;
+    esac
 
     while true; do
         read -r -p "$prompt" response
         
         # Use default if no response given
-        if [[ -z "$response" && -n "$default" ]]; then
-            response="$default"
-        fi
+        [[ -z "$response" && -n "$default" ]] && response="$default"
 
         case "$response" in
-            [Yy]|[Yy][Ee][Ss])
-                return 0
-                ;;
-            [Nn]|[Nn][Oo])
-                return 1
-                ;;
-            *)
-                echo "Please answer yes (y) or no (n)."
-                ;;
+            [Yy]|[Yy][Ee][Ss]) return 0 ;;
+            [Nn]|[Nn][Oo]) return 1 ;;
+            *) echo "Please answer yes (y) or no (n)." ;;
         esac
     done
 }
@@ -644,8 +523,7 @@ ask_yes_no() {
 ask_choice() {
     local prompt="$1"
     shift
-    local options=("$@")
-    local choice
+    local options=("$@") choice
 
     echo "$prompt"
     for i in "${!options[@]}"; do
@@ -692,8 +570,6 @@ ask_choice() {
 #   - Backs up existing target file/directory before creating symlink
 #   - Creates parent directories for target if they don't exist
 # 
-# Requirements: 1.1 - Safe symlink creation functions
-# 
 # Usage Examples:
 #   # Link dotfile configuration
 #   create_symlink "$HOME/dotfiles/kitty" "$HOME/.config/kitty"
@@ -708,44 +584,27 @@ ask_choice() {
 #       echo "Failed to create symlink"
 #   fi
 create_symlink() {
-    local source="$1"
-    local target="$2"
+    local source="$1" target="$2"
     local backup_dir="$HOME/.config/install-backups/$(date +%Y%m%d_%H%M%S)"
 
-    if [[ -z "$source" || -z "$target" ]]; then
-        echo "Error: Source and target are required for symlink creation"
-        return 1
-    fi
-
-    if [[ ! -e "$source" ]]; then
-        echo "Error: Source file does not exist: $source"
-        return 1
-    fi
+    [[ -z "$source" || -z "$target" ]] && { echo "Error: Source and target are required for symlink creation"; return 1; }
+    [[ ! -e "$source" ]] && { echo "Error: Source file does not exist: $source"; return 1; }
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_dry_run "Create symlink: $target -> $source"
-        if [[ -e "$target" ]]; then
-            log_dry_run "Backup existing file: $target"
-        fi
+        [[ -e "$target" ]] && log_dry_run "Backup existing file: $target"
         return 0
     fi
 
     # Create target directory if it doesn't exist
-    local target_dir
-    target_dir=$(dirname "$target")
-    if [[ ! -d "$target_dir" ]]; then
-        mkdir -p "$target_dir"
-    fi
+    local target_dir=$(dirname "$target")
+    [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
 
     # Backup existing file if it exists and is not already a symlink to our source
     if [[ -e "$target" ]]; then
         if [[ -L "$target" ]]; then
-            local current_target
-            current_target=$(readlink "$target")
-            if [[ "$current_target" == "$source" ]]; then
-                echo "Symlink already exists and points to correct target: $target"
-                return 0
-            fi
+            local current_target=$(readlink "$target")
+            [[ "$current_target" == "$source" ]] && { echo "Symlink already exists and points to correct target: $target"; return 0; }
         fi
 
         # Create backup
@@ -766,30 +625,19 @@ create_symlink() {
 # Arguments: $1 - source directory, $2 - target directory
 # Returns: 0 if all successful, 1 if any failed
 create_symlinks_from_dir() {
-    local source_dir="$1"
-    local target_dir="$2"
-    local failed_count=0
+    local source_dir="$1" target_dir="$2" failed_count=0
 
-    if [[ ! -d "$source_dir" ]]; then
-        echo "Error: Source directory does not exist: $source_dir"
-        return 1
-    fi
+    [[ ! -d "$source_dir" ]] && { echo "Error: Source directory does not exist: $source_dir"; return 1; }
 
     # Find all files in source directory (excluding directories)
     while IFS= read -r -d '' file; do
         local relative_path="${file#$source_dir/}"
         local target_file="$target_dir/$relative_path"
         
-        if ! create_symlink "$file" "$target_file"; then
-            ((failed_count++))
-        fi
+        create_symlink "$file" "$target_file" || ((failed_count++))
     done < <(find "$source_dir" -type f -print0)
 
-    if [[ $failed_count -gt 0 ]]; then
-        echo "Warning: Failed to create $failed_count symlinks"
-        return 1
-    fi
-
+    [[ $failed_count -gt 0 ]] && { echo "Warning: Failed to create $failed_count symlinks"; return 1; }
     return 0
 }
 
@@ -805,7 +653,6 @@ is_root() {
 
 # Check if user has sudo privileges
 # Returns: 0 if has sudo, 1 if no sudo
-# Requirements: 10.4 - Permission validation
 has_sudo() {
     sudo -n true 2>/dev/null
 }
@@ -815,9 +662,7 @@ has_sudo() {
 validate_permissions() {
     if is_root; then
         echo "Warning: Running as root is not recommended"
-        if ! ask_yes_no "Continue anyway?" "n"; then
-            return 1
-        fi
+        ask_yes_no "Continue anyway?" "n" || return 1
     fi
 
     if ! has_sudo; then
@@ -832,18 +677,11 @@ validate_permissions() {
 # Install missing system tools automatically
 # Arguments: Array of missing tool names
 # Returns: 0 if all tools installed successfully, 1 if any failed
-# Requirements: Auto-install missing tools instead of failing
 install_missing_tools() {
     local missing_tools=("$@")
-    local distro
-    local package_manager=""
-    local install_cmd=""
+    [[ ${#missing_tools[@]} -eq 0 ]] && return 0
 
-    if [[ ${#missing_tools[@]} -eq 0 ]]; then
-        return 0
-    fi
-
-    distro=$(get_distro)
+    local distro=$(get_distro) package_manager="" install_cmd=""
 
     # Detect package manager and set install command
     case "$distro" in
@@ -924,22 +762,16 @@ install_missing_tools() {
 
 # Check system prerequisites
 # Returns: 0 if all prerequisites met, 1 if missing prerequisites
-# Requirements: 10.4 - System requirements checking
 validate_system() {
-    local missing_tools=()
-    local required_tools=("curl" "wget" "git")
+    local missing_tools=() required_tools=("curl" "wget" "git")
 
     # Check for required tools
     for tool in "${required_tools[@]}"; do
-        if ! command -v "$tool" >/dev/null 2>&1; then
-            missing_tools+=("$tool")
-        fi
+        command -v "$tool" >/dev/null 2>&1 || missing_tools+=("$tool")
     done
 
     # Check distribution support
-    if ! validate_distro_support; then
-        return 1
-    fi
+    validate_distro_support || return 1
 
     # Check internet connectivity
     if ! check_internet_retry 3; then
@@ -949,8 +781,7 @@ validate_system() {
     fi
 
     # Check disk space (require at least 2GB free)
-    local available_space
-    available_space=$(df / | awk 'NR==2 {print $4}')
+    local available_space=$(df / | awk 'NR==2 {print $4}')
     local required_space=$((2 * 1024 * 1024))  # 2GB in KB
 
     if [[ $available_space -lt $required_space ]]; then
@@ -960,13 +791,7 @@ validate_system() {
     fi
 
     # Install missing tools automatically
-    if [[ ${#missing_tools[@]} -gt 0 ]]; then
-        if ! install_missing_tools "${missing_tools[@]}"; then
-            return 1
-        fi
-    fi
-
-    return 0
+    [[ ${#missing_tools[@]} -gt 0 ]] && install_missing_tools "${missing_tools[@]}"
 }
 
 # Validate specific component prerequisites
@@ -978,10 +803,10 @@ validate_component_prereqs() {
     case "$component" in
         "hyprland")
             # Check for Wayland support
-            if [[ -z "$WAYLAND_DISPLAY" && -z "$XDG_SESSION_TYPE" ]]; then
+            [[ -z "$WAYLAND_DISPLAY" && -z "$XDG_SESSION_TYPE" ]] && {
                 echo "Warning: Wayland session not detected"
                 echo "Hyprland requires Wayland support"
-            fi
+            }
             ;;
         "nvidia")
             # Check for NVIDIA GPU
@@ -1016,9 +841,7 @@ disable_verbose() {
 
 # Print debug message if verbose mode is enabled
 debug_print() {
-    if [[ "$VERBOSE" == "true" ]]; then
-        echo "[DEBUG] $*"
-    fi
+    [[ "$VERBOSE" == "true" ]] && echo "[DEBUG] $*"
 }
 
 # Source this file to make functions available
