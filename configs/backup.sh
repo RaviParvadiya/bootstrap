@@ -421,6 +421,12 @@ backup_system_configs() {
     
     log_info "Backing up system configuration files"
     
+    # Backup shell information if zsh component is available
+    if [[ -f "$COMPONENTS_DIR/shell/zsh.sh" ]]; then
+        source "$COMPONENTS_DIR/shell/zsh.sh"
+        backup_shell_info "$session_dir"
+    fi
+    
     # Common system configuration files to backup
     local system_configs=(
         "/etc/fstab"

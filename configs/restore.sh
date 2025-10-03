@@ -411,6 +411,17 @@ restore_system_configs() {
     
     log_info "Restoring system configuration files"
     
+    # Restore shell information if available and zsh component exists
+    if [[ -f "$session_dir/shell_info" && -f "$COMPONENTS_DIR/shell/zsh.sh" ]]; then
+        source "$COMPONENTS_DIR/shell/zsh.sh"
+        log_info "Restoring shell configuration..."
+        if restore_shell_info "$session_dir"; then
+            log_success "Shell configuration restored"
+        else
+            log_warn "Failed to restore shell configuration"
+        fi
+    fi
+    
     # Find all system configuration files in backup
     local system_backup_dir="$session_dir/system"
     local home_backup_dir="$session_dir/home"
