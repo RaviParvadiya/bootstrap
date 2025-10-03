@@ -2,11 +2,14 @@
 
 # Manual Chaotic-AUR Setup Script
 # Use this if the automatic setup failed during installation
+# NOTE: Chaotic-AUR is currently disabled in the main installation
+# This script can still be used to manually enable it if needed
 
 set -euo pipefail
 
 echo "=== Manual Chaotic-AUR Setup ==="
 echo "This script will set up the chaotic-aur repository manually"
+echo "NOTE: Chaotic-AUR is currently disabled in the main installation"
 echo
 
 # Check if already configured
