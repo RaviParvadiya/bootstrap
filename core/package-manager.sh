@@ -596,3 +596,50 @@ init_package_manager() {
     log_success "Package manager system initialized successfully"
     return 0
 }
+
+# Simple safe package installation
+install_package_safe() {
+    local package="$1"
+    local package_manager="${2:-auto}"
+    
+    if [[ -z "$package" ]]; then
+        fail "install_package_safe" "Package name is required"
+        return 1
+    fi
+    
+    log_info "Installing package: $package"
+    
+    if install_package "$package" "$package_manager"; then
+        log_success "Package installed successfully: $package"
+        return 0
+    else
+        fail "install_$package" "Failed to install package: $package"
+        return 1
+    fi
+}
+
+# Simple safe command execution 
+exec_safe() {
+    local command="$1"
+    local description="${2:-$command}"
+    
+    if [[ -z "$command" ]]; then
+        die "Command is required"
+    fi
+    
+    log_info "Executing: $description"
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would execute: $command"
+        return 0
+    fi
+    
+    if eval "$command"; then
+        log_success "Command executed successfully: $description"
+        return 0
+    else
+        local exit_code=$?
+        fail "exec_safe" "Command failed: $description (exit code: $exit_code)"
+        return $exit_code
+    fi
+}

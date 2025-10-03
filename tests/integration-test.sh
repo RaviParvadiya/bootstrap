@@ -17,7 +17,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 # Source required modules
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-source "$CORE_DIR/error-handler.sh"
 source "$CORE_DIR/recovery-system.sh"
 source "$TESTS_DIR/dry-run.sh"
 source "$TESTS_DIR/validate.sh"
@@ -41,11 +40,6 @@ init_integration_tests() {
     local timestamp=$(date +%Y%m%d_%H%M%S)
     INTEGRATION_TEST_LOG="/tmp/integration-test-$timestamp.log"
     touch "$INTEGRATION_TEST_LOG"
-    
-    # Initialize error handling for tests
-    init_error_handler "$INTEGRATION_TEST_LOG"
-    set_error_recovery_mode "graceful"
-    set_rollback_enabled "true"
     
     # Initialize recovery system
     init_recovery_system

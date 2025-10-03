@@ -854,3 +854,66 @@ manage_dotfiles() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
+
+# Simple safe symlink creation
+create_symlink_safe() {
+    local source="$1"
+    local destination="$2"
+    local force="${3:-false}"
+    
+    if [[ -z "$source" || -z "$destination" ]]; then
+        fail "create_symlink_safe" "Source and destination are required"
+        return 1
+    fi
+    
+    if [[ ! -e "$source" ]]; then
+        fail "create_symlink_safe" "Source does not exist: $source"
+        return 1
+    fi
+    
+    # Create destination directory if needed
+    local dest_dir
+    dest_dir=$(dirname "$destination")
+    if [[ ! -d "$dest_dir" ]]; then
+        mkdir -p "$dest_dir" || {
+            fail "create_symlink_safe" "Failed to create directory: $dest_dir"
+            return 1
+        }
+    fi
+    
+    # Handle existing destination
+    if [[ -e "$destination" || -L "$destination" ]]; then
+        if [[ -L "$destination" ]]; then
+            local current_target
+            current_target=$(readlink "$destination")
+            if [[ "$current_target" == "$source" ]]; then
+                log_info "Symlink already exists and is correct: $destination"
+                return 0
+            fi
+        fi
+        
+        if [[ "$force" == "true" ]]; then
+            rm -f "$destination" || {
+                fail "create_symlink_safe" "Failed to remove existing file: $destination"
+                return 1
+            }
+        else
+            fail "create_symlink_safe" "Destination already exists (use force=true to overwrite): $destination"
+            return 1
+        fi
+    fi
+    
+    # Create the symlink
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would create symlink: $destination -> $source"
+    else
+        if ln -s "$source" "$destination"; then
+            log_success "Symlink created successfully: $destination -> $source"
+        else
+            fail "create_symlink_safe" "Failed to create symlink: $destination -> $source"
+            return 1
+        fi
+    fi
+    
+    return 0
+}

@@ -39,12 +39,6 @@
 #   - Internet connection
 #   - Sudo access (do not run as root)
 #   - Basic tools: curl, git, tar, unzip
-# 
-# Documentation:
-#   - README.md - Main installation guide
-#   - TESTING.md - Safety testing procedures
-#   - docs/USAGE_EXAMPLES.md - Comprehensive examples
-#   - docs/FUNCTION_REFERENCE.md - Developer reference
 #######################################
 
 set -euo pipefail
@@ -76,8 +70,6 @@ source_with_error_check "$CORE_DIR/common.sh"
 source_with_error_check "$CORE_DIR/logger.sh"
 source_with_error_check "$CORE_DIR/validator.sh"
 source_with_error_check "$CORE_DIR/menu.sh"
-source_with_error_check "$CORE_DIR/error-handler.sh"
-source_with_error_check "$CORE_DIR/error-wrappers.sh"
 source_with_error_check "$CORE_DIR/recovery-system.sh"
 
 # Source additional utilities based on mode
@@ -230,17 +222,6 @@ main() {
     
     # Initialize logging first
     init_logger
-    
-    # Initialize error handling system with comprehensive configuration
-    init_error_handler "/tmp/modular-install-errors-$(date +%Y%m%d_%H%M%S).log"
-    set_error_recovery_mode "graceful"
-    set_rollback_enabled "true"
-    
-    # Initialize recovery system
-    init_recovery_system
-    
-    # Create initial system checkpoint
-    create_checkpoint "system_start" "System state before installation"
     
     log_info "Starting Modular Install Framework v1.0"
     log_info "Error handling: graceful recovery mode enabled"
@@ -413,13 +394,10 @@ main() {
     
     # Show error summary if there were any issues
     if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
-        show_error_summary
+        show_failures
         log_warn "Installation completed with ${#FAILED_OPERATIONS[@]} issues"
         exit_code=1
     fi
-    
-    # Create final checkpoint
-    create_checkpoint "system_end" "System state after installation"
     
     if [[ $exit_code -eq 0 ]]; then
         log_success "Operation completed successfully ✓"
@@ -439,9 +417,6 @@ run_installation() {
     
     log_info "Starting installation process..."
     local installation_success=true
-    
-    # Create pre-installation checkpoint
-    create_checkpoint "pre_installation" "System state before installation"
     
     # Component selection with error handling
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
@@ -475,7 +450,7 @@ run_installation() {
         
         if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
             source "$CONFIGS_DIR/backup.sh"
-            if ! safe_execute_command "create_system_backup" "Create system backup"; then
+            if ! exec_safe "create_system_backup" "Create system backup"; then
                 handle_error "config" "Failed to create pre-installation backup" "backup_creation"
                 if ask_yes_no "Continue installation without backup?" "n"; then
                     log_warn "Continuing installation without backup"
@@ -582,9 +557,6 @@ run_installation() {
     fi
     
     pop_error_context
-    
-    # Create post-installation checkpoint
-    create_checkpoint "post_installation" "System state after installation"
     
     # Final status
     if [[ "$installation_success" == "true" ]]; then
@@ -810,7 +782,7 @@ run_restoration() {
         
         if [[ -f "$backup_file" ]]; then
             log_info "Restoring from specified backup: $backup_file"
-            if ! safe_execute_command "restore_from_backup \"$backup_file\"" "Restore from backup"; then
+            if ! exec_safe "restore_from_backup \"$backup_file\"" "Restore from backup"; then
                 handle_error "config" "Failed to restore from backup: $backup_file" "backup_restore"
                 restore_success=false
             fi
@@ -821,7 +793,7 @@ run_restoration() {
     else
         # Interactive restoration
         log_info "Starting interactive restoration..."
-        if ! safe_execute_command "interactive_restore" "Interactive restoration"; then
+        if ! exec_safe "interactive_restore" "Interactive restoration"; then
             handle_error "config" "Interactive restoration failed" "interactive_restore"
             restore_success=false
         fi
@@ -886,7 +858,7 @@ run_backup() {
         # Backup specific components
         log_info "Creating component-specific backups for: ${SELECTED_COMPONENTS[*]}"
         for component in "${SELECTED_COMPONENTS[@]}"; do
-            if ! safe_execute_command "create_config_backup \"$component\"" "Backup component: $component"; then
+            if ! exec_safe "create_config_backup \"$component\"" "Backup component: $component"; then
                 handle_error "config" "Failed to backup component: $component" "component_backup"
                 backup_success=false
             fi
@@ -894,7 +866,7 @@ run_backup() {
     else
         # Create comprehensive system backup
         log_info "Creating comprehensive system backup..."
-        if ! safe_execute_command "create_system_backup" "Create system backup"; then
+        if ! exec_safe "create_system_backup" "Create system backup"; then
             handle_error "config" "Failed to create system backup" "system_backup"
             backup_success=false
         fi

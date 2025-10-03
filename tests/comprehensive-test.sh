@@ -100,8 +100,6 @@ test_framework_structure() {
         "$CORE_DIR/logger.sh"
         "$CORE_DIR/validator.sh"
         "$CORE_DIR/menu.sh"
-        "$CORE_DIR/error-handler.sh"
-        "$CORE_DIR/error-wrappers.sh"
         "$CORE_DIR/recovery-system.sh"
         "$CORE_DIR/package-manager.sh"
         "$CORE_DIR/service-manager.sh"
@@ -141,7 +139,6 @@ test_core_module_loading() {
         "$CORE_DIR/common.sh"
         "$CORE_DIR/logger.sh"
         "$CORE_DIR/validator.sh"
-        "$CORE_DIR/error-handler.sh"
     )
     
     local failed_modules=()
@@ -214,13 +211,7 @@ test_system_validation() {
 test_error_handling_system() {
     log_test "Testing error handling system..."
     
-    # Source error handling modules
-    source "$CORE_DIR/error-handler.sh"
     source "$CORE_DIR/recovery-system.sh"
-    
-    # Initialize error handling
-    init_error_handler "/tmp/test-error-handler.log"
-    init_recovery_system
     
     # Test error categorization
     local test_passed=true

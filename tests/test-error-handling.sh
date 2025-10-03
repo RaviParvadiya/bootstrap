@@ -11,8 +11,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 # Source required modules
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-source "$CORE_DIR/error-handler.sh"
-source "$CORE_DIR/error-wrappers.sh"
 source "$CORE_DIR/recovery-system.sh"
 
 # Test configuration
@@ -209,7 +207,7 @@ run_error_handling_tests() {
     test_error_recovery_modes
     
     # Show final error summary
-    show_error_summary
+    show_failures
     
     # Show recovery system status
     show_recovery_status
@@ -301,8 +299,6 @@ parse_arguments() {
 main() {
     # Initialize systems
     init_logger
-    init_error_handler
-    init_recovery_system
     
     # Parse arguments
     local test_name
