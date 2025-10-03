@@ -31,6 +31,7 @@
 #   ./install.sh                           # Interactive installation
 #   ./install.sh --dry-run                 # Preview mode
 #   ./install.sh --components terminal,shell  # Install specific components
+#   ./install.sh --all                    # Install all available components
 #   ./install.sh --test --verbose          # VM testing with detailed output
 # 
 # Requirements:
@@ -101,6 +102,7 @@ OPTIONS:
     -d, --dry-run       Show what would be done without executing
     -t, --test          Run in test mode (VM-safe)
     -c, --components    Comma-separated list of components to install
+    -a, --all           Install all available components
     -m, --minimal       Use minimal package lists (default for post-installation)
     -f, --full          Use full package lists (for fresh installations)
 
@@ -114,9 +116,10 @@ COMMANDS:
     test                Run comprehensive integration tests
 
 EXAMPLES:
-    $0                                  # Interactive installation
+    $0                                 # Interactive installation
     $0 --dry-run install               # Preview installation
-    $0 --components terminal,shell      # Install specific components
+    $0 --components terminal,shell     # Install specific components
+    $0 --all                           # Install all available components
     $0 dry-run                         # Interactive dry-run mode
     $0 validate                        # Validate installation
     $0 test                            # Run integration tests
@@ -149,6 +152,14 @@ parse_arguments() {
                 IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
                 shift 2
                 ;;
+            -a|--all)
+                # Load all available components
+                if ! load_all_components; then
+                    log_error "Failed to load all components"
+                    exit 1
+                fi
+                shift
+                ;;
             -m|--minimal)
                 USE_MINIMAL_PACKAGES=true
                 shift
@@ -171,6 +182,46 @@ parse_arguments() {
     
     # Default command
     COMMAND="${COMMAND:-install}"
+}
+
+# Load all available components from metadata
+load_all_components() {
+    local metadata_file="$DATA_DIR/component-deps.json"
+    
+    if [[ ! -f "$metadata_file" ]]; then
+        log_error "Component metadata file not found: $metadata_file"
+        return 1
+    fi
+    
+    # Check if jq is available
+    if ! command -v jq &> /dev/null; then
+        log_error "jq is required for parsing component metadata"
+        log_info "Please install jq: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
+        return 1
+    fi
+    
+    log_info "Loading all available components..."
+    
+    # Parse JSON and get all component names
+    local components
+    components=$(jq -r '.components | keys[]' "$metadata_file" 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        log_error "Failed to parse component metadata JSON"
+        return 1
+    fi
+    
+    # Clear existing selection and add all components
+    SELECTED_COMPONENTS=()
+    while IFS= read -r component; do
+        [[ -z "$component" ]] && continue
+        SELECTED_COMPONENTS+=("$component")
+    done <<< "$components"
+    
+    log_success "Loaded ${#SELECTED_COMPONENTS[@]} components for installation"
+    log_info "Selected components: ${SELECTED_COMPONENTS[*]}"
+    
+    return 0
 }
 
 # Main installation orchestrator with comprehensive error handling
@@ -851,51 +902,63 @@ run_dry_run_mode() {
 
 # List available components
 list_components() {
+    local metadata_file="$DATA_DIR/component-deps.json"
+    
+    if [[ ! -f "$metadata_file" ]]; then
+        log_error "Component metadata file not found: $metadata_file"
+        return 1
+    fi
+    
+    # Check if jq is available
+    if ! command -v jq &> /dev/null; then
+        log_error "jq is required for parsing component metadata"
+        log_info "Please install jq: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
+        return 1
+    fi
+    
     log_info "Available components:"
-    
     echo
-    echo "=== Terminal Components ==="
-    echo "  - alacritty    : Alacritty terminal emulator"
-    echo "  - kitty        : Kitty terminal emulator"
-    echo "  - tmux         : Terminal multiplexer"
     
-    echo
-    echo "=== Shell Components ==="
-    echo "  - zsh          : Z shell with plugins"
-    echo "  - starship     : Cross-shell prompt"
+    # Parse JSON and display components by category
+    local categories
+    categories=$(jq -r '.categories | keys[]' "$metadata_file" 2>/dev/null | sort)
     
-    echo
-    echo "=== Editor Components ==="
-    echo "  - neovim       : Neovim text editor"
-    echo "  - vscode       : Visual Studio Code"
+    while IFS= read -r category; do
+        [[ -z "$category" ]] && continue
+        
+        local category_name
+        category_name=$(jq -r ".categories.\"$category\".name" "$metadata_file")
+        local category_desc
+        category_desc=$(jq -r ".categories.\"$category\".description" "$metadata_file")
+        
+        echo "=== $category_name ==="
+        
+        # Find components in this category
+        local components
+        components=$(jq -r ".components | to_entries[] | select(.value.category == \"$category\") | .key" "$metadata_file" | sort)
+        
+        while IFS= read -r component; do
+            [[ -z "$component" ]] && continue
+            
+            local description
+            description=$(jq -r ".components.\"$component\".description" "$metadata_file")
+            echo "  - $component : $description"
+        done <<< "$components"
+        
+        echo
+    done <<< "$categories"
     
+    echo "=== Installation Options ==="
+    echo "  --components <list>    : Install specific components (comma-separated)"
+    echo "  --all                  : Install ALL available components"
+    echo "  (no options)           : Interactive component selection"
     echo
-    echo "=== Window Manager Components ==="
-    echo "  - hyprland     : Hyprland wayland compositor"
-    echo "  - waybar       : Wayland status bar"
-    echo "  - wofi         : Application launcher"
-    echo "  - swaync       : Notification daemon"
     
-    echo
-    echo "=== Development Tools ==="
-    echo "  - git          : Git version control"
-    echo "  - docker       : Docker containerization"
-    echo "  - languages    : Programming language tools"
-    
-    echo
-    echo "=== Component Groups ==="
-    echo "  - terminal     : All terminal-related components"
-    echo "  - shell        : All shell-related components"
-    echo "  - editor       : All editor-related components"
-    echo "  - wm           : All window manager components"
-    echo "  - dev-tools    : All development tools"
-    
-    echo
     echo "Usage examples:"
-    echo "  $0 --components terminal,shell    # Install terminal and shell components"
-    echo "  $0 --components hyprland         # Install only Hyprland"
-    echo "  $0 backup --components terminal  # Backup terminal configurations"
-    echo "  $0 restore                       # Interactive restoration menu"
+    echo "  $0 --components terminal,shell   # Install specific components"
+    echo "  $0 --all                         # Install everything"
+    echo "  $0 --all --dry-run               # Preview full installation"
+    echo "  $0 list                          # Show this component list"
 }
 
 # Error handling

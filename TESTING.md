@@ -19,6 +19,9 @@ Preview all operations without making any changes to the system.
 # Dry-run with specific components
 ./install.sh --dry-run --components terminal,shell
 
+# Dry-run with all components
+./install.sh --dry-run --all
+
 # Verbose dry-run for detailed output
 ./install.sh --dry-run --verbose
 ```
@@ -64,6 +67,31 @@ Test individual components in isolation.
 
 # Test dependency resolution
 ./install.sh --components wm --dry-run  # Will include terminal and shell
+
+# Test all components at once
+./install.sh --all --dry-run
+```
+
+#### Testing the --all Feature
+
+The `--all` feature installs every available component. Test it thoroughly:
+
+```bash
+# 1. Preview all components that will be installed
+./install.sh --all --dry-run
+
+# 2. Test in VM-safe mode first
+./install.sh --all --test --dry-run
+
+# 3. Run actual installation in VM
+./install.sh --all --test
+
+# 4. Validate all components
+./install.sh validate
+
+# 5. Check component count matches metadata
+jq '.components | keys | length' data/component-deps.json
+# Should match the number shown in "Loaded X components"
 ```
 
 ## Pre-Testing Checklist
