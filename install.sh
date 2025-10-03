@@ -462,6 +462,12 @@ run_installation() {
         return 1
     fi
     
+    # Check shell safety before proceeding
+    if ! check_shell_safety "${SELECTED_COMPONENTS[@]}"; then
+        pop_error_context
+        return 1
+    fi
+    
     # Create pre-installation backup with error handling
     if ask_yes_no "Create backup before installation?" "y"; then
         log_info "Creating pre-installation backup..."
@@ -480,6 +486,14 @@ run_installation() {
                 fi
             else
                 log_success "Pre-installation backup created successfully"
+                
+                # Additional shell backup if zsh is being installed
+                for component in "${SELECTED_COMPONENTS[@]}"; do
+                    if [[ "$component" == "shell" || "$component" == "zsh" ]]; then
+                        log_info "Shell component detected - ensuring shell information is backed up"
+                        break
+                    fi
+                done
             fi
         else
             handle_error "config" "Backup utilities not found" "backup_utilities"
@@ -592,6 +606,34 @@ run_installation() {
     fi
 }
 
+# Check and warn about shell safety before operations
+# Arguments: $@ - list of components being processed
+# Returns: 0 if safe to proceed, 1 if user cancelled
+check_shell_safety() {
+    local components=("$@")
+    local shell_component_found=false
+    
+    # Check if shell/zsh component is involved
+    for component in "${components[@]}"; do
+        if [[ "$component" == "shell" || "$component" == "zsh" ]]; then
+            shell_component_found=true
+            break
+        fi
+    done
+    
+    if [[ "$shell_component_found" == "true" && "$SHELL" == *"zsh"* ]]; then
+        log_warn "Shell component operation detected while zsh is your default shell"
+        log_warn "This operation may affect your shell configuration"
+        
+        if ! ask_yes_no "Do you want to continue? (Backup recommended)" "y"; then
+            log_info "Operation cancelled by user for shell safety"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
 # Show installation summary
 show_installation_summary() {
     local components=("$@")
@@ -608,6 +650,7 @@ show_installation_summary() {
     echo "  Distribution: $(get_distro) $(get_distro_version)"
     echo "  Installation mode: ${DRY_RUN:+DRY-RUN }${VM_MODE:+VM }NORMAL"
     echo "  Error recovery: $ERROR_RECOVERY_MODE"
+    echo "  Current shell: $SHELL"
     echo
     
     if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
@@ -621,6 +664,19 @@ show_installation_summary() {
     echo "  2. Restart your session to apply shell changes"
     echo "  3. Run 'validate' command to verify installation"
     echo "  4. Check service status with 'systemctl --user status'"
+    
+    # Shell-specific warnings
+    local shell_component_installed=false
+    for component in "${components[@]}"; do
+        if [[ "$component" == "shell" || "$component" == "zsh" ]]; then
+            shell_component_installed=true
+            break
+        fi
+    done
+    
+    if [[ "$shell_component_installed" == "true" ]]; then
+        echo "  5. IMPORTANT: Log out and back in to activate new shell settings"
+    fi
     echo
 }
 

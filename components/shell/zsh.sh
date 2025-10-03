@@ -380,6 +380,154 @@ install_zsh() {
     return 0
 }
 
+# Check if user's current shell is zsh and change to bash if needed
+# Returns: 0 if successful, 1 if failed
+restore_bash_shell() {
+    log_info "Checking if shell needs to be changed back to bash..."
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        if [[ "$SHELL" == *"zsh"* ]]; then
+            log_info "[DRY-RUN] Would change default shell from zsh to bash"
+        else
+            log_info "[DRY-RUN] Current shell is not zsh, no change needed"
+        fi
+        return 0
+    fi
+    
+    # Check if current shell is zsh
+    if [[ "$SHELL" != *"zsh"* ]]; then
+        log_info "Current shell is not zsh, no change needed"
+        return 0
+    fi
+    
+    # Find bash path
+    local bash_path
+    bash_path=$(which bash 2>/dev/null)
+    
+    if [[ -z "$bash_path" ]]; then
+        log_error "Bash binary not found in PATH"
+        return 1
+    fi
+    
+    # Check if bash is in /etc/shells
+    if ! grep -q "$bash_path" /etc/shells 2>/dev/null; then
+        log_info "Adding bash to /etc/shells..."
+        if ! echo "$bash_path" | sudo tee -a /etc/shells >/dev/null; then
+            log_error "Failed to add bash to /etc/shells"
+            return 1
+        fi
+    fi
+    
+    # Change default shell back to bash
+    log_info "Changing default shell from zsh to bash..."
+    if ! chsh -s "$bash_path"; then
+        log_error "Failed to change default shell to bash"
+        log_info "You can manually change it later with: chsh -s $bash_path"
+        return 1
+    fi
+    
+    log_success "Default shell changed to bash (will take effect on next login)"
+    return 0
+}
+
+# Backup current shell information
+# Arguments: $1 - backup session directory
+# Returns: 0 if successful, 1 if failed
+backup_shell_info() {
+    local session_dir="$1"
+    
+    if [[ -z "$session_dir" ]]; then
+        log_error "Session directory is required for shell backup"
+        return 1
+    fi
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would backup shell information to: $session_dir/shell_info"
+        return 0
+    fi
+    
+    local shell_backup_file="$session_dir/shell_info"
+    
+    # Create shell info backup
+    cat > "$shell_backup_file" << EOF
+# Shell Information Backup
+ORIGINAL_SHELL=$SHELL
+BACKUP_DATE=$(date -Iseconds 2>/dev/null || date)
+USER_NAME=$USER
+SHELLS_FILE_BACKUP=true
+EOF
+    
+    # Also backup /etc/shells if we can read it
+    if [[ -r /etc/shells ]]; then
+        cp /etc/shells "$session_dir/etc_shells_backup" 2>/dev/null || true
+    fi
+    
+    log_debug "Shell information backed up to: $shell_backup_file"
+    return 0
+}
+
+# Restore shell information from backup
+# Arguments: $1 - backup session directory
+# Returns: 0 if successful, 1 if failed
+restore_shell_info() {
+    local session_dir="$1"
+    
+    if [[ -z "$session_dir" ]]; then
+        log_error "Session directory is required for shell restore"
+        return 1
+    fi
+    
+    local shell_backup_file="$session_dir/shell_info"
+    
+    if [[ ! -f "$shell_backup_file" ]]; then
+        log_debug "No shell information backup found"
+        return 0
+    fi
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Would restore shell information from backup"
+        return 0
+    fi
+    
+    # Read original shell from backup
+    local original_shell
+    while IFS='=' read -r key value; do
+        case "$key" in
+            "ORIGINAL_SHELL") original_shell="$value" ;;
+        esac
+    done < "$shell_backup_file"
+    
+    if [[ -z "$original_shell" ]]; then
+        log_warn "No original shell information found in backup"
+        return 1
+    fi
+    
+    # Check if the original shell binary still exists
+    if [[ ! -x "$original_shell" ]]; then
+        log_warn "Original shell binary not found: $original_shell"
+        log_info "Falling back to bash"
+        restore_bash_shell
+        return $?
+    fi
+    
+    # Check if current shell is different from original
+    if [[ "$SHELL" == "$original_shell" ]]; then
+        log_info "Shell is already set to original: $original_shell"
+        return 0
+    fi
+    
+    # Restore original shell
+    log_info "Restoring original shell: $original_shell"
+    if ! chsh -s "$original_shell"; then
+        log_error "Failed to restore original shell: $original_shell"
+        log_info "You can manually change it with: chsh -s $original_shell"
+        return 1
+    fi
+    
+    log_success "Original shell restored: $original_shell"
+    return 0
+}
+
 # Uninstall Zsh (for testing/cleanup)
 # Returns: 0 if successful, 1 if failed
 uninstall_zsh() {
@@ -387,7 +535,27 @@ uninstall_zsh() {
     
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] Would uninstall Zsh packages and remove configurations"
+        if [[ "$SHELL" == *"zsh"* ]]; then
+            log_info "[DRY-RUN] Would change shell back to bash (current shell is zsh)"
+        fi
         return 0
+    fi
+    
+    # Check if zsh is the current default shell and change to bash if needed
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        log_warn "Zsh is currently your default shell"
+        if ask_yes_no "Change default shell to bash before uninstalling zsh?" "y"; then
+            if ! restore_bash_shell; then
+                log_error "Failed to change shell to bash"
+                if ! ask_yes_no "Continue with zsh uninstall anyway? (This may cause login issues)" "n"; then
+                    log_info "Zsh uninstall cancelled by user"
+                    return 1
+                fi
+            fi
+        else
+            log_warn "Keeping zsh as default shell - you may experience login issues after uninstall"
+            log_warn "You can manually change your shell later with: chsh -s /bin/bash"
+        fi
     fi
     
     local distro
@@ -420,6 +588,13 @@ uninstall_zsh() {
     fi
     
     log_success "Zsh uninstalled successfully"
+    
+    # Final reminder about shell change
+    if [[ "$SHELL" == *"zsh"* ]]; then
+        log_warn "IMPORTANT: Your default shell is still set to zsh"
+        log_warn "Please log out and back in, or run: chsh -s /bin/bash"
+    fi
+    
     return 0
 }
 
@@ -432,4 +607,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f validate_zsh_installation
     export -f uninstall_zsh
     export -f set_zsh_as_default
+    export -f restore_bash_shell
+    export -f backup_shell_info
+    export -f restore_shell_info
 fi

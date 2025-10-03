@@ -66,6 +66,12 @@ arch_enable_multilib() {
 
 # Setup chaotic-aur repository
 arch_setup_chaotic_aur() {
+    # DISABLED: Chaotic-AUR setup is temporarily disabled
+    # Remove this return statement to re-enable chaotic-aur setup
+    log_info "Chaotic-AUR setup is currently disabled"
+    log_info "To enable: edit distros/arch/repositories.sh and remove the early return"
+    return 0
+    
     log_info "Setting up chaotic-aur repository..."
     
     local pacman_conf="/etc/pacman.conf"
