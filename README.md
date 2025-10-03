@@ -53,6 +53,9 @@ chmod +x install.sh
 # Install specific components
 ./install.sh --components terminal,shell,editor
 
+# Install all available components
+./install.sh --all
+
 # VM-safe mode (skips hardware-specific configs)
 ./install.sh --test
 
@@ -179,7 +182,11 @@ Available services include:
 # 1. Start with a dry-run to see what will be installed
 ./install.sh --dry-run
 
-# 2. Run the interactive installation
+# 2. Install everything at once (all components)
+./install.sh --all --dry-run  # Preview first
+./install.sh --all            # Install everything
+
+# 3. Or run the interactive installation for selective components
 ./install.sh
 
 # 3. Select components in the menu:
@@ -240,7 +247,23 @@ cd modular-install-framework
 ./install.sh validate
 ```
 
-### Example 5: Development Environment Restoration
+### Example 5: Complete System Setup with --all
+
+```bash
+# 1. Preview what will be installed with --all
+./install.sh --all --dry-run
+
+# 2. Install everything at once
+./install.sh --all
+
+# 3. Or install everything in VM-safe mode
+./install.sh --all --test
+
+# 4. Validate the complete installation
+./install.sh validate
+```
+
+### Example 6: Development Environment Restoration
 
 ```bash
 # 1. Restore from existing backup
