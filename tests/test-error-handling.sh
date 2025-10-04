@@ -111,16 +111,6 @@ test_recovery_system() {
     
     # Create a checkpoint
     create_checkpoint "test_checkpoint" "Test checkpoint for error handling demo"
-    
-    # Test auto recovery
-    if attempt_auto_recovery "package_install_failed" "test-package" "Installation failed"; then
-        log_info "Auto recovery test completed"
-    else
-        log_info "Auto recovery test failed (expected for demo)"
-    fi
-    
-    # List checkpoints
-    list_checkpoints
 }
 
 test_batch_operations() {
@@ -152,17 +142,12 @@ test_error_recovery_modes() {
     log_info "=== Testing Different Error Recovery Modes ==="
     
     # Test graceful mode
-    set_error_recovery_mode "graceful"
     log_info "Testing graceful recovery mode"
-    handle_error "package" "Test error in graceful mode" "test_operation"
+    handle_error "package" "Test error in graceful mode"
     
     # Test interactive mode (will default to graceful in non-interactive environment)
-    set_error_recovery_mode "interactive"
     log_info "Testing interactive recovery mode"
-    handle_error "package" "Test error in interactive mode" "test_operation"
-    
-    # Reset to graceful
-    set_error_recovery_mode "graceful"
+    handle_error "package" "Test error in interactive mode"
 }
 
 test_context_stack() {
@@ -190,10 +175,6 @@ run_error_handling_tests() {
     log_info "Starting Error Handling System Tests"
     log_info "DRY_RUN mode: $DRY_RUN"
     
-    # Set error recovery mode to graceful for testing
-    set_error_recovery_mode "graceful"
-    set_rollback_enabled "true"
-    
     # Run individual tests
     test_context_stack
     test_package_error
@@ -208,9 +189,6 @@ run_error_handling_tests() {
     
     # Show final error summary
     show_failures
-    
-    # Show recovery system status
-    show_recovery_status
     
     log_success "Error handling system tests completed"
 }
@@ -276,8 +254,7 @@ parse_arguments() {
                 shift
                 ;;
             -m|--mode)
-                ERROR_RECOVERY_MODE="$2"
-                export ERROR_RECOVERY_MODE
+                log_info "Error recovery mode option is no longer supported"
                 shift 2
                 ;;
             all|package|config|network|permission|validation|rollback|recovery|batch|modes|context)

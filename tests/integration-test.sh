@@ -779,7 +779,7 @@ test_error_categorization() {
         log_info "Testing $category error handling..."
         
         # This will be caught by error handler but won't actually fail the test
-        if handle_error "$category" "$message" "$operation" "$ERROR_MINOR"; then
+        if handle_error "$category" "$message"; then
             log_info "$category error handled successfully"
         else
             log_info "$category error handling completed (expected behavior)"
@@ -820,17 +820,13 @@ test_graceful_degradation() {
     log_info "Testing graceful degradation..."
     
     # Test that system continues after non-critical errors
-    local original_recovery_mode="$ERROR_RECOVERY_MODE"
-    set_error_recovery_mode "graceful"
+    log_info "Testing graceful degradation mode"
     
     # Simulate non-critical error
-    handle_error "package" "Test non-critical error" "test_operation" "$ERROR_MINOR"
+    handle_error "package" "Test non-critical error"
     
     # System should continue running
     log_success "System continued after non-critical error"
-    
-    # Restore original recovery mode
-    set_error_recovery_mode "$original_recovery_mode"
     
     return 0
 }

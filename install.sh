@@ -224,8 +224,6 @@ main() {
     init_logger
     
     log_info "Starting Modular Install Framework v1.0"
-    log_info "Error handling: graceful recovery mode enabled"
-    log_info "Rollback system: enabled"
     
     # Parse command line arguments with error handling
     if ! parse_arguments "$@"; then
@@ -374,7 +372,7 @@ main() {
             fi
             ;;
         test)
-            if ! run_integration_tests; then
+            if ! run_integration_test_suite; then
                 exit_code=1
             fi
             ;;
@@ -620,13 +618,11 @@ show_installation_summary() {
     echo "System information:"
     echo "  Distribution: $(get_distro) $(get_distro_version)"
     echo "  Installation mode: ${DRY_RUN:+DRY-RUN }${VM_MODE:+VM }NORMAL"
-    echo "  Error recovery: $ERROR_RECOVERY_MODE"
     echo "  Current shell: $SHELL"
     echo
     
     if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
         echo "Issues encountered: ${#FAILED_OPERATIONS[@]}"
-        echo "Recovery actions taken: ${#RECOVERY_ACTIONS[@]}"
         echo
     fi
     
@@ -691,7 +687,7 @@ offer_recovery_options() {
             ;;
         5)
             log_info "Exiting..."
-            cleanup_and_exit 1
+            exit 1
             ;;
         *)
             log_warn "Invalid choice, continuing anyway"
@@ -720,7 +716,7 @@ retry_failed_operations() {
 }
 
 # Run integration tests
-run_integration_tests() {
+run_integration_test_suite() {
     push_error_context "integration_tests" "Comprehensive integration testing"
     
     log_info "Starting comprehensive integration tests..."
@@ -746,6 +742,7 @@ run_integration_tests() {
     fi
     
     # Run integration tests
+    log_debug "About to call run_integration_tests with mode: $test_mode, components: ${test_components[*]}"
     if run_integration_tests "$test_mode" "${test_components[@]}"; then
         log_success "Integration tests completed successfully ✓"
         pop_error_context
