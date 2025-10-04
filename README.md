@@ -56,9 +56,6 @@ chmod +x install.sh
 # Install all available components
 ./install.sh --all
 
-# VM-safe mode (skips hardware-specific configs)
-./install.sh --test
-
 # Verbose output
 ./install.sh --verbose
 ```
@@ -135,11 +132,6 @@ Automatic backup creation before making changes:
 
 ### VM Testing
 
-Safe testing in virtual machines:
-```bash
-./install.sh --test
-```
-- Skips hardware-specific configurations
 - VM-optimized package selection
 - Guest agent installation
 
@@ -237,11 +229,7 @@ sudo systemctl enable bluetooth
 git clone <repository-url>
 cd modular-install-framework
 
-# 2. Test in VM-safe mode
-./install.sh --test --dry-run
-
-# 3. Run actual installation in VM
-./install.sh --test
+# 2. Run actual installation
 
 # 4. Validate the installation
 ./install.sh validate
@@ -256,8 +244,8 @@ cd modular-install-framework
 # 2. Install everything at once
 ./install.sh --all
 
-# 3. Or install everything in VM-safe mode
-./install.sh --all --test
+# 3. Or install everything
+
 
 # 4. Validate the complete installation
 ./install.sh validate
@@ -469,9 +457,6 @@ systemctl list-units --failed
 **Problem**: Installation fails in virtual machine
 **Solutions**:
 ```bash
-# Always use VM mode in virtual machines
-./install.sh --test
-
 # Install VM guest additions first
 # VirtualBox:
 sudo pacman -S virtualbox-guest-utils  # Arch
@@ -536,8 +521,8 @@ tail -f /tmp/modular-install-*.log
 
 1. **Check the logs**: Always start with the log files for detailed error information
 2. **Use dry-run mode**: Preview operations with `--dry-run` to identify issues
-3. **Test in VM**: Use `--test` mode in a virtual machine for safe testing
-4. **Consult TESTING.md**: Detailed testing procedures and safety guidelines
+3. **Use dry-run mode**: Use `--dry-run` mode for safe testing
+4. **Use validate command**: Use `./install.sh validate` to check installation status
 5. **Check component status**: Use `./install.sh validate` to check installation status
 6. **Community support**: Check the project's issue tracker or community forums
 
@@ -578,7 +563,7 @@ rm -rf ~/.config/hypr
 ### User Documentation
 
 - **[README.md](README.md)** - Main installation and usage guide
-- **[TESTING.md](TESTING.md)** - Safety testing procedures and VM setup
+
 - **[docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)** - Comprehensive usage examples and troubleshooting
 
 ### Developer Documentation
@@ -594,7 +579,6 @@ rm -rf ~/.config/hypr
 ```
 ├── install.sh              # Main entry point
 ├── README.md               # Main documentation
-├── TESTING.md              # Testing procedures
 ├── core/                   # Core utilities
 │   ├── common.sh           # Shared functions
 │   ├── logger.sh           # Logging system
@@ -623,7 +607,7 @@ rm -rf ~/.config/hypr
 2. **Add comprehensive logging** - Use the logging functions from `core/logger.sh`
 3. **Support both Arch and Ubuntu** - Test on both distributions
 4. **Include dry-run mode support** - All functions should respect `$DRY_RUN`
-5. **Test in VM environments** - Use `--test` flag for VM-safe testing
+5. **Test in safe environments** - Use `--dry-run` flag for safe testing
 6. **Document functions** - Follow the patterns in `docs/FUNCTION_REFERENCE.md`
 7. **Add usage examples** - Include examples in function documentation
 

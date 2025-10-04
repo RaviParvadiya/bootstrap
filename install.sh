@@ -22,7 +22,7 @@
 # 
 # Options:
 #   --dry-run          Preview operations without making changes
-#   --test             VM-safe mode (skips hardware-specific configs)
+
 #   --verbose          Enable detailed output
 #   --components LIST  Install specific components (comma-separated)
 #   --help             Show help message
@@ -32,7 +32,7 @@
 #   ./install.sh --dry-run                 # Preview mode
 #   ./install.sh --components terminal,shell  # Install specific components
 #   ./install.sh --all                    # Install all available components
-#   ./install.sh --test --verbose          # VM testing with detailed output
+
 # 
 # Requirements:
 #   - Linux system (Arch Linux or Ubuntu 18.04+)
@@ -49,7 +49,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
 DRY_RUN=false
-VM_MODE=false
 VERBOSE=false
 USE_MINIMAL_PACKAGES=true  # Use minimal package lists by default for post-installation
 SELECTED_COMPONENTS=()
@@ -92,7 +91,6 @@ OPTIONS:
     -h, --help          Show this help message
     -v, --verbose       Enable verbose output
     -d, --dry-run       Show what would be done without executing
-    -t, --test          Run in test mode (VM-safe)
     -c, --components    Comma-separated list of components to install
     -a, --all           Install all available components
     -m, --minimal       Use minimal package lists (default for post-installation)
@@ -105,7 +103,6 @@ COMMANDS:
     backup              Create system backup
     list                List available components
     dry-run             Run dry-run test mode
-    test                Run comprehensive integration tests
 
 EXAMPLES:
     $0                                 # Interactive installation
@@ -114,8 +111,6 @@ EXAMPLES:
     $0 --all                           # Install all available components
     $0 dry-run                         # Interactive dry-run mode
     $0 validate                        # Validate installation
-    $0 test                            # Run integration tests
-    $0 test --components terminal      # Test specific components
 
 EOF
 }
@@ -134,10 +129,6 @@ parse_arguments() {
                 ;;
             -d|--dry-run)
                 DRY_RUN=true
-                shift
-                ;;
-            -t|--test)
-                VM_MODE=true
                 shift
                 ;;
             -c|--components)
@@ -160,7 +151,7 @@ parse_arguments() {
                 USE_MINIMAL_PACKAGES=false
                 shift
                 ;;
-            install|restore|validate|backup|list|dry-run|test)
+            install|restore|validate|backup|list|dry-run)
                 COMMAND="$1"
                 shift
                 ;;
@@ -232,7 +223,7 @@ main() {
     fi
     
     # Set global flags and export for child processes
-    export DRY_RUN VERBOSE VM_MODE COMMAND
+    export DRY_RUN VERBOSE COMMAND
     
     # Initialize mode-specific systems
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -245,15 +236,6 @@ main() {
         else
             handle_error "critical" "Dry-run utilities not found" "dry_run_init"
             cleanup_and_exit 1
-        fi
-    fi
-    
-    if [[ "$VM_MODE" == "true" ]]; then
-        log_info "Running in VM mode - hardware-specific configs will be skipped"
-        # Detect VM environment for better hardware skipping
-        if [[ -f "$TESTS_DIR/vm-test.sh" ]]; then
-            source "$TESTS_DIR/vm-test.sh"
-            detect_vm_environment
         fi
     fi
     
@@ -368,11 +350,6 @@ main() {
             ;;
         dry-run)
             if ! run_dry_run_mode; then
-                exit_code=1
-            fi
-            ;;
-        test)
-            if ! run_integration_test_suite; then
                 exit_code=1
             fi
             ;;
@@ -617,7 +594,7 @@ show_installation_summary() {
     
     echo "System information:"
     echo "  Distribution: $(get_distro) $(get_distro_version)"
-    echo "  Installation mode: ${DRY_RUN:+DRY-RUN }${VM_MODE:+VM }NORMAL"
+    echo "  Installation mode: ${DRY_RUN:+DRY-RUN }NORMAL"
     echo "  Current shell: $SHELL"
     echo
     
@@ -713,45 +690,6 @@ retry_failed_operations() {
     done
     
     log_info "Retry functionality is simplified in this implementation"
-}
-
-# Run integration tests
-run_integration_test_suite() {
-    push_error_context "integration_tests" "Comprehensive integration testing"
-    
-    log_info "Starting comprehensive integration tests..."
-    
-    # Source integration test utilities with error handling
-    if [[ -f "$TESTS_DIR/integration-test.sh" ]]; then
-        source "$TESTS_DIR/integration-test.sh"
-    else
-        handle_error "critical" "Integration test utilities not found" "integration_test_utilities"
-        pop_error_context
-        return 1
-    fi
-    
-    local test_mode="full"
-    local test_components=()
-    
-    # Use selected components if provided
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        test_components=("${SELECTED_COMPONENTS[@]}")
-        log_info "Running integration tests for components: ${test_components[*]}"
-    else
-        log_info "Running full integration test suite"
-    fi
-    
-    # Run integration tests
-    log_debug "About to call run_integration_tests with mode: $test_mode, components: ${test_components[*]}"
-    if run_integration_tests "$test_mode" "${test_components[@]}"; then
-        log_success "Integration tests completed successfully ✓"
-        pop_error_context
-        return 0
-    else
-        handle_error "validation" "Integration tests failed" "integration_testing"
-        pop_error_context
-        return 1
-    fi
 }
 
 # Run restoration process with error handling

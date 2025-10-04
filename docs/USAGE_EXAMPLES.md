@@ -338,18 +338,17 @@ EOF
 # Step 2: Review what would be installed
 less test-output.log
 
-# Step 3: Test in VM environment
-# (In virtual machine)
-./install.sh --test --dry-run
+# Step 3: Test with dry-run
+./install.sh --dry-run
 
-# Step 4: Run actual installation in VM
-./install.sh --test
+# Step 4: Run actual installation
+./install.sh
 
 # Step 5: Validate installation
 ./install.sh validate
 
-# Step 6: Test specific components
-./install.sh --components terminal --test
+# Step 6: Install specific components
+./install.sh --components terminal
 ```
 
 ### Backup and Recovery Testing
@@ -374,7 +373,7 @@ less test-output.log
 # Test each component individually
 for component in terminal shell editor wm dev-tools; do
     echo "Testing component: $component"
-    ./install.sh --components $component --test --dry-run
+    ./install.sh --components $component --dry-run
     echo "---"
 done
 
@@ -696,4 +695,4 @@ sudo ip addr add 192.168.1.100/24 dev eth0
 sudo ip route add default via 192.168.1.1
 ```
 
-This comprehensive guide covers most common scenarios and issues you might encounter. For additional help, consult the main README.md and TESTING.md files, or check the project's issue tracker.
+This comprehensive guide covers most common scenarios and issues you might encounter. For additional help, consult the main README.md file, or check the project's issue tracker.

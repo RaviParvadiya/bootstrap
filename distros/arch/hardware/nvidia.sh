@@ -301,12 +301,6 @@ install_nvidia() {
         return 0
     fi
     
-    # Skip hardware configuration in VM mode
-    if [[ "${VM_MODE:-false}" == "true" ]]; then
-        log_info "VM mode detected, skipping NVIDIA hardware configuration"
-        return 0
-    fi
-    
     # Install NVIDIA drivers
     if ! install_nvidia_drivers "$dry_run"; then
         log_error "Failed to install NVIDIA drivers"

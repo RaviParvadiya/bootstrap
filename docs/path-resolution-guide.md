@@ -35,7 +35,7 @@ source "$CORE_DIR/logger.sh"
 
 ```bash
 #!/usr/bin/env bash
-# tests/vm-test.sh, components/terminal/install.sh, etc.
+# tests/validate.sh, components/terminal/install.sh, etc.
 
 # Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
