@@ -36,7 +36,6 @@ DRY_RUN_COMMANDS=()
 
 # Initialize dry-run mode
 # Sets up logging and tracking for dry-run operations
-# Requirements: 6.1 - Dry-run mode shows planned operations without execution
 init_dry_run() {
     # Set global dry-run flag
     export DRY_RUN=true

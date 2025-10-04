@@ -30,8 +30,6 @@ VM_FEATURES=()
 #######################################
 
 # Detect if running in a virtual machine environment
-# Returns: 0 if VM detected, 1 if physical hardware
-# Requirements: 6.3 - VM mode detection that skips physical hardware configurations
 detect_vm_environment() {
     if [[ -n "$VM_DETECTED" ]]; then
         return $([[ "$VM_DETECTED" == "true" ]] && echo 0 || echo 1)
@@ -335,8 +333,6 @@ get_vm_features() {
 
 # Check if hardware configuration should be skipped in VM
 # Arguments: $1 - hardware type (nvidia, audio, bluetooth, etc.)
-# Returns: 0 if should skip, 1 if should proceed
-# Requirements: 6.3 - Skip physical hardware configurations in VMs
 should_skip_hardware_config() {
     local hardware_type="$1"
     
@@ -412,7 +408,6 @@ should_skip_hardware_config() {
 
 # Get VM-appropriate package alternatives
 # Arguments: $1 - original package name
-# Returns: Echoes VM-appropriate package name or original if no alternative
 get_vm_package_alternative() {
     local package="$1"
     local vm_type
@@ -449,8 +444,6 @@ get_vm_package_alternative() {
 
 # Run comprehensive VM tests
 # Arguments: $@ - components to test (optional)
-# Returns: 0 if all tests pass, 1 if any test fails
-# Requirements: 6.3 - VM testing utilities
 run_vm_tests() {
     local components=("$@")
     
@@ -778,7 +771,6 @@ validate_vm_environment() {
 }
 
 # Validate VM installation
-# Requirements: 6.3 - Automated post-installation validation checks
 validate_vm_installation() {
     log_info "Validating VM installation..."
     

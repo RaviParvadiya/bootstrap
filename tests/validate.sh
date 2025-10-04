@@ -29,7 +29,6 @@ VALIDATION_SUMMARY=""
 
 # Initialize validation system
 # Sets up logging and tracking for validation operations
-# Requirements: 6.2, 10.1 - Post-installation validation with logging
 init_validation() {
     log_section "SYSTEM VALIDATION INITIALIZATION"
     
@@ -81,7 +80,6 @@ log_validation_header() {
 }
 
 # Finalize validation and generate summary
-# Requirements: 10.1 - Comprehensive validation reporting
 finalize_validation() {
     log_section "VALIDATION SUMMARY"
     
@@ -156,7 +154,6 @@ record_validation_result() {
 
 # Validate a service status
 # Arguments: $1 - service name, $2 - expected status (active/inactive/enabled/disabled)
-# Requirements: 6.2 - Service status checking
 validate_service_status() {
     local service="$1"
     local expected_status="$2"
@@ -188,7 +185,6 @@ validate_service_status() {
 
 # Validate configuration file exists and is valid
 # Arguments: $1 - config file path, $2 - validation type (exists/readable/executable/syntax)
-# Requirements: 6.2 - Configuration file validation
 validate_config_file() {
     local config_file="$1"
     local validation_type="${2:-exists}"
@@ -340,7 +336,6 @@ validate_command_available() {
 #######################################
 
 # Validate terminal component installation
-# Requirements: 6.2 - Functionality testing for installed components
 validate_terminal_component() {
     local terminal="${1:-auto}"
     
@@ -617,7 +612,6 @@ validate_dev_tools_component() {
 #######################################
 
 # Validate overall system health
-# Requirements: 6.2, 10.1 - Comprehensive system validation
 validate_system_health() {
     log_info "Validating overall system health..."
     
@@ -739,7 +733,6 @@ validate_dev_environment() {
 
 # Run comprehensive installation validation
 # Arguments: $@ - specific components to validate (optional)
-# Requirements: 6.2, 10.1 - Post-installation system validation
 validate_installation() {
     local components=("$@")
     
@@ -892,7 +885,6 @@ validate_all_components() {
 
 # Validate backup integrity
 # Arguments: $1 - backup directory path
-# Requirements: 6.2 - Backup validation
 validate_backup_integrity() {
     local backup_dir="$1"
     

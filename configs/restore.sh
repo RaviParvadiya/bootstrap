@@ -2,7 +2,6 @@
 
 # configs/restore.sh - Configuration restoration and rollback utilities
 # This module provides configuration restoration and rollback capabilities from backup sessions
-# Requirements: 6.2, 10.2
 
 # Prevent multiple sourcing
 if [[ -n "${RESTORE_UTILS_SOURCED:-}" ]]; then
@@ -29,7 +28,6 @@ RESTORE_LOG_FILE="$HOME/.config/install-restore.log"
 #######################################
 
 # Initialize restore environment
-# Returns: 0 if successful, 1 if failed
 init_restore_environment() {
     # Create temporary directory for restore operations
     if [[ "$DRY_RUN" != "true" ]]; then
@@ -56,8 +54,6 @@ cleanup_restore_environment() {
 
 # Validate backup session for restore
 # Arguments: $1 - backup session directory
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.2 - Validate prerequisites before proceeding
 validate_restore_session() {
     local session_dir="$1"
     
@@ -87,7 +83,6 @@ validate_restore_session() {
 
 # Restore a single file or directory from backup
 # Arguments: $1 - backup path, $2 - target path, $3 - restore mode (replace|merge|skip)
-# Returns: 0 if successful, 1 if failed
 restore_path() {
     local backup_path="$1"
     local target_path="$2"
@@ -201,7 +196,6 @@ restore_path() {
 
 # Restore multiple paths from backup session
 # Arguments: $1 - backup session directory, $2 - restore mode, $@ - list of relative paths
-# Returns: 0 if all successful, 1 if any failed
 restore_multiple_paths() {
     local session_dir="$1"
     local restore_mode="$2"
@@ -273,7 +267,6 @@ restore_multiple_paths() {
 
 # Restore configurations for a specific component
 # Arguments: $1 - component name, $2 - backup session directory, $3 - restore mode
-# Returns: 0 if successful, 1 if failed
 restore_component_configs() {
     local component="$1"
     local session_dir="$2"
@@ -346,7 +339,6 @@ restore_component_configs() {
 
 # Restore configurations for multiple components
 # Arguments: $1 - backup session directory, $2 - restore mode, $@ - list of component names
-# Returns: 0 if all successful, 1 if any failed
 restore_multiple_components() {
     local session_dir="$1"
     local restore_mode="$2"
@@ -399,7 +391,6 @@ restore_multiple_components() {
 
 # Restore system configuration files from backup
 # Arguments: $1 - backup session directory, $2 - restore mode
-# Returns: 0 if successful, 1 if failed
 restore_system_configs() {
     local session_dir="$1"
     local restore_mode="${2:-replace}"
@@ -493,8 +484,6 @@ restore_system_configs() {
 
 # Restore entire backup session
 # Arguments: $1 - backup session directory, $2 - restore mode, $3 - filter (optional)
-# Returns: 0 if successful, 1 if failed
-# Requirements: 10.2 - Provide recovery instructions on critical errors
 restore_full_session() {
     local session_dir="$1"
     local restore_mode="${2:-replace}"
@@ -624,7 +613,6 @@ restore_full_session() {
 
 # Interactive restore with user prompts
 # Arguments: $1 - backup session directory
-# Returns: 0 if successful, 1 if failed or cancelled
 interactive_restore() {
     local session_dir="$1"
     
@@ -741,8 +729,6 @@ interactive_restore() {
 
 # Quick rollback to most recent backup
 # Arguments: $1 - session name pattern (optional)
-# Returns: 0 if successful, 1 if failed
-# Requirements: 10.2 - Provide recovery instructions on critical errors
 quick_rollback() {
     local session_pattern="${1:-system}"
     
