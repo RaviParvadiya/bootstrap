@@ -580,7 +580,6 @@ run_installation() {
 
 # Check and warn about shell safety before operations
 # Arguments: $@ - list of components being processed
-# Returns: 0 if safe to proceed, 1 if user cancelled
 check_shell_safety() {
     local components=("$@")
     local shell_component_found=false

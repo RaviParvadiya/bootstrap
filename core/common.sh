@@ -22,7 +22,6 @@ DISTRO_COMPATIBLE=""
 #######################################
 
 # Detect the current Linux distribution
-# Returns: Sets DETECTED_DISTRO, DISTRO_VERSION, DISTRO_CODENAME, and DISTRO_COMPATIBLE global variables
 detect_distro() {
     [[ -n "$DETECTED_DISTRO" ]] && return 0  # Already detected
 
@@ -183,7 +182,6 @@ is_supported_distro() { detect_distro; [[ "$DISTRO_COMPATIBLE" == "true" ]]; }
 is_compatible_distro() { detect_distro; [[ "$DETECTED_DISTRO" == "arch" || "$DETECTED_DISTRO" == "ubuntu" ]]; }
 
 # Get detailed distribution information
-# Returns: Echoes formatted distribution information
 get_distro_info() {
     detect_distro
     echo "Distribution: $DETECTED_DISTRO"
@@ -193,7 +191,6 @@ get_distro_info() {
 }
 
 # Handle unsupported distribution with user-friendly error message
-# Requirements: 1.5 - Display error message and exit gracefully for unsupported distributions
 handle_unsupported_distro() {
     local distro version
     distro=$(get_distro)
@@ -243,7 +240,6 @@ handle_unsupported_distro() {
 }
 
 # Validate distribution compatibility and handle unsupported cases
-# Returns: 0 if can proceed, 1 if should abort
 validate_distro_support() {
     detect_distro
     
@@ -299,26 +295,6 @@ check_internet_retry() {
 #   $2 - package manager (optional): Specific package manager to use
 #        Valid values: "auto" (default), "pacman", "apt", "yay", "paru"
 #        "auto" will detect the appropriate package manager automatically
-# 
-# Returns: 
-#   0 if package installation successful
-#   1 if package installation failed
-# 
-# Global Variables: 
-#   DRY_RUN - If "true", only shows what would be installed
-#   VERBOSE - If "true", shows detailed installation output
-# 
-# Usage Examples:
-#   install_package "git"                    # Auto-detect package manager
-#   install_package "firefox" "apt"         # Force APT usage
-#   install_package "yay-bin" "yay"         # Install AUR package
-#   
-#   # Check if installation was successful
-#   if install_package "neovim"; then
-#       echo "Neovim installed successfully"
-#   else
-#       echo "Failed to install Neovim"
-#   fi
 install_package() {
     local package="$1" pm="${2:-auto}"
 
@@ -348,7 +324,6 @@ install_package() {
 
 # Install multiple packages
 # Arguments: Array of package names
-# Returns: 0 if all successful, 1 if any failed
 install_packages() {
     local packages=("$@") failed_packages=() success_count=0
 
@@ -372,7 +347,6 @@ install_packages() {
 
 # Check if a package is installed
 # Arguments: $1 - package name, $2 - package manager (optional)
-# Returns: 0 if installed, 1 if not installed
 is_package_installed() {
     local package="$1" pm="${2:-auto}"
 
@@ -456,7 +430,6 @@ ask_yes_no() {
 
 # Multi-choice selection prompt
 # Arguments: $1 - prompt message, $2+ - options
-# Returns: Echoes the selected option
 ask_choice() {
     local prompt="$1"
     shift
@@ -560,7 +533,6 @@ create_symlink() {
 
 # Create multiple symlinks from a directory
 # Arguments: $1 - source directory, $2 - target directory
-# Returns: 0 if all successful, 1 if any failed
 create_symlinks_from_dir() {
     local source_dir="$1" target_dir="$2" failed_count=0
 
@@ -600,7 +572,6 @@ validate_permissions() {
 
 # Install missing system tools automatically
 # Arguments: Array of missing tool names
-# Returns: 0 if all tools installed successfully, 1 if any failed
 install_missing_tools() {
     local missing_tools=("$@")
     [[ ${#missing_tools[@]} -eq 0 ]] && return 0
@@ -685,7 +656,6 @@ install_missing_tools() {
 }
 
 # Check system prerequisites
-# Returns: 0 if all prerequisites met, 1 if missing prerequisites
 validate_system() {
     local missing_tools=() required_tools=("curl" "wget" "git")
 
@@ -720,7 +690,6 @@ validate_system() {
 
 # Validate specific component prerequisites
 # Arguments: $1 - component name
-# Returns: 0 if valid, 1 if invalid
 validate_component_prereqs() {
     local component="$1"
     
