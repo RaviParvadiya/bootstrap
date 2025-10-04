@@ -1,136 +1,81 @@
 #!/usr/bin/env bash
 
-# Ubuntu Package Management
-# Handles APT, snap, and flatpak package installation
+# Ubuntu package management with APT, snap, and flatpak support
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
-
-# Source core utilities
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 
-# Install packages using APT
 ubuntu_install_apt_packages() {
     local packages=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No packages specified for APT installation"
-        return 0
-    fi
+    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No APT packages specified"; return 0; }
     
     log_info "Installing APT packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: apt install -y ${packages[*]}"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt install -y ${packages[*]}"; return 0; }
     
-    # Update package database first
     sudo apt update
     
-    # Install packages
     if ! sudo apt install -y "${packages[@]}"; then
-        log_error "Failed to install some APT packages"
+        log_error "Failed to install APT packages"
         return 1
     fi
     
-    log_success "APT packages installed successfully"
-    return 0
+    log_success "APT packages installed"
 }
 
-# Install packages using snap
 ubuntu_install_snap_packages() {
     local packages=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No packages specified for snap installation"
-        return 0
-    fi
+    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No snap packages specified"; return 0; }
     
-    # Check if snapd is installed
     if ! command -v snap >/dev/null 2>&1; then
         log_info "Installing snapd..."
-        if ! ubuntu_install_apt_packages snapd; then
-            log_error "Failed to install snapd"
-            return 1
-        fi
+        ubuntu_install_apt_packages snapd || { log_error "Failed to install snapd"; return 1; }
     fi
     
     log_info "Installing snap packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: snap install ${packages[*]}"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] snap install ${packages[*]}"; return 0; }
     
-    # Install snap packages
     for package in "${packages[@]}"; do
-        # Handle different snap installation modes
         if [[ "$package" == *"--classic" ]]; then
-            # Package with classic confinement
             local pkg_name="${package%% *}"
-            if ! sudo snap install "$pkg_name" --classic; then
-                log_warn "Failed to install snap package: $pkg_name (classic)"
-            fi
+            sudo snap install "$pkg_name" --classic || log_warn "Failed to install: $pkg_name (classic)"
         elif [[ "$package" == *"--edge" ]]; then
-            # Package from edge channel
             local pkg_name="${package%% *}"
-            if ! sudo snap install "$pkg_name" --edge; then
-                log_warn "Failed to install snap package: $pkg_name (edge)"
-            fi
+            sudo snap install "$pkg_name" --edge || log_warn "Failed to install: $pkg_name (edge)"
         else
-            # Regular snap package
-            if ! sudo snap install "$package"; then
-                log_warn "Failed to install snap package: $package"
-            fi
+            sudo snap install "$package" || log_warn "Failed to install: $package"
         fi
     done
     
-    log_success "Snap packages installation completed"
-    return 0
+    log_success "Snap packages installed"
 }
 
-# Install packages using flatpak
 ubuntu_install_flatpak_packages() {
     local packages=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No packages specified for flatpak installation"
-        return 0
-    fi
+    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No flatpak packages specified"; return 0; }
     
-    # Check if flatpak is installed
     if ! command -v flatpak >/dev/null 2>&1; then
         log_info "Installing flatpak..."
-        if ! ubuntu_install_apt_packages flatpak; then
-            log_error "Failed to install flatpak"
-            return 1
-        fi
+        ubuntu_install_apt_packages flatpak || { log_error "Failed to install flatpak"; return 1; }
         
-        # Add flathub repository
         log_info "Adding Flathub repository..."
-        if [[ "${DRY_RUN:-false}" != "true" ]]; then
-            sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        fi
+        [[ "${DRY_RUN:-false}" != "true" ]] && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
     fi
     
     log_info "Installing flatpak packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: flatpak install -y flathub ${packages[*]}"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] flatpak install -y flathub ${packages[*]}"; return 0; }
     
-    # Install flatpak packages
     for package in "${packages[@]}"; do
-        if ! sudo flatpak install -y flathub "$package"; then
-            log_warn "Failed to install flatpak package: $package"
-        fi
+        sudo flatpak install -y flathub "$package" || log_warn "Failed to install: $package"
     done
     
-    log_success "Flatpak packages installation completed"
-    return 0
+    log_success "Flatpak packages installed"
 }
 
 # Install packages from package list file
@@ -386,74 +331,48 @@ ubuntu_get_apt_package_version() {
     dpkg -l "$package" 2>/dev/null | awk '/^ii/ {print $3}'
 }
 
-# Remove APT packages
 ubuntu_remove_apt_packages() {
     local packages=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No packages specified for removal"
-        return 0
-    fi
+    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No packages specified for removal"; return 0; }
     
     log_info "Removing APT packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: apt remove -y ${packages[*]}"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt remove -y ${packages[*]}"; return 0; }
     
     if ! sudo apt remove -y "${packages[@]}"; then
-        log_error "Failed to remove some packages"
+        log_error "Failed to remove packages"
         return 1
     fi
     
-    log_success "Packages removed successfully"
-    return 0
+    log_success "Packages removed"
 }
 
-# Remove snap packages
 ubuntu_remove_snap_packages() {
     local packages=("$@")
     
-    if [[ ${#packages[@]} -eq 0 ]]; then
-        log_warn "No snap packages specified for removal"
-        return 0
-    fi
+    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No snap packages specified for removal"; return 0; }
     
     log_info "Removing snap packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: snap remove ${packages[*]}"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] snap remove ${packages[*]}"; return 0; }
     
     for package in "${packages[@]}"; do
-        if ! sudo snap remove "$package"; then
-            log_warn "Failed to remove snap package: $package"
-        fi
+        sudo snap remove "$package" || log_warn "Failed to remove: $package"
     done
     
-    log_success "Snap packages removal completed"
-    return 0
+    log_success "Snap packages removed"
 }
 
-# Clean package cache
 ubuntu_clean_package_cache() {
-    log_info "Cleaning package cache..."
+    log_info "Cleaning package cache"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: apt autoremove -y && apt autoclean"
-        return 0
-    fi
+    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt autoremove -y && apt autoclean"; return 0; }
     
-    # Remove unnecessary packages
     sudo apt autoremove -y
-    
-    # Clean package cache
     sudo apt autoclean
     
     log_success "Package cache cleaned"
-    return 0
 }
 
 # Update all package managers

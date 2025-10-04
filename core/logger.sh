@@ -31,124 +31,55 @@ LOG_LEVEL=${LOG_LEVEL:-$LOG_INFO}
 LOG_FILE=""
 LOG_TO_FILE=false
 
-# Initialize logging system
 init_logger() {
-    # Create log file (different naming for dry-run vs real execution)
     local timestamp=$(date +%Y%m%d-%H%M%S)
-    if [[ "$DRY_RUN" == "true" ]]; then
-        LOG_FILE="/tmp/dry-run-modular-install-$timestamp.log"
-    else
-        LOG_FILE="/tmp/modular-install-$timestamp.log"
-    fi
+    local prefix="modular-install"
+    [[ "$DRY_RUN" == "true" ]] && prefix="dry-run-$prefix"
+    
+    LOG_FILE="/tmp/$prefix-$timestamp.log"
     LOG_TO_FILE=true
     touch "$LOG_FILE"
     
-    # Set log level based on verbose flag
-    if [[ "$VERBOSE" == "true" ]]; then
-        LOG_LEVEL=$LOG_DEBUG
-    fi
-    
-    # Log initialization
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "Dry-run mode enabled - no changes will be made"
-    fi
+    [[ "$VERBOSE" == "true" ]] && LOG_LEVEL=$LOG_DEBUG
+    [[ "$DRY_RUN" == "true" ]] && log_info "Dry-run mode enabled"
 }
 
-# Internal logging function
 _log() {
-    local level="$1"
-    local color="$2"
-    local prefix="$3"
-    local message="$4"
+    local level="$1" color="$2" prefix="$3" message="$4"
+    
+    [[ $level -gt $LOG_LEVEL ]] && return 0
+    
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    
-    # Check if we should log this level
-    if [[ $level -gt $LOG_LEVEL ]]; then
-        return 0
-    fi
-    
-    # Format message
-    local formatted_message="[$timestamp] [$prefix] $message"
-    
+
     # Output to console with color
     echo -e "${color}[$prefix]${NC} $message" >&2
     
     # Output to file without color
-    if [[ "$LOG_TO_FILE" == "true" ]]; then
-        echo "$formatted_message" >> "$LOG_FILE"
-    fi
+    [[ "$LOG_TO_FILE" == "true" ]] && echo "[$timestamp] [$prefix] $message" >> "$LOG_FILE"
 }
 
-# Log error message
-log_error() {
-    _log $LOG_ERROR "$RED" "ERROR" "$1"
-}
+log_error() { _log $LOG_ERROR "$RED" "ERROR" "$1"; }
+log_warn() { _log $LOG_WARN "$YELLOW" "WARN" "$1"; }
+log_info() { _log $LOG_INFO "$BLUE" "INFO" "$1"; }
+log_success() { _log $LOG_SUCCESS "$GREEN" "SUCCESS" "$1"; }
+log_debug() { _log $LOG_DEBUG "$PURPLE" "DEBUG" "$1"; }
+log_custom() { _log $LOG_INFO "$1" "$2" "$3"; }
 
-# Log warning message
-log_warn() {
-    _log $LOG_WARN "$YELLOW" "WARN" "$1"
-}
-
-# Log info message
-log_info() {
-    _log $LOG_INFO "$BLUE" "INFO" "$1"
-}
-
-# Log success message
-log_success() {
-    _log $LOG_SUCCESS "$GREEN" "SUCCESS" "$1"
-}
-
-# Log debug message
-log_debug() {
-    _log $LOG_DEBUG "$PURPLE" "DEBUG" "$1"
-}
-
-# Log with custom color and prefix
-log_custom() {
-    local color="$1"
-    local prefix="$2"
-    local message="$3"
-    _log $LOG_INFO "$color" "$prefix" "$message"
-}
-
-# Log dry-run operation
 log_dry_run() {
-    local operation="$1"
-    local details="${2:-}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        if [[ -n "$details" ]]; then
-            _log $LOG_INFO "$CYAN" "DRY-RUN" "$operation ($details)"
-        else
-            _log $LOG_INFO "$CYAN" "DRY-RUN" "$operation"
-        fi
-    fi
-}
-
-# Log operation that would be executed
-log_would_execute() {
-    local command="$1"
-    local description="${2:-$command}"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        _log $LOG_INFO "$PURPLE" "WOULD-EXEC" "$description"
-    fi
+    [[ "$DRY_RUN" != "true" ]] && return 0
+    local operation="$1" details="${2:-}"
+    local message="$operation"
+    [[ -n "$details" ]] && message="$operation ($details)"
+    _log $LOG_INFO "$CYAN" "DRY-RUN" "$message"
 }
 
 # Progress indicator for long-running operations
 show_progress() {
-    local message="$1"
-    local pid="$2"
+    local message="$1" pid="$2"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] $message"
-        return 0
-    fi
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] $message"; return 0; }
     
-    local spin='-\|/'
-    local i=0
-    
+    local spin='-\|/' i=0
     echo -n "$message "
     while kill -0 "$pid" 2>/dev/null; do
         i=$(( (i+1) %4 ))
@@ -160,29 +91,18 @@ show_progress() {
 
 # Progress bar for operations with known duration
 progress_bar() {
-    local current="$1"
-    local total="$2"
-    local message="${3:-Progress}"
-    local width=50
-    
+    local current="$1" total="$2" message="${3:-Progress}" width=50
     local percentage=$((current * 100 / total))
-    local filled=$((current * width / total))
-    local empty=$((width - filled))
+    local filled=$((current * width / total)) empty=$((width - filled))
     
-    printf "\r$message: ["
+    printf "\r$message: [%*s%*s] %d%%" $filled $empty $percentage
     printf "%*s" $filled | tr ' ' '='
     printf "%*s" $empty | tr ' ' '-'
-    printf "] %d%%" $percentage
-    
-    if [[ $current -eq $total ]]; then
-        echo
-    fi
+    [[ $current -eq $total ]] && echo
 }
 
-# Section header for organizing output
 log_section() {
-    local title="$1"
-    local width=60
+    local title="$1" width=60
     local padding=$(( (width - ${#title} - 2) / 2 ))
     
     echo
@@ -195,60 +115,37 @@ log_section() {
 # Simple error handling
 FAILED_OPERATIONS=()
 
-# Die function - log error and exit
 die() {
-    local message="$1"
-    local exit_code="${2:-1}"
-    log_error "$message"
-    exit "$exit_code"
+    log_error "$1"
+    exit "${2:-1}"
 }
 
-# Fail function - log error and track failure
 fail() {
-    local operation="$1"
-    local message="$2"
-    log_error "$message"
-    FAILED_OPERATIONS+=("$operation: $message")
+    log_error "$2"
+    FAILED_OPERATIONS+=("$1: $2")
     return 1
 }
 
-# Show failures summary
 show_failures() {
-    if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
-        log_section "Failed Operations"
-        for failed_op in "${FAILED_OPERATIONS[@]}"; do
-            echo "  - $failed_op"
-        done
-        echo
-    fi
+    [[ ${#FAILED_OPERATIONS[@]} -eq 0 ]] && return 0
+    
+    log_section "Failed Operations"
+    printf '  - %s\n' "${FAILED_OPERATIONS[@]}"
+    echo
 }
 
 # Simple compatibility stubs for the deleted error-handler functions
 handle_error() {
-    local category="$1"
-    local message="$2"
-    local operation="${3:-unknown}"
-    
-    case "$category" in
-        "critical")
-            die "$message"
-            ;;
-        *)
-            fail "$operation" "$message"
-            ;;
+    case "$1" in
+        "critical") die "$2" ;;
+        *) fail "${3:-unknown}" "$2" ;;
     esac
 }
 
-# Context functions - simplified to just log
-push_error_context() {
-    log_debug "Context: $1 - $2"
-}
+push_error_context() { log_debug "Context: $1 - $2"; }
+pop_error_context() { return 0; }
 
-pop_error_context() {
-    return 0
-}
-
-# Other compatibility stubs
+# Error handler stubs
 handle_package_error() { fail "$1" "$2"; }
 handle_config_error() { fail "$1" "$2"; }
 handle_network_error() { fail "$1" "$2"; }
@@ -266,13 +163,9 @@ perform_operation_rollback() { log_debug "Rollback performed: $1"; }
 perform_emergency_rollback() { log_debug "Emergency rollback performed"; }
 show_error_summary() { show_failures; }
 
-# Cleanup function to close log file
 cleanup_logger() {
     show_failures
-    if [[ "$LOG_TO_FILE" == "true" && -n "$LOG_FILE" ]]; then
-        log_info "Log file saved to: $LOG_FILE"
-    fi
+    [[ "$LOG_TO_FILE" == "true" && -n "$LOG_FILE" ]] && log_info "Log saved: $LOG_FILE"
 }
 
-# Set up cleanup trap
 trap cleanup_logger EXIT

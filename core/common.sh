@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
 
-# core/common.sh - Common utility functions for the modular install framework
-# This module provides shared functions used across all components including
-# distribution detection, internet connectivity checks, package installation,
-# interactive prompts, and system validation.
+# Common utilities for distribution detection, package management, and system validation
 
-# Prevent multiple sourcing
-if [[ -n "${COMMON_SOURCED:-}" ]]; then
-    return 0
-fi
+[[ -n "${COMMON_SOURCED:-}" ]] && return 0
 readonly COMMON_SOURCED=1
 
-# Initialize all project paths (only if not already initialized)
-if [[ -z "${PATHS_SOURCED:-}" ]]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
-fi
+[[ -z "${PATHS_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
+[[ -z "${LOGGER_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 
-# Source logger functions (only if not already sourced)
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
-fi
-
-# Global variables
 DRY_RUN="${DRY_RUN:-false}"
 VERBOSE="${VERBOSE:-false}"
 
@@ -37,7 +23,6 @@ DISTRO_COMPATIBLE=""
 
 # Detect the current Linux distribution
 # Returns: Sets DETECTED_DISTRO, DISTRO_VERSION, DISTRO_CODENAME, and DISTRO_COMPATIBLE global variables
-# Requirements: 1.1 - Auto-detect Arch Linux vs Ubuntu, 1.5 - Fallback handling for unsupported distributions
 detect_distro() {
     [[ -n "$DETECTED_DISTRO" ]] && return 0  # Already detected
 
@@ -122,16 +107,13 @@ detect_distro() {
     return 0
 }
 
-# Check if Ubuntu version is supported (18.04 LTS and newer)
-# Arguments: $1 - Ubuntu version (e.g., "20.04", "22.04")
-# Returns: 0 if supported, 1 if not supported
 _is_ubuntu_version_supported() {
     local version="$1"
     [[ -z "$version" ]] && return 1
 
     local major minor
     IFS='.' read -r major minor <<< "$version"
-    
+
     # Support Ubuntu 18.04 and newer
     [[ $major -gt 18 ]] || [[ $major -eq 18 && $minor -ge 4 ]]
 }
@@ -194,40 +176,11 @@ _fallback_distro_detection() {
     DISTRO_COMPATIBLE="false"
 }
 
-# Get the detected distribution
-# Returns: Echoes the distribution name (arch, ubuntu, or unsupported)
-get_distro() {
-    detect_distro
-    echo "$DETECTED_DISTRO"
-}
-
-# Get the distribution version
-# Returns: Echoes the distribution version
-get_distro_version() {
-    detect_distro
-    echo "$DISTRO_VERSION"
-}
-
-# Get the distribution codename
-# Returns: Echoes the distribution codename
-get_distro_codename() {
-    detect_distro
-    echo "$DISTRO_CODENAME"
-}
-
-# Check if current distribution is supported
-# Returns: 0 if supported, 1 if unsupported
-is_supported_distro() {
-    detect_distro
-    [[ "$DISTRO_COMPATIBLE" == "true" ]]
-}
-
-# Check if current distribution is compatible (may work but not fully tested)
-# Returns: 0 if compatible, 1 if incompatible
-is_compatible_distro() {
-    detect_distro
-    [[ "$DETECTED_DISTRO" == "arch" || "$DETECTED_DISTRO" == "ubuntu" ]]
-}
+get_distro() { detect_distro; echo "$DETECTED_DISTRO"; }
+get_distro_version() { detect_distro; echo "$DISTRO_VERSION"; }
+get_distro_codename() { detect_distro; echo "$DISTRO_CODENAME"; }
+is_supported_distro() { detect_distro; [[ "$DISTRO_COMPATIBLE" == "true" ]]; }
+is_compatible_distro() { detect_distro; [[ "$DETECTED_DISTRO" == "arch" || "$DETECTED_DISTRO" == "ubuntu" ]]; }
 
 # Get detailed distribution information
 # Returns: Echoes formatted distribution information
@@ -307,32 +260,16 @@ validate_distro_support() {
 # Internet Connectivity Functions
 #######################################
 
-# Check internet connectivity by testing multiple endpoints
-# This function tests connectivity to multiple reliable endpoints to ensure
-# internet access is available for package downloads and repository updates.
-# 
-# Arguments: None
-# Returns: 0 if connected, 1 if not connected
-# Global Variables: None modified
 check_internet() {
-    local test_urls=(
-        "8.8.8.8"           # Google DNS
-        "1.1.1.1"           # Cloudflare DNS
-        "github.com"        # GitHub
-    )
+    local test_urls=("8.8.8.8" "1.1.1.1" "github.com")
 
     for url in "${test_urls[@]}"; do
-        if ping -c 1 -W 3 "$url" >/dev/null 2>&1; then
-            return 0
-        fi
+        ping -c 1 -W 3 "$url" >/dev/null 2>&1 && return 0
     done
 
     return 1
 }
 
-# Check internet connectivity with retry
-# Arguments: $1 - number of retries (default: 3)
-# Returns: 0 if connected, 1 if failed after retries
 check_internet_retry() {
     local retries="${1:-3}" count=0
 
@@ -645,20 +582,9 @@ create_symlinks_from_dir() {
 # System Validation Functions
 #######################################
 
-# Check if running as root
-# Returns: 0 if root, 1 if not root
-is_root() {
-    [[ $EUID -eq 0 ]]
-}
+is_root() { [[ $EUID -eq 0 ]]; }
+has_sudo() { sudo -n true 2>/dev/null; }
 
-# Check if user has sudo privileges
-# Returns: 0 if has sudo, 1 if no sudo
-has_sudo() {
-    sudo -n true 2>/dev/null
-}
-
-# Validate user permissions
-# Returns: 0 if valid, 1 if invalid
 validate_permissions() {
     if is_root; then
         echo "Warning: Running as root is not recommended"
@@ -670,8 +596,6 @@ validate_permissions() {
         echo "Please run: sudo -v"
         return 1
     fi
-
-    return 0
 }
 
 # Install missing system tools automatically
@@ -824,25 +748,10 @@ validate_component_prereqs() {
 # Utility Helper Functions
 #######################################
 
-# Check if running in dry-run mode
-is_dry_run() {
-    [[ "$DRY_RUN" == "true" ]]
-}
-
-# Enable verbose output
-enable_verbose() {
-    VERBOSE="true"
-}
-
-# Disable verbose output
-disable_verbose() {
-    VERBOSE="false"
-}
-
-# Print debug message if verbose mode is enabled
-debug_print() {
-    [[ "$VERBOSE" == "true" ]] && echo "[DEBUG] $*"
-}
+is_dry_run() { [[ "$DRY_RUN" == "true" ]]; }
+enable_verbose() { VERBOSE="true"; }
+disable_verbose() { VERBOSE="false"; }
+debug_print() { [[ "$VERBOSE" == "true" ]] && echo "[DEBUG] $*"; }
 
 # Source this file to make functions available
 # This allows other scripts to use: source "$(dirname "$0")/core/common.sh"
