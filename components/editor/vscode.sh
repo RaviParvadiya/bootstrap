@@ -139,13 +139,8 @@ install_vscode_packages() {
                         log_error "Failed to install VS Code package via yay: $package"
                         return 1
                     fi
-                elif command -v paru >/dev/null 2>&1; then
-                    if ! paru -S --noconfirm "$package"; then
-                        log_error "Failed to install VS Code package via paru: $package"
-                        return 1
-                    fi
                 else
-                    log_error "No AUR helper found (yay or paru required for VS Code installation)"
+                    log_error "No AUR helper found (yay required for VS Code installation)"
                     return 1
                 fi
                 ;;
@@ -451,8 +446,6 @@ uninstall_vscode() {
         "arch")
             if command -v yay >/dev/null 2>&1; then
                 yay -Rns --noconfirm visual-studio-code-bin 2>/dev/null || true
-            elif command -v paru >/dev/null 2>&1; then
-                paru -Rns --noconfirm visual-studio-code-bin 2>/dev/null || true
             fi
             ;;
         "ubuntu")

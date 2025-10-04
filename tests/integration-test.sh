@@ -293,8 +293,6 @@ test_arch_package_installation() {
     # Test AUR helper availability
     if command -v yay >/dev/null 2>&1; then
         log_info "AUR helper (yay) available"
-    elif command -v paru >/dev/null 2>&1; then
-        log_info "AUR helper (paru) available"
     else
         log_warn "No AUR helper available"
     fi
@@ -344,20 +342,6 @@ test_ubuntu_package_installation() {
             log_error "Failed to update package database"
             return 1
         fi
-    fi
-    
-    # Test snap availability
-    if command -v snap >/dev/null 2>&1; then
-        log_info "Snap package manager available"
-    else
-        log_warn "Snap package manager not available"
-    fi
-    
-    # Test flatpak availability
-    if command -v flatpak >/dev/null 2>&1; then
-        log_info "Flatpak package manager available"
-    else
-        log_warn "Flatpak package manager not available"
     fi
     
     # Test component-specific packages

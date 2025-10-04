@@ -60,7 +60,7 @@ arch_install_aur_packages() {
 }
 
 arch_get_aur_helper() {
-    local helpers=("yay" "paru" "trizen" "yaourt")
+    local helpers=("yay")
     
     for helper in "${helpers[@]}"; do
         command -v "$helper" >/dev/null 2>&1 && { echo "$helper"; return 0; }

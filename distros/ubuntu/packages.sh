@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Ubuntu package management with APT, snap, and flatpak support
+# Ubuntu package management with APT support
 
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/common.sh"
@@ -25,63 +25,12 @@ ubuntu_install_apt_packages() {
     log_success "APT packages installed"
 }
 
-ubuntu_install_snap_packages() {
-    local packages=("$@")
-    
-    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No snap packages specified"; return 0; }
-    
-    if ! command -v snap >/dev/null 2>&1; then
-        log_info "Installing snapd..."
-        ubuntu_install_apt_packages snapd || { log_error "Failed to install snapd"; return 1; }
-    fi
-    
-    log_info "Installing snap packages: ${packages[*]}"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] snap install ${packages[*]}"; return 0; }
-    
-    for package in "${packages[@]}"; do
-        if [[ "$package" == *"--classic" ]]; then
-            local pkg_name="${package%% *}"
-            sudo snap install "$pkg_name" --classic || log_warn "Failed to install: $pkg_name (classic)"
-        elif [[ "$package" == *"--edge" ]]; then
-            local pkg_name="${package%% *}"
-            sudo snap install "$pkg_name" --edge || log_warn "Failed to install: $pkg_name (edge)"
-        else
-            sudo snap install "$package" || log_warn "Failed to install: $package"
-        fi
-    done
-    
-    log_success "Snap packages installed"
-}
 
-ubuntu_install_flatpak_packages() {
-    local packages=("$@")
-    
-    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No flatpak packages specified"; return 0; }
-    
-    if ! command -v flatpak >/dev/null 2>&1; then
-        log_info "Installing flatpak..."
-        ubuntu_install_apt_packages flatpak || { log_error "Failed to install flatpak"; return 1; }
-        
-        log_info "Adding Flathub repository..."
-        [[ "${DRY_RUN:-false}" != "true" ]] && sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-    fi
-    
-    log_info "Installing flatpak packages: ${packages[*]}"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] flatpak install -y flathub ${packages[*]}"; return 0; }
-    
-    for package in "${packages[@]}"; do
-        sudo flatpak install -y flathub "$package" || log_warn "Failed to install: $package"
-    done
-    
-    log_success "Flatpak packages installed"
-}
 
 # Install packages from package list file
 ubuntu_install_from_package_list() {
     local package_list_file="$1"
-    local package_type="${2:-auto}"  # apt, snap, flatpak, or auto
+    local package_type="${2:-auto}"  # apt or auto
     
     if [[ ! -f "$package_list_file" ]]; then
         log_error "Package list file not found: $package_list_file"
@@ -92,8 +41,6 @@ ubuntu_install_from_package_list() {
     
     # Separate packages by type
     local apt_packages=()
-    local snap_packages=()
-    local flatpak_packages=()
     
     while IFS= read -r line; do
         # Skip comments and empty lines
@@ -140,42 +87,8 @@ ubuntu_install_from_package_list() {
             fi
         fi
         
-        # Parse package source prefix (snap:, flatpak:, or default to apt)
-        local package_source="apt"
-        local package_name="$package_entry"
-        
-        if [[ "$package_entry" =~ ^(snap|flatpak): ]]; then
-            package_source="${package_entry%%:*}"
-            package_name="${package_entry#*:}"
-        fi
-        
-        # Add to appropriate array based on source or specified type
-        if [[ "$package_type" == "auto" ]]; then
-            case "$package_source" in
-                "apt")
-                    apt_packages+=("$package_name")
-                    ;;
-                "snap")
-                    snap_packages+=("$package_name")
-                    ;;
-                "flatpak")
-                    flatpak_packages+=("$package_name")
-                    ;;
-            esac
-        else
-            # Force specific package type
-            case "$package_type" in
-                "apt")
-                    apt_packages+=("$package_name")
-                    ;;
-                "snap")
-                    snap_packages+=("$package_name")
-                    ;;
-                "flatpak")
-                    flatpak_packages+=("$package_name")
-                    ;;
-            esac
-        fi
+        # All packages are APT packages (no prefixes supported)
+        apt_packages+=("$package_entry")
     done < "$package_list_file"
     
     # Install packages by type
@@ -188,19 +101,7 @@ ubuntu_install_from_package_list() {
         fi
     fi
     
-    if [[ ${#snap_packages[@]} -gt 0 ]]; then
-        log_info "Installing ${#snap_packages[@]} snap packages..."
-        if ! ubuntu_install_snap_packages "${snap_packages[@]}"; then
-            install_success=false
-        fi
-    fi
-    
-    if [[ ${#flatpak_packages[@]} -gt 0 ]]; then
-        log_info "Installing ${#flatpak_packages[@]} flatpak packages..."
-        if ! ubuntu_install_flatpak_packages "${flatpak_packages[@]}"; then
-            install_success=false
-        fi
-    fi
+
     
     if [[ "$install_success" == "true" ]]; then
         log_success "Package installation from $package_list_file completed successfully"
@@ -313,17 +214,7 @@ ubuntu_is_apt_package_installed() {
     dpkg -l "$package" 2>/dev/null | grep -q "^ii"
 }
 
-# Check if snap package is installed
-ubuntu_is_snap_package_installed() {
-    local package="$1"
-    snap list "$package" >/dev/null 2>&1
-}
 
-# Check if flatpak package is installed
-ubuntu_is_flatpak_package_installed() {
-    local package="$1"
-    flatpak list | grep -q "$package"
-}
 
 # Get installed package version (APT)
 ubuntu_get_apt_package_version() {
@@ -348,21 +239,7 @@ ubuntu_remove_apt_packages() {
     log_success "Packages removed"
 }
 
-ubuntu_remove_snap_packages() {
-    local packages=("$@")
-    
-    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No snap packages specified for removal"; return 0; }
-    
-    log_info "Removing snap packages: ${packages[*]}"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] snap remove ${packages[*]}"; return 0; }
-    
-    for package in "${packages[@]}"; do
-        sudo snap remove "$package" || log_warn "Failed to remove: $package"
-    done
-    
-    log_success "Snap packages removed"
-}
+
 
 ubuntu_clean_package_cache() {
     log_info "Cleaning package cache"
@@ -385,21 +262,7 @@ ubuntu_update_all_packages() {
         sudo apt update && sudo apt upgrade -y
     fi
     
-    # Update snap packages
-    if command -v snap >/dev/null 2>&1; then
-        log_info "Updating snap packages..."
-        if [[ "${DRY_RUN:-false}" != "true" ]]; then
-            sudo snap refresh
-        fi
-    fi
-    
-    # Update flatpak packages
-    if command -v flatpak >/dev/null 2>&1; then
-        log_info "Updating flatpak packages..."
-        if [[ "${DRY_RUN:-false}" != "true" ]]; then
-            sudo flatpak update -y
-        fi
-    fi
+
     
     log_success "All package managers updated"
     return 0
@@ -407,8 +270,7 @@ ubuntu_update_all_packages() {
 
 # Export functions for external use
 export -f ubuntu_install_apt_packages
-export -f ubuntu_install_snap_packages
-export -f ubuntu_install_flatpak_packages
+
 export -f ubuntu_install_from_package_list
 export -f ubuntu_install_base_packages
 export -f ubuntu_install_packages_from_list
@@ -416,10 +278,9 @@ export -f ubuntu_has_nvidia_gpu
 export -f ubuntu_has_intel_gpu
 export -f ubuntu_has_amd_gpu
 export -f ubuntu_is_apt_package_installed
-export -f ubuntu_is_snap_package_installed
-export -f ubuntu_is_flatpak_package_installed
+
 export -f ubuntu_get_apt_package_version
 export -f ubuntu_remove_apt_packages
-export -f ubuntu_remove_snap_packages
+
 export -f ubuntu_clean_package_cache
 export -f ubuntu_update_all_packages

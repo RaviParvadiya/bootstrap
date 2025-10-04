@@ -108,7 +108,6 @@ The dry-run system overrides key system functions:
 pacman() { track_package_install "$@"; }
 apt-get() { track_package_install "$@"; }
 yay() { track_package_install "$@"; }
-snap() { track_package_install "$@"; }
 
 # System operations
 systemctl() { track_service_operation "$@"; }

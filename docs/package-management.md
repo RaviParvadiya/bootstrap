@@ -6,7 +6,7 @@ The modular install framework includes a comprehensive package management system
 
 - **Structured Package Lists**: Support for organized package lists with sections and comments
 - **Conditional Installation**: Install packages based on system capabilities (GPU, laptop, VM, etc.)
-- **Multiple Sources**: Support for different package managers (pacman, AUR, apt, snap, flatpak)
+- **Multiple Sources**: Support for different package managers (pacman, AUR, apt)
 - **Cross-Distribution**: Works with both Arch Linux and Ubuntu
 - **Validation**: Built-in validation for package list syntax and structure
 - **Caching**: Intelligent caching of condition evaluations for performance
@@ -32,8 +32,6 @@ package3
 
 ### Sources
 - `apt:package` - APT package (Ubuntu default)
-- `snap:package` - Snap package
-- `flatpak:package` - Flatpak package
 - `aur:package` - AUR package (Arch only)
 - No prefix defaults to distribution's primary package manager
 
@@ -50,7 +48,7 @@ package3
 ```
 data/
 ├── arch-packages.lst     # Arch Linux packages (pacman)
-├── ubuntu-packages.lst   # Ubuntu packages (apt/snap/flatpak)
+├── ubuntu-packages.lst   # Ubuntu packages (apt)
 ├── aur-packages.lst      # AUR packages (Arch only)
 ├── component-deps.json   # Component dependency mapping
 └── hardware-profiles.json # Hardware-specific configurations
@@ -75,7 +73,7 @@ Evaluate whether a package condition is met on the current system.
 Get all packages for a specific distribution.
 
 #### `get_packages_by_source(distro, source, [condition_filter])`
-Get packages filtered by source (apt, snap, aur, etc.).
+Get packages filtered by source (apt, aur, etc.).
 
 #### `get_packages_by_section(distro, section, [condition_filter])`
 Get packages filtered by section name.
@@ -130,11 +128,8 @@ get_packages_for_distro "arch" "gaming"
 # Ubuntu APT packages
 get_packages_by_source "ubuntu" "apt"
 
-# Ubuntu Snap packages
-get_packages_by_source "ubuntu" "snap"
-
-# Ubuntu Flatpak packages
-get_packages_by_source "ubuntu" "flatpak"
+# Ubuntu APT packages only
+get_packages_by_source "ubuntu" "apt"
 ```
 
 ## Testing

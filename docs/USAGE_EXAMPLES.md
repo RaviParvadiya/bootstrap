@@ -150,7 +150,7 @@ export DRY_RUN=false
 export BACKUP_CONFIGS=true
 
 # Package manager preferences
-export AUR_HELPER=paru  # or yay
+export AUR_HELPER=yay
 export PARALLEL_DOWNLOADS=5
 
 # Hardware detection
@@ -212,13 +212,8 @@ sudo systemctl enable optimus-manager
 ./install.sh --components wm,terminal,shell,editor,dev-tools
 
 # Additional Ubuntu-specific setup
-# Install snap packages
-sudo snap install code discord
-
-# Install flatpak applications
-sudo apt install flatpak
-sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install flathub org.mozilla.firefox
+# Install additional applications via APT
+sudo apt install code firefox
 ```
 
 #### Hyprland-Only Installation

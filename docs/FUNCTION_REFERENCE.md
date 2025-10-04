@@ -175,7 +175,7 @@ fi
 
 **Parameters**:
 - `$1` - Package name (required)
-- `$2` - Package manager (optional: "auto", "pacman", "apt", "yay", "paru")
+- `$2` - Package manager (optional: "auto", "pacman", "apt", "yay")
 
 **Returns**:
 - `0` - Package installed successfully
@@ -222,7 +222,7 @@ fi
 
 **Implementation Details**:
 - Automatically detects available package managers
-- Supports pacman, apt, yay, paru
+- Supports pacman, apt, yay
 - Handles package manager-specific flags and options
 - Respects dry-run mode for safe testing
 - Provides detailed error messages
@@ -374,7 +374,7 @@ case "$editor" in
 esac
 
 # Package manager selection
-aur_helper=$(ask_choice "Select AUR helper:" "yay" "paru" "trizen")
+aur_helper=$(ask_choice "Select AUR helper:" "yay")
 install_package "$aur_helper"
 ```
 

@@ -149,23 +149,12 @@ test_package_filtering() {
     local ubuntu_apt_count
     ubuntu_apt_count=$(get_packages_by_source "ubuntu" "apt" | wc -l)
     
-    local ubuntu_snap_count
-    ubuntu_snap_count=$(get_packages_by_source "ubuntu" "snap" | wc -l)
-    
     if [[ $ubuntu_apt_count -gt 0 ]]; then
         log_success "Found $ubuntu_apt_count Ubuntu APT packages"
         ((tests_passed++))
     else
         log_error "No Ubuntu APT packages found"
         ((tests_failed++))
-    fi
-    
-    if [[ $ubuntu_snap_count -gt 0 ]]; then
-        log_success "Found $ubuntu_snap_count Ubuntu Snap packages"
-        ((tests_passed++))
-    else
-        log_warn "No Ubuntu Snap packages found (this may be expected)"
-        ((tests_passed++))
     fi
     
     log_info "Package filtering tests: $tests_passed passed, $tests_failed failed"

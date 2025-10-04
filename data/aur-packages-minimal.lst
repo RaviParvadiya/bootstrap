@@ -3,7 +3,6 @@
 
 # --- AUR Helpers (if not already installed) ---
 yay
-paru
 
 # --- Development Tools ---
 visual-studio-code-bin

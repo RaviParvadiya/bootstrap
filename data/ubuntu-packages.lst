@@ -1,6 +1,5 @@
 # Ubuntu package list
-# Format: [source:]package_name or [source:]package_name|condition
-# Sources: apt (default), snap, flatpak
+# Format: package_name or package_name|condition
 # Comments start with #
 
 # --- Base System ---
@@ -113,16 +112,10 @@ fonts-noto-color-emoji
 fonts-liberation
 fonts-dejavu-core
 
-# --- Snap Packages ---
-snap:code
-snap:discord
-snap:firefox
-
-# --- Flatpak Packages ---
-flatpak:org.mozilla.firefox
-flatpak:com.discordapp.Discord
-flatpak:org.gimp.GIMP
-flatpak:org.videolan.VLC
+# --- Applications ---
+firefox
+libreoffice
+code
 
 # --- Hardware Specific ---
 nvidia-driver-535|nvidia

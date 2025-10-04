@@ -89,14 +89,14 @@ Dependencies are automatically resolved during selection.
 ### Arch Linux
 
 - **Full Installation**: Complete system setup from base installation
-- **Package Management**: Pacman + AUR (yay/paru)
+- **Package Management**: Pacman + AUR (yay)
 - **Repository Setup**: Multilib, Chaotic-AUR
 - **Hardware Support**: Full NVIDIA and ASUS TUF support
 
 ### Ubuntu
 
 - **Environment Installation**: Hyprland desktop environment setup
-- **Package Management**: APT + Snap + Flatpak
+- **Package Management**: APT
 - **Hyprland**: Built from source with all dependencies
 - **Hardware Support**: Basic NVIDIA driver installation
 
@@ -308,7 +308,7 @@ export VERBOSE=true
 ./install.sh
 
 # Use specific AUR helper
-export AUR_HELPER=paru
+export AUR_HELPER=yay
 ./install.sh
 
 # Skip hardware detection
@@ -508,7 +508,7 @@ pacman -Qm  # AUR packages
 
 # Ubuntu:
 dpkg -l | wc -l
-snap list
+apt list --installed | wc -l
 ```
 
 ### Log Files and Debugging

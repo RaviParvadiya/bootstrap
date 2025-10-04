@@ -237,10 +237,8 @@ install_package() {
 
     case "$pm" in
         "pacman") sudo pacman -S --noconfirm "$package" ;;
-        "yay"|"paru") "$pm" -S --noconfirm "$package" ;;
+        "yay") yay -S --noconfirm "$package" ;;
         "apt") sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y "$package" ;;
-        "snap") sudo snap install "$package" ;;
-        "flatpak") flatpak install -y flathub "$package" ;;
         *) echo "Error: Unsupported package manager: $pm"; return 1 ;;
     esac
 }
@@ -283,9 +281,8 @@ is_package_installed() {
 
     case "$pm" in
         "pacman") pacman -Qi "$package" >/dev/null 2>&1 ;;
+        "yay") yay -Qi "$package" >/dev/null 2>&1 ;;
         "apt") dpkg -l "$package" >/dev/null 2>&1 ;;
-        "snap") snap list "$package" >/dev/null 2>&1 ;;
-        "flatpak") flatpak list | grep -q "$package" ;;
         *) return 1 ;;
     esac
 }
@@ -458,21 +455,28 @@ install_missing_tools() {
         *)
             echo "Error: No supported package manager found for distribution: $distro"
             echo "This script supports:"
-            echo "  • Arch Linux (pacman)"
-            echo "  • Ubuntu/Debian (apt-get)"
+            echo "  • Arch Linux (pacman/yay)"
+            echo "  • Ubuntu/Debian (apt)"
             return 1
             ;;
     esac
 
     echo "Installing missing tools: ${missing_tools[*]}"
 
-    # Update package database first for Ubuntu/Debian
+    # Update package database
     if [[ "$package_manager" == "apt-get" ]]; then
         echo "Updating package database..."
         if [[ "$DRY_RUN" == "true" ]]; then
             log_dry_run "Update package database" "sudo apt-get update"
         else
             sudo apt-get update >/dev/null 2>&1
+        fi
+    elif [[ "$package_manager" == "pacman" ]]; then
+        echo "Updating package database..."
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_dry_run "Update package database" "sudo pacman -Sy"
+        else
+            sudo pacman -Sy >/dev/null 2>&1
         fi
     fi
 

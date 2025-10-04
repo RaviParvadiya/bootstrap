@@ -434,50 +434,9 @@ enable_dry_run_overrides() {
         esac
     }
     
-    paru() {
-        case "$1" in
-            -S|--sync)
-                shift
-                for pkg in "$@"; do
-                    [[ "$pkg" =~ ^-- ]] && continue
-                    dry_run_install_package "$pkg" "paru" "AUR"
-                done
-                ;;
-            *)
-                dry_run_execute_command "paru $*" "paru command"
-                ;;
-        esac
-    }
+
     
-    snap() {
-        case "$1" in
-            install)
-                shift
-                for pkg in "$@"; do
-                    [[ "$pkg" =~ ^- ]] && continue
-                    dry_run_install_package "$pkg" "snap"
-                done
-                ;;
-            *)
-                dry_run_execute_command "snap $*" "snap command"
-                ;;
-        esac
-    }
-    
-    flatpak() {
-        case "$1" in
-            install)
-                shift
-                for pkg in "$@"; do
-                    [[ "$pkg" =~ ^- ]] && continue
-                    dry_run_install_package "$pkg" "flatpak"
-                done
-                ;;
-            *)
-                dry_run_execute_command "flatpak $*" "flatpak command"
-                ;;
-        esac
-    }
+
 }
 
 # Disable dry-run overrides and restore original functions
@@ -494,7 +453,7 @@ disable_dry_run_overrides() {
     fi
     
     # Remove command overrides
-    unset -f systemctl sudo pacman apt-get yay paru snap flatpak 2>/dev/null || true
+    unset -f systemctl sudo pacman apt-get yay 2>/dev/null || true
 }
 
 #######################################
