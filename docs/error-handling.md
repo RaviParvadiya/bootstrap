@@ -307,10 +307,10 @@ show_recovery_status
 - Verify rollback actions were registered correctly
 
 ### Debug Mode
-Enable verbose logging for detailed error information:
+Enable detailed logging for error information:
 ```bash
-export VERBOSE=true
-export DRY_RUN=true  # For safe testing
+# Check log files for detailed information
+tail -f /tmp/modular-install-*.log
 ```
 
 ### Log Files

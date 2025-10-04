@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly NEOVIM_COMPONENT_NAME="neovim"
 readonly NEOVIM_CONFIG_SOURCE="$DOTFILES_DIR/nvim/.config/nvim"
@@ -61,10 +55,6 @@ install_neovim_packages() {
     
     log_info "Installing Neovim packages for $distro..."
     
-    if _dry_run_check "install packages: ${NEOVIM_PACKAGES[$distro]} ${NEOVIM_LSP_PACKAGES[$distro]:-} ${NEOVIM_OPTIONAL_PACKAGES[$distro]:-}"; then
-        return 0
-    fi
-    
     # Install main packages
     local packages; read -ra packages <<< "${NEOVIM_PACKAGES[$distro]}"
     for package in "${packages[@]}"; do
@@ -93,11 +83,6 @@ install_neovim_packages() {
 # Install language servers via npm and pip
 install_language_servers() {
     log_info "Installing language servers for Neovim..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install language servers via npm and pip"
-        return 0
-    fi
     
     # Install popular language servers via npm
     if command -v npm >/dev/null 2>&1; then
@@ -159,8 +144,6 @@ configure_neovim() {
     
     [[ ! -d "$NEOVIM_CONFIG_SOURCE" ]] && { log_error "Neovim configuration source not found: $NEOVIM_CONFIG_SOURCE"; return 1; }
     
-    _dry_run_check "create configuration directory and copy configurations from: $NEOVIM_CONFIG_SOURCE" && return 0
-    
     mkdir -p "$NEOVIM_CONFIG_TARGET" || { log_error "Failed to create Neovim config directory: $NEOVIM_CONFIG_TARGET"; return 1; }
     
     log_info "Creating symlinks for Neovim configuration files..."
@@ -180,11 +163,6 @@ configure_neovim() {
 initialize_neovim_plugins() {
     log_info "Initializing Neovim plugins..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would initialize Neovim plugins via lazy.nvim"
-        return 0
-    fi
-    
     # Run Neovim headless to trigger plugin installation
     log_info "Running Neovim to initialize plugins (this may take a moment)..."
     
@@ -201,11 +179,6 @@ initialize_neovim_plugins() {
 # Setup Neovim as default editor
 set_neovim_as_default() {
     log_info "Setting Neovim as default editor..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would set Neovim as default editor"
-        return 0
-    fi
     
     # Set EDITOR environment variable in shell configs
     local shell_configs=("$HOME/.bashrc" "$HOME/.zshrc")
@@ -337,11 +310,6 @@ install_neovim() {
 # Uninstall Neovim (for testing/cleanup)
 uninstall_neovim() {
     log_info "Uninstalling Neovim..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Neovim packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

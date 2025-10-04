@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly ALACRITTY_COMPONENT_NAME="alacritty"
 readonly ALACRITTY_CONFIG_SOURCE="$DOTFILES_DIR/alacritty/.config/alacritty"
@@ -70,12 +64,6 @@ install_alacritty_packages() {
     
     log_info "Installing Alacritty packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${ALACRITTY_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install font packages: ${ALACRITTY_FONT_PACKAGES[$distro]:-none}"
-        return 0
-    fi
-    
     # Install main Alacritty package
     local packages
     read -ra packages <<< "${ALACRITTY_PACKAGES[$distro]}"
@@ -111,12 +99,6 @@ configure_alacritty() {
     if [[ ! -d "$ALACRITTY_CONFIG_SOURCE" ]]; then
         log_error "Alacritty configuration source not found: $ALACRITTY_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $ALACRITTY_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $ALACRITTY_CONFIG_SOURCE"
-        return 0
     fi
     
     # Create configuration directory
@@ -180,11 +162,6 @@ validate_alacritty_installation() {
 # Set Alacritty as default terminal (optional)
 set_alacritty_as_default() {
     log_info "Setting Alacritty as default terminal..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would set Alacritty as default terminal"
-        return 0
-    fi
     
     # Set as default terminal emulator
     if command -v update-alternatives >/dev/null 2>&1; then
@@ -257,11 +234,6 @@ install_alacritty() {
 # Uninstall Alacritty (for testing/cleanup)
 uninstall_alacritty() {
     log_info "Uninstalling Alacritty..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Alacritty packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

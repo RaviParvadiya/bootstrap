@@ -21,15 +21,11 @@
 #   ./install.sh [OPTIONS]
 # 
 # Options:
-#   --dry-run          Preview operations without making changes
-
-#   --verbose          Enable detailed output
 #   --components LIST  Install specific components (comma-separated)
 #   --help             Show help message
 # 
 # Examples:
 #   ./install.sh                           # Interactive installation
-#   ./install.sh --dry-run                 # Preview mode
 #   ./install.sh --components terminal,shell  # Install specific components
 #   ./install.sh --all                    # Install all available components
 
@@ -48,8 +44,6 @@ IFS=$'\n\t'
 source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
-DRY_RUN=false
-VERBOSE=false
 USE_MINIMAL_PACKAGES=true  # Use minimal package lists by default for post-installation
 SELECTED_COMPONENTS=()
 DETECTED_DISTRO=""
@@ -71,11 +65,6 @@ source_with_error_check "$CORE_DIR/validator.sh"
 source_with_error_check "$CORE_DIR/menu.sh"
 source_with_error_check "$CORE_DIR/recovery-system.sh"
 
-# Source additional utilities based on mode
-if [[ "$DRY_RUN" == "true" ]]; then
-    source_with_error_check "$TESTS_DIR/dry-run.sh"
-fi
-
 # Source package manager utilities
 source_with_error_check "$CORE_DIR/package-manager.sh"
 source_with_error_check "$CORE_DIR/service-manager.sh"
@@ -89,8 +78,6 @@ Usage: $0 [OPTIONS] [COMMAND]
 
 OPTIONS:
     -h, --help          Show this help message
-    -v, --verbose       Enable verbose output
-    -d, --dry-run       Show what would be done without executing
     -c, --components    Comma-separated list of components to install
     -a, --all           Install all available components
     -m, --minimal       Use minimal package lists (default for post-installation)
@@ -102,14 +89,12 @@ COMMANDS:
     validate            Validate current installation
     backup              Create system backup
     list                List available components
-    dry-run             Run dry-run test mode
 
 EXAMPLES:
     $0                                 # Interactive installation
     $0 --dry-run install               # Preview installation
     $0 --components terminal,shell     # Install specific components
     $0 --all                           # Install all available components
-    $0 dry-run                         # Interactive dry-run mode
     $0 validate                        # Validate installation
 
 EOF
@@ -122,14 +107,6 @@ parse_arguments() {
             -h|--help)
                 show_usage
                 exit 0
-                ;;
-            -v|--verbose)
-                VERBOSE=true
-                shift
-                ;;
-            -d|--dry-run)
-                DRY_RUN=true
-                shift
                 ;;
             -c|--components)
                 IFS=',' read -ra SELECTED_COMPONENTS <<< "$2"
@@ -151,7 +128,7 @@ parse_arguments() {
                 USE_MINIMAL_PACKAGES=false
                 shift
                 ;;
-            install|restore|validate|backup|list|dry-run)
+            install|restore|validate|backup|list)
                 COMMAND="$1"
                 shift
                 ;;
@@ -223,21 +200,7 @@ main() {
     fi
     
     # Set global flags and export for child processes
-    export DRY_RUN VERBOSE COMMAND
-    
-    # Initialize mode-specific systems
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "Running in DRY-RUN mode - no changes will be made"
-        # Source dry-run utilities if not already sourced
-        if [[ -f "$TESTS_DIR/dry-run.sh" ]]; then
-            source "$TESTS_DIR/dry-run.sh"
-            init_dry_run
-            enable_dry_run_overrides
-        else
-            handle_error "critical" "Dry-run utilities not found" "dry_run_init"
-            cleanup_and_exit 1
-        fi
-    fi
+    export COMMAND
     
     # System detection and validation with error handling
     push_error_context "system_detection" "Detecting and validating system"
@@ -348,11 +311,6 @@ main() {
         list)
             list_components
             ;;
-        dry-run)
-            if ! run_dry_run_mode; then
-                exit_code=1
-            fi
-            ;;
         *)
             handle_error "critical" "Unknown command: $COMMAND" "command_execution"
             exit_code=1
@@ -360,12 +318,6 @@ main() {
     esac
     
     pop_error_context
-    
-    # Finalize systems
-    if [[ "$DRY_RUN" == "true" ]]; then
-        finalize_dry_run
-        disable_dry_run_overrides
-    fi
     
     # Show error summary if there were any issues
     if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
@@ -594,7 +546,6 @@ show_installation_summary() {
     
     echo "System information:"
     echo "  Distribution: $(get_distro) $(get_distro_version)"
-    echo "  Installation mode: ${DRY_RUN:+DRY-RUN }NORMAL"
     echo "  Current shell: $SHELL"
     echo
     
@@ -817,51 +768,6 @@ run_backup() {
     fi
 }
 
-# Run dry-run mode with error handling
-run_dry_run_mode() {
-    push_error_context "dry_run" "Dry-run testing mode"
-    
-    log_info "Starting dry-run mode..."
-    
-    # Source dry-run utilities with error handling
-    if [[ -f "$TESTS_DIR/dry-run.sh" ]]; then
-        source "$TESTS_DIR/dry-run.sh"
-    else
-        handle_error "critical" "Dry-run utilities not found" "dry_run_utilities"
-        pop_error_context
-        return 1
-    fi
-    
-    local dry_run_success=true
-    
-    # Run dry-run test
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        # Run dry-run test with pre-selected components
-        log_info "Running dry-run test for components: ${SELECTED_COMPONENTS[*]}"
-        if ! run_dry_run_test "${SELECTED_COMPONENTS[@]}"; then
-            handle_error "validation" "Dry-run test failed for selected components" "dry_run_test"
-            dry_run_success=false
-        fi
-    else
-        # Interactive dry-run mode
-        log_info "Starting interactive dry-run mode..."
-        if ! interactive_dry_run; then
-            handle_error "validation" "Interactive dry-run failed" "interactive_dry_run"
-            dry_run_success=false
-        fi
-    fi
-    
-    if [[ "$dry_run_success" == "true" ]]; then
-        log_success "Dry-run mode completed successfully ✓"
-        pop_error_context
-        return 0
-    else
-        log_error "Dry-run mode completed with errors"
-        pop_error_context
-        return 1
-    fi
-}
-
 # List available components
 list_components() {
     local metadata_file="$DATA_DIR/component-deps.json"
@@ -919,7 +825,6 @@ list_components() {
     echo "Usage examples:"
     echo "  $0 --components terminal,shell   # Install specific components"
     echo "  $0 --all                         # Install everything"
-    echo "  $0 --all --dry-run               # Preview full installation"
     echo "  $0 list                          # Show this component list"
 }
 

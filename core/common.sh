@@ -8,9 +8,6 @@ readonly COMMON_SOURCED=1
 [[ -z "${PATHS_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
 [[ -z "${LOGGER_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/logger.sh"
 
-DRY_RUN="${DRY_RUN:-false}"
-VERBOSE="${VERBOSE:-false}"
-
 # Distribution detection cache
 DETECTED_DISTRO=""
 DISTRO_VERSION=""
@@ -83,13 +80,6 @@ detect_distro() {
 
     # Fallback detection methods if /etc/os-release failed
     [[ -z "$DETECTED_DISTRO" || "$DETECTED_DISTRO" == "unsupported" ]] && _fallback_distro_detection
-
-    # Log detection results if verbose
-    [[ "$VERBOSE" == "true" ]] && {
-        echo "Detected distribution: $DETECTED_DISTRO"
-        [[ -n "$DISTRO_VERSION" && "$DISTRO_VERSION" != "unknown" ]] && echo "Version: $DISTRO_VERSION"
-        echo "Compatible: $DISTRO_COMPATIBLE"
-    }
 
     return 0
 }
@@ -188,7 +178,6 @@ validate_distro_support() {
     detect_distro
     
     if is_supported_distro; then
-        [[ "$VERBOSE" == "true" ]] && echo "Distribution validation passed: $(get_distro) $(get_distro_version)"
         return 0
     fi
     
@@ -232,8 +221,6 @@ install_package() {
             *) echo "Error: Unsupported distribution for auto package manager detection"; return 1 ;;
         esac
     fi
-
-    [[ "$DRY_RUN" == "true" ]] && { log_dry_run "Install package: $package" "using $pm"; return 0; }
 
     case "$pm" in
         "pacman") sudo pacman -S --noconfirm "$package" ;;
@@ -354,12 +341,6 @@ create_symlink() {
     [[ -z "$source" || -z "$target" ]] && { echo "Error: Source and target are required for symlink creation"; return 1; }
     [[ ! -e "$source" ]] && { echo "Error: Source file does not exist: $source"; return 1; }
 
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_dry_run "Create symlink: $target -> $source"
-        [[ -e "$target" ]] && log_dry_run "Backup existing file: $target"
-        return 0
-    fi
-
     # Create target directory if it doesn't exist
     local target_dir=$(dirname "$target")
     [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
@@ -466,18 +447,10 @@ install_missing_tools() {
     # Update package database
     if [[ "$package_manager" == "apt-get" ]]; then
         echo "Updating package database..."
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_dry_run "Update package database" "sudo apt-get update"
-        else
-            sudo apt-get update >/dev/null 2>&1
-        fi
+        sudo apt-get update >/dev/null 2>&1
     elif [[ "$package_manager" == "pacman" ]]; then
         echo "Updating package database..."
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_dry_run "Update package database" "sudo pacman -Sy"
-        else
-            sudo pacman -Sy >/dev/null 2>&1
-        fi
+        sudo pacman -Sy >/dev/null 2>&1
     fi
 
     # Install each missing tool
@@ -485,15 +458,11 @@ install_missing_tools() {
     for tool in "${missing_tools[@]}"; do
         echo "Installing $tool..."
         
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_dry_run "Install tool: $tool" "$install_cmd $tool"
+        if eval "$install_cmd \"$tool\"" >/dev/null 2>&1; then
+            echo "✓ Successfully installed $tool"
         else
-            if eval "$install_cmd \"$tool\"" >/dev/null 2>&1; then
-                echo "✓ Successfully installed $tool"
-            else
-                echo "✗ Failed to install $tool"
-                failed_tools+=("$tool")
-            fi
+            echo "✗ Failed to install $tool"
+            failed_tools+=("$tool")
         fi
     done
 
@@ -558,8 +527,6 @@ validate_system() {
 #######################################
 # Utility Helper Functions
 #######################################
-
-is_dry_run() { [[ "$DRY_RUN" == "true" ]]; }
 
 # Source this file to make functions available
 # This allows other scripts to use: source "$(dirname "$0")/core/common.sh"

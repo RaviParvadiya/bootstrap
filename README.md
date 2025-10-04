@@ -56,8 +56,7 @@ chmod +x install.sh
 # Install all available components
 ./install.sh --all
 
-# Verbose output
-./install.sh --verbose
+
 ```
 
 ### Available Commands
@@ -291,8 +290,6 @@ EOF
 Customize behavior with environment variables:
 
 ```bash
-# Enable verbose logging
-export VERBOSE=true
 ./install.sh
 
 # Use specific AUR helper
@@ -507,8 +504,7 @@ apt list --installed | wc -l
 #### Enabling Debug Mode
 
 ```bash
-# Maximum verbosity
-./install.sh --verbose --dry-run
+# Debug specific component
 
 # Debug specific component
 DEBUG=true ./install.sh --components terminal
@@ -520,8 +516,7 @@ tail -f /tmp/modular-install-*.log
 ### Getting Help
 
 1. **Check the logs**: Always start with the log files for detailed error information
-2. **Use dry-run mode**: Preview operations with `--dry-run` to identify issues
-3. **Use dry-run mode**: Use `--dry-run` mode for safe testing
+2. **Check logs**: Review log files for detailed error information
 4. **Use validate command**: Use `./install.sh validate` to check installation status
 5. **Check component status**: Use `./install.sh validate` to check installation status
 6. **Community support**: Check the project's issue tracker or community forums
@@ -607,7 +602,7 @@ rm -rf ~/.config/hypr
 2. **Add comprehensive logging** - Use the logging functions from `core/logger.sh`
 3. **Support both Arch and Ubuntu** - Test on both distributions
 4. **Include dry-run mode support** - All functions should respect `$DRY_RUN`
-5. **Test in safe environments** - Use `--dry-run` flag for safe testing
+5. **Test in safe environments** - Use validation commands for testing
 6. **Document functions** - Follow the patterns in `docs/FUNCTION_REFERENCE.md`
 7. **Add usage examples** - Include examples in function documentation
 

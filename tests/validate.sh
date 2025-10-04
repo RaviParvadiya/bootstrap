@@ -73,7 +73,6 @@ log_validation_header() {
         echo "Hostname: $(hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null || echo 'unknown')"
         echo "User: $(whoami)"
         echo "VM Mode: ${VM_MODE:-false}"
-        echo "Dry Run: ${DRY_RUN:-false}"
         echo "=========================================="
         echo
     } >> "$VALIDATION_LOG_FILE"
@@ -586,8 +585,8 @@ validate_dev_tools_component() {
             validate_command_available "docker"
             validate_service_status "docker" "enabled"
             
-            # Test docker functionality (if not in dry-run mode)
-            if [[ "$DRY_RUN" != "true" ]] && command -v docker >/dev/null 2>&1; then
+            # Test docker functionality
+            if command -v docker >/dev/null 2>&1; then
                 if docker --version >/dev/null 2>&1; then
                     record_validation_result "Docker functionality" "PASS" "docker command works"
                 else
@@ -939,11 +938,6 @@ test_backup_restoration() {
     local test_file="${2:-}"
     
     log_info "Testing backup restoration capability..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        record_validation_result "Backup restoration test" "PASS" "dry-run mode - would test restoration"
-        return 0
-    fi
     
     # Create a temporary test directory
     local test_dir="/tmp/backup-restore-test-$$"

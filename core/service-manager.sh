@@ -33,11 +33,6 @@ enable_service() {
     
     log_info "Enabling service: $service_name"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would enable service: $service_name"
-        return 0
-    fi
-    
     if systemctl --user enable "$service_name" 2>/dev/null || sudo systemctl enable "$service_name" 2>/dev/null; then
         log_success "Service enabled: $service_name"
         return 0
@@ -57,11 +52,6 @@ start_service() {
     fi
     
     log_info "Starting service: $service_name"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would start service: $service_name"
-        return 0
-    fi
     
     if systemctl --user start "$service_name" 2>/dev/null || sudo systemctl start "$service_name" 2>/dev/null; then
         log_success "Service started: $service_name"

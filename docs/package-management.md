@@ -159,8 +159,7 @@ The package management system integrates with:
 ## Configuration
 
 ### Environment Variables
-- `DRY_RUN`: Enable dry-run mode (default: false)
-- `VERBOSE`: Enable verbose logging (default: false)
+
 - `SCRIPT_DIR`: Project root directory (auto-detected)
 
 ### Customization

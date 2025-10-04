@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly ZSH_COMPONENT_NAME="zsh"
 readonly ZSH_CONFIG_SOURCE="$DOTFILES_DIR/zshrc/.zshrc"
@@ -76,12 +70,6 @@ install_zsh_packages() {
     
     log_info "Installing Zsh packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${ZSH_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install optional packages: ${ZSH_OPTIONAL_PACKAGES[$distro]:-none}"
-        return 0
-    fi
-    
     # Install main Zsh packages
     local packages
     read -ra packages <<< "${ZSH_PACKAGES[$distro]}"
@@ -113,12 +101,7 @@ install_zsh_packages() {
 # Install Zinit plugin manager
 install_zinit() {
     log_info "Installing Zinit plugin manager..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would clone Zinit to: $ZINIT_HOME"
-        return 0
-    fi
-    
+        
     # Check if Zinit is already installed
     if [[ -d "$ZINIT_HOME" ]]; then
         log_info "Zinit already installed, updating..."
@@ -154,12 +137,6 @@ configure_zsh() {
     if [[ ! -f "$ZSH_CONFIG_SOURCE" ]]; then
         log_error "Zsh configuration source not found: $ZSH_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create symlink: $ZSH_CONFIG_TARGET -> $ZSH_CONFIG_SOURCE"
-        log_info "[DRY-RUN] Would install Zinit plugin manager"
-        return 0
     fi
     
     # Install Zinit first
@@ -201,11 +178,6 @@ configure_zsh() {
 set_zsh_as_default() {
     log_info "Setting Zsh as default shell..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would set Zsh as default shell for user: $USER"
-        return 0
-    fi
-    
     # Check if Zsh is already the default shell
     if is_zsh_default_shell; then
         log_info "Zsh is already the default shell"
@@ -245,11 +217,6 @@ set_zsh_as_default() {
 # Initialize Zsh plugins (run Zsh once to trigger plugin installation)
 initialize_zsh_plugins() {
     log_info "Initializing Zsh plugins..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would initialize Zsh plugins"
-        return 0
-    fi
     
     # Run Zsh with a simple command to trigger plugin installation
     log_info "Running Zsh to initialize plugins (this may take a moment)..."
@@ -367,15 +334,6 @@ install_zsh() {
 restore_bash_shell() {
     log_info "Checking if shell needs to be changed back to bash..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        if [[ "$SHELL" == *"zsh"* ]]; then
-            log_info "[DRY-RUN] Would change default shell from zsh to bash"
-        else
-            log_info "[DRY-RUN] Current shell is not zsh, no change needed"
-        fi
-        return 0
-    fi
-    
     # Check if current shell is zsh
     if [[ "$SHELL" != *"zsh"* ]]; then
         log_info "Current shell is not zsh, no change needed"
@@ -422,11 +380,6 @@ backup_shell_info() {
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would backup shell information to: $session_dir/shell_info"
-        return 0
-    fi
-    
     local shell_backup_file="$session_dir/shell_info"
     
     # Create shell info backup
@@ -461,11 +414,6 @@ restore_shell_info() {
     
     if [[ ! -f "$shell_backup_file" ]]; then
         log_debug "No shell information backup found"
-        return 0
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would restore shell information from backup"
         return 0
     fi
     
@@ -511,14 +459,6 @@ restore_shell_info() {
 # Uninstall Zsh (for testing/cleanup)
 uninstall_zsh() {
     log_info "Uninstalling Zsh..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Zsh packages and remove configurations"
-        if [[ "$SHELL" == *"zsh"* ]]; then
-            log_info "[DRY-RUN] Would change shell back to bash (current shell is zsh)"
-        fi
-        return 0
-    fi
     
     # Check if zsh is the current default shell and change to bash if needed
     if [[ "$SHELL" == *"zsh"* ]]; then

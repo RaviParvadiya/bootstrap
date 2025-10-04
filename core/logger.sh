@@ -34,14 +34,10 @@ LOG_TO_FILE=false
 init_logger() {
     local timestamp=$(date +%Y%m%d-%H%M%S)
     local prefix="modular-install"
-    [[ "$DRY_RUN" == "true" ]] && prefix="dry-run-$prefix"
     
     LOG_FILE="/tmp/$prefix-$timestamp.log"
     LOG_TO_FILE=true
     touch "$LOG_FILE"
-    
-    [[ "$VERBOSE" == "true" ]] && LOG_LEVEL=$LOG_DEBUG
-    [[ "$DRY_RUN" == "true" ]] && log_info "Dry-run mode enabled"
     
     # Set up cleanup trap now that logging is initialized
     trap cleanup_logger EXIT
@@ -68,19 +64,9 @@ log_success() { _log $LOG_SUCCESS "$GREEN" "SUCCESS" "$1"; }
 log_debug() { _log $LOG_DEBUG "$PURPLE" "DEBUG" "$1"; }
 log_custom() { _log $LOG_INFO "$1" "$2" "$3"; }
 
-log_dry_run() {
-    [[ "$DRY_RUN" != "true" ]] && return 0
-    local operation="$1" details="${2:-}"
-    local message="$operation"
-    [[ -n "$details" ]] && message="$operation ($details)"
-    _log $LOG_INFO "$CYAN" "DRY-RUN" "$message"
-}
-
 # Progress indicator for long-running operations
 show_progress() {
     local message="$1" pid="$2"
-    
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] $message"; return 0; }
     
     local spin='-\|/' i=0
     echo -n "$message "

@@ -520,11 +520,6 @@ exec_safe() {
     
     log_info "Executing: $description"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would execute: $command"
-        return 0
-    fi
-    
     if eval "$command"; then
         log_success "Command executed successfully: $description"
         return 0

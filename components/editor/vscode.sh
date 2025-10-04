@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly VSCODE_COMPONENT_NAME="vscode"
 readonly VSCODE_CONFIG_TARGET="$HOME/.config/Code/User"
@@ -74,11 +68,6 @@ is_vscode_installed() {
 setup_microsoft_repository() {
     log_info "Setting up Microsoft repository for VS Code..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would setup Microsoft repository"
-        return 0
-    fi
-    
     # Download and install Microsoft GPG key
     if ! curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/packages.microsoft.gpg; then
         log_error "Failed to download Microsoft GPG key"
@@ -110,11 +99,6 @@ install_vscode_packages() {
     fi
     
     log_info "Installing VS Code packages for $distro..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${VSCODE_PACKAGES[$distro]}"
-        return 0
-    fi
     
     # Setup repository if needed
     case "$distro" in
@@ -161,14 +145,6 @@ install_vscode_packages() {
 install_vscode_extensions() {
     log_info "Installing VS Code extensions..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install ${#VSCODE_EXTENSIONS[@]} VS Code extensions"
-        for ext in "${VSCODE_EXTENSIONS[@]}"; do
-            log_info "[DRY-RUN] Would install extension: $ext"
-        done
-        return 0
-    fi
-    
     # Check if code command is available
     if ! command -v code >/dev/null 2>&1; then
         log_error "VS Code 'code' command not found in PATH"
@@ -202,12 +178,6 @@ install_vscode_extensions() {
 # Configure VS Code settings
 configure_vscode() {
     log_info "Configuring VS Code settings..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create VS Code configuration directory: $VSCODE_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would create default settings.json and keybindings.json"
-        return 0
-    fi
     
     # Create configuration directory
     if ! mkdir -p "$VSCODE_CONFIG_TARGET"; then
@@ -300,11 +270,6 @@ EOF
 # Setup VS Code as default editor for specific file types
 setup_vscode_file_associations() {
     log_info "Setting up VS Code file associations..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would setup VS Code file associations"
-        return 0
-    fi
     
     # Common file types to associate with VS Code
     local file_types=(
@@ -432,11 +397,6 @@ install_vscode() {
 # Uninstall VS Code (for testing/cleanup)
 uninstall_vscode() {
     log_info "Uninstalling VS Code..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall VS Code packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

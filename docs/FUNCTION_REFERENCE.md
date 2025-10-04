@@ -182,8 +182,7 @@ fi
 - `1` - Package installation failed
 
 **Global Variables**:
-- `DRY_RUN` - If "true", shows what would be installed
-- `VERBOSE` - If "true", shows detailed output
+
 
 **Usage Examples**:
 ```bash
@@ -773,7 +772,7 @@ fi
 
 ### `debug_print()`
 
-**Purpose**: Print debug messages if verbose mode is enabled.
+**Purpose**: Print debug messages to log files.
 
 **Parameters**:
 - `$*` - Debug message

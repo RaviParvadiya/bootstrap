@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly KITTY_COMPONENT_NAME="kitty"
 readonly KITTY_CONFIG_SOURCE="$DOTFILES_DIR/kitty/.config/kitty"
@@ -65,12 +59,6 @@ install_kitty_packages() {
     
     log_info "Installing Kitty packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${KITTY_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install font packages: ${KITTY_FONT_PACKAGES[$distro]:-none}"
-        return 0
-    fi
-    
     # Install main Kitty package
     local packages
     read -ra packages <<< "${KITTY_PACKAGES[$distro]}"
@@ -104,12 +92,6 @@ install_kitty_themes() {
     log_info "Installing Kitty themes..."
     
     local themes_dir="$KITTY_CONFIG_TARGET/themes"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create themes directory: $themes_dir"
-        log_info "[DRY-RUN] Would download Catppuccin theme for Kitty"
-        return 0
-    fi
     
     # Create themes directory
     mkdir -p "$themes_dir"
@@ -146,12 +128,6 @@ configure_kitty() {
     if [[ ! -d "$KITTY_CONFIG_SOURCE" ]]; then
         log_error "Kitty configuration source not found: $KITTY_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $KITTY_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $KITTY_CONFIG_SOURCE"
-        return 0
     fi
     
     # Create configuration directory
@@ -197,11 +173,6 @@ configure_kitty() {
 setup_kitty_theme_link() {
     local current_theme_file="$KITTY_CONFIG_TARGET/current-theme.conf"
     local catppuccin_theme="$KITTY_CONFIG_TARGET/themes/catppuccin-mocha.conf"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create theme symlink: current-theme.conf"
-        return 0
-    fi
     
     # If Catppuccin theme exists, link to it
     if [[ -f "$catppuccin_theme" ]]; then
@@ -251,11 +222,6 @@ validate_kitty_installation() {
 # Set Kitty as default terminal (optional)
 set_kitty_as_default() {
     log_info "Setting Kitty as default terminal..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would set Kitty as default terminal"
-        return 0
-    fi
     
     # Set as default terminal emulator
     if command -v update-alternatives >/dev/null 2>&1; then
@@ -337,11 +303,6 @@ install_kitty() {
 # Uninstall Kitty (for testing/cleanup)
 uninstall_kitty() {
     log_info "Uninstalling Kitty..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Kitty packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

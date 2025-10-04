@@ -335,11 +335,12 @@ show_service_status
 
 ### Debug Mode
 
-Enable verbose logging for debugging:
+Enable debug logging for troubleshooting:
 
 ```bash
-export VERBOSE=true
-export DRY_RUN=true  # For testing without making changes
+# Check service status and logs
+systemctl --user status service-name
+journalctl --user -u service-name
 ```
 
 ## Integration with Main Installation

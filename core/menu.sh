@@ -647,8 +647,6 @@ Functions:
 
 Environment variables:
   COMPONENT_METADATA_FILE      - Path to component metadata JSON
-  DRY_RUN                      - Enable dry-run mode
-  VERBOSE                      - Enable verbose logging
 
 EOF
 }

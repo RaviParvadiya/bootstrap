@@ -145,8 +145,7 @@ EOF
 # Create environment configuration
 cat > ~/.config/modular-install/environment << EOF
 # Framework behavior
-export VERBOSE=true
-export DRY_RUN=false
+
 export BACKUP_CONFIGS=true
 
 # Package manager preferences
@@ -332,14 +331,13 @@ EOF
 ### Comprehensive Testing Workflow
 
 ```bash
-# Step 1: Test in dry-run mode
-./install.sh --dry-run --verbose > test-output.log 2>&1
+# Step 1: Run installation
+./install.sh > install-output.log 2>&1
 
-# Step 2: Review what would be installed
+# Step 2: Review installation results
 less test-output.log
 
-# Step 3: Test with dry-run
-./install.sh --dry-run
+# Step 3: Run installation
 
 # Step 4: Run actual installation
 ./install.sh
@@ -372,8 +370,8 @@ less test-output.log
 ```bash
 # Test each component individually
 for component in terminal shell editor wm dev-tools; do
-    echo "Testing component: $component"
-    ./install.sh --components $component --dry-run
+    echo "Installing component: $component"
+    ./install.sh --components $component
     echo "---"
 done
 
@@ -529,7 +527,7 @@ export GBM_BACKEND=nvidia-drm
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
 # Check Hyprland configuration
-hyprland --config ~/.config/hypr/hyprland.conf --verbose
+hyprland --config ~/.config/hypr/hyprland.conf
 
 # Reset to default configuration
 mv ~/.config/hypr ~/.config/hypr.backup

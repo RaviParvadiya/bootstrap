@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly STARSHIP_COMPONENT_NAME="starship"
 readonly STARSHIP_CONFIG_SOURCE="$DOTFILES_DIR/starship/.config/starship.toml"
@@ -47,18 +41,6 @@ install_starship_binary() {
     distro=$(get_distro)
     
     log_info "Installing Starship binary for $distro..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        case "$distro" in
-            "arch")
-                log_info "[DRY-RUN] Would install package: ${STARSHIP_PACKAGES[$distro]}"
-                ;;
-            "ubuntu")
-                log_info "[DRY-RUN] Would download and run Starship install script"
-                ;;
-        esac
-        return 0
-    fi
     
     case "$distro" in
         "arch")
@@ -135,11 +117,6 @@ install_starship_fonts() {
     
     log_info "Installing Starship font dependencies..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install font packages: ${STARSHIP_FONT_PACKAGES[$distro]}"
-        return 0
-    fi
-    
     local font_packages
     read -ra font_packages <<< "${STARSHIP_FONT_PACKAGES[$distro]}"
     
@@ -160,12 +137,6 @@ configure_starship() {
     if [[ ! -f "$STARSHIP_CONFIG_SOURCE" ]]; then
         log_error "Starship configuration source not found: $STARSHIP_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $(dirname "$STARSHIP_CONFIG_TARGET")"
-        log_info "[DRY-RUN] Would create symlink: $STARSHIP_CONFIG_TARGET -> $STARSHIP_CONFIG_SOURCE"
-        return 0
     fi
     
     # Create configuration directory
@@ -190,11 +161,6 @@ configure_starship() {
 # Add Starship initialization to shell configuration files
 setup_starship_shell_integration() {
     log_info "Setting up Starship shell integration..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would add Starship initialization to shell configs"
-        return 0
-    fi
     
     local shells_configured=0
     
@@ -286,11 +252,6 @@ validate_starship_installation() {
 test_starship_prompt() {
     log_info "Testing Starship prompt rendering..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would test Starship prompt rendering"
-        return 0
-    fi
-    
     # Test prompt generation
     if command -v starship >/dev/null 2>&1; then
         local test_output
@@ -370,11 +331,6 @@ install_starship() {
 # Uninstall Starship (for testing/cleanup)
 uninstall_starship() {
     log_info "Uninstalling Starship..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Starship binary and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

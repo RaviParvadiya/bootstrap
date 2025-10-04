@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly TMUX_COMPONENT_NAME="tmux"
 readonly TMUX_CONFIG_SOURCE="$DOTFILES_DIR/tmux/.tmux.conf"
@@ -77,12 +71,6 @@ install_tmux_packages() {
     
     log_info "Installing Tmux packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${TMUX_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install dependencies: ${TMUX_DEPENDENCIES[$distro]}"
-        return 0
-    fi
-    
     # Install dependencies first
     local dependencies
     read -ra dependencies <<< "${TMUX_DEPENDENCIES[$distro]}"
@@ -111,11 +99,6 @@ install_tmux_packages() {
 # Install TPM (Tmux Plugin Manager)
 install_tpm() {
     log_info "Installing TPM (Tmux Plugin Manager)..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would clone TPM repository to: $TMUX_PLUGINS_DIR/tpm"
-        return 0
-    fi
     
     # Create plugins directory
     if ! mkdir -p "$TMUX_PLUGINS_DIR"; then
@@ -150,11 +133,6 @@ configure_tmux() {
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create symlink: $TMUX_CONFIG_TARGET -> $TMUX_CONFIG_SOURCE"
-        return 0
-    fi
-    
     # Create symlink for tmux configuration
     if ! create_symlink "$TMUX_CONFIG_SOURCE" "$TMUX_CONFIG_TARGET"; then
         log_error "Failed to create symlink for tmux configuration"
@@ -168,11 +146,6 @@ configure_tmux() {
 # Install Tmux plugins using TPM
 install_tmux_plugins() {
     log_info "Installing Tmux plugins..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install tmux plugins using TPM"
-        return 0
-    fi
     
     # Check if TPM is installed
     if ! is_tpm_installed; then
@@ -240,11 +213,6 @@ validate_tmux_installation() {
 test_tmux_functionality() {
     log_info "Testing Tmux functionality..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would test tmux session creation"
-        return 0
-    fi
-    
     # Create a test session and immediately detach
     if tmux new-session -d -s "install-test" -c "$HOME" 'echo "Tmux test session"; sleep 1'; then
         log_debug "Test session created successfully"
@@ -265,11 +233,6 @@ test_tmux_functionality() {
 # Setup tmux to start automatically (optional)
 setup_tmux_autostart() {
     log_info "Setting up Tmux autostart..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would add tmux autostart to shell configuration"
-        return 0
-    fi
     
     local tmux_autostart='
 # Auto-start tmux session
@@ -369,11 +332,6 @@ install_tmux() {
 # Uninstall Tmux (for testing/cleanup)
 uninstall_tmux() {
     log_info "Uninstalling Tmux..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Tmux packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)
