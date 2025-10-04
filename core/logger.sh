@@ -42,6 +42,9 @@ init_logger() {
     
     [[ "$VERBOSE" == "true" ]] && LOG_LEVEL=$LOG_DEBUG
     [[ "$DRY_RUN" == "true" ]] && log_info "Dry-run mode enabled"
+    
+    # Set up cleanup trap now that logging is initialized
+    trap cleanup_logger EXIT
 }
 
 _log() {
@@ -167,5 +170,3 @@ cleanup_logger() {
     show_failures
     [[ "$LOG_TO_FILE" == "true" && -n "$LOG_FILE" ]] && log_info "Log saved: $LOG_FILE"
 }
-
-trap cleanup_logger EXIT

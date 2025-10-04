@@ -989,7 +989,7 @@ list_components() {
 }
 
 # Error handling
-trap 'log_error "Script interrupted"; exit 1' INT TERM
+trap 'echo "ERROR: Script interrupted" >&2; exit 1' INT TERM
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
