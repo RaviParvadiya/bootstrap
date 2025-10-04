@@ -14,7 +14,6 @@ VERBOSE="${VERBOSE:-false}"
 # Distribution detection cache
 DETECTED_DISTRO=""
 DISTRO_VERSION=""
-DISTRO_CODENAME=""
 DISTRO_COMPATIBLE=""
 
 #######################################
@@ -28,12 +27,11 @@ detect_distro() {
     # Initialize variables
     DETECTED_DISTRO=""
     DISTRO_VERSION=""
-    DISTRO_CODENAME=""
     DISTRO_COMPATIBLE="false"
 
     # Primary detection method: /etc/os-release
     if [[ -f /etc/os-release ]]; then
-        local id version_id version_codename id_like
+        local id version_id id_like
         
         # Parse /etc/os-release line by line
         while IFS='=' read -r key value; do
@@ -42,7 +40,6 @@ detect_distro() {
             case "$key" in
                 "ID") id="$value" ;;
                 "VERSION_ID") version_id="$value" ;;
-                "VERSION_CODENAME") version_codename="$value" ;;
                 "ID_LIKE") id_like="$value" ;;
             esac
         done < /etc/os-release
@@ -52,21 +49,16 @@ detect_distro() {
                 "arch")
                     DETECTED_DISTRO="arch"
                     DISTRO_VERSION="${version_id:-rolling}"
-                    DISTRO_CODENAME="${version_codename:-rolling}"
                     DISTRO_COMPATIBLE="true"
                     ;;
                 "ubuntu")
                     DETECTED_DISTRO="ubuntu"
                     DISTRO_VERSION="$version_id"
-                    DISTRO_CODENAME="$version_codename"
-                    # Check Ubuntu version compatibility (18.04+)
                     DISTRO_COMPATIBLE=$(_is_ubuntu_version_supported "$version_id" && echo "true" || echo "false")
                     ;;
                 "manjaro"|"endeavouros"|"garuda")
-                    # Treat Arch-based distributions as Arch
                     DETECTED_DISTRO="arch"
                     DISTRO_VERSION="${id}-${version_id:-unknown}"
-                    DISTRO_CODENAME="$version_codename"
                     DISTRO_COMPATIBLE="true"
                     ;;
                 *)
@@ -74,17 +66,14 @@ detect_distro() {
                     if [[ "$id_like" == *"arch"* ]]; then
                         DETECTED_DISTRO="arch"
                         DISTRO_VERSION="${id}-${version_id:-unknown}"
-                        DISTRO_CODENAME="$version_codename"
                         DISTRO_COMPATIBLE="true"
                     elif [[ "$id_like" == *"ubuntu"* || "$id_like" == *"debian"* ]]; then
                         DETECTED_DISTRO="ubuntu"
                         DISTRO_VERSION="${id}-${version_id:-unknown}"
-                        DISTRO_CODENAME="$version_codename"
-                        DISTRO_COMPATIBLE="false"  # Only pure Ubuntu is fully supported
+                        DISTRO_COMPATIBLE="false"
                     else
                         DETECTED_DISTRO="unsupported"
                         DISTRO_VERSION="${id:-unknown}-${version_id:-unknown}"
-                        DISTRO_CODENAME="$version_codename"
                         DISTRO_COMPATIBLE="false"
                     fi
                     ;;
@@ -95,11 +84,10 @@ detect_distro() {
     # Fallback detection methods if /etc/os-release failed
     [[ -z "$DETECTED_DISTRO" || "$DETECTED_DISTRO" == "unsupported" ]] && _fallback_distro_detection
 
-    # Final validation and logging
+    # Log detection results if verbose
     [[ "$VERBOSE" == "true" ]] && {
         echo "Detected distribution: $DETECTED_DISTRO"
-        echo "Version: $DISTRO_VERSION"
-        echo "Codename: $DISTRO_CODENAME"
+        [[ -n "$DISTRO_VERSION" && "$DISTRO_VERSION" != "unknown" ]] && echo "Version: $DISTRO_VERSION"
         echo "Compatible: $DISTRO_COMPATIBLE"
     }
 
@@ -117,76 +105,32 @@ _is_ubuntu_version_supported() {
     [[ $major -gt 18 ]] || [[ $major -eq 18 && $minor -ge 4 ]]
 }
 
-# Fallback distribution detection using various system indicators
-# Sets global variables if detection is successful
+# Fallback distribution detection using package managers
 _fallback_distro_detection() {
-    # Method 1: Check for package managers
     if command -v pacman >/dev/null 2>&1; then
         DETECTED_DISTRO="arch"
         DISTRO_VERSION="unknown"
-        DISTRO_CODENAME="unknown"
         DISTRO_COMPATIBLE="true"
-        return 0
     elif command -v apt >/dev/null 2>&1; then
         DETECTED_DISTRO="ubuntu"
         DISTRO_VERSION="unknown"
-        DISTRO_CODENAME="unknown"
-        DISTRO_COMPATIBLE="false"  # Can't verify version compatibility
-        return 0
-    fi
-
-    # Method 2: Check for distribution-specific files
-    if [[ -f /etc/arch-release ]]; then
-        DETECTED_DISTRO="arch"
+        DISTRO_COMPATIBLE="false"
+    else
+        DETECTED_DISTRO="unsupported"
         DISTRO_VERSION="unknown"
-        DISTRO_CODENAME="unknown"
-        DISTRO_COMPATIBLE="true"
-        return 0
-    elif [[ -f /etc/lsb-release ]] && grep -q "Ubuntu" /etc/lsb-release 2>/dev/null; then
-        # Try to parse LSB release info
-        DETECTED_DISTRO="ubuntu"
-        DISTRO_VERSION=$(grep "DISTRIB_RELEASE" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-        DISTRO_CODENAME=$(grep "DISTRIB_CODENAME" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"')
-        DISTRO_COMPATIBLE=$(_is_ubuntu_version_supported "$DISTRO_VERSION" && echo "true" || echo "false")
-        return 0
+        DISTRO_COMPATIBLE="false"
     fi
-
-    # Method 3: Check /proc/version
-    if [[ -f /proc/version ]]; then
-        if grep -qi "arch" /proc/version; then
-            DETECTED_DISTRO="arch"
-            DISTRO_VERSION="unknown"
-            DISTRO_CODENAME="unknown"
-            DISTRO_COMPATIBLE="true"
-            return 0
-        elif grep -qi "ubuntu" /proc/version; then
-            DETECTED_DISTRO="ubuntu"
-            DISTRO_VERSION="unknown"
-            DISTRO_CODENAME="unknown"
-            DISTRO_COMPATIBLE="false"
-            return 0
-        fi
-    fi
-
-    # If all methods fail, mark as unsupported
-    DETECTED_DISTRO="unsupported"
-    DISTRO_VERSION="unknown"
-    DISTRO_CODENAME="unknown"
-    DISTRO_COMPATIBLE="false"
 }
 
 get_distro() { detect_distro; echo "$DETECTED_DISTRO"; }
 get_distro_version() { detect_distro; echo "$DISTRO_VERSION"; }
-get_distro_codename() { detect_distro; echo "$DISTRO_CODENAME"; }
 is_supported_distro() { detect_distro; [[ "$DISTRO_COMPATIBLE" == "true" ]]; }
-is_compatible_distro() { detect_distro; [[ "$DETECTED_DISTRO" == "arch" || "$DETECTED_DISTRO" == "ubuntu" ]]; }
 
 # Get detailed distribution information
 get_distro_info() {
     detect_distro
     echo "Distribution: $DETECTED_DISTRO"
-    echo "Version: $DISTRO_VERSION"
-    echo "Codename: $DISTRO_CODENAME"
+    [[ -n "$DISTRO_VERSION" && "$DISTRO_VERSION" != "unknown" ]] && echo "Version: $DISTRO_VERSION"
     echo "Fully Supported: $DISTRO_COMPATIBLE"
 }
 
@@ -266,35 +210,14 @@ check_internet() {
     return 1
 }
 
-check_internet_retry() {
-    local retries="${1:-3}" count=0
 
-    while [[ $count -lt $retries ]]; do
-        check_internet && return 0
-        ((count++))
-        [[ $count -lt $retries ]] && {
-            echo "Internet connectivity check failed, retrying in 2 seconds... ($count/$retries)"
-            sleep 2
-        }
-    done
-
-    return 1
-}
 
 #######################################
 # Package Installation Functions
 #######################################
 
-# Universal package installation wrapper that works across distributions
-# This function provides a unified interface for package installation across
-# different Linux distributions, automatically detecting the appropriate package
-# manager and handling distribution-specific installation procedures.
-# 
-# Arguments: 
-#   $1 - package name (required): Name of the package to install
-#   $2 - package manager (optional): Specific package manager to use
-#        Valid values: "auto" (default), "pacman", "apt", "yay", "paru"
-#        "auto" will detect the appropriate package manager automatically
+# Install package using appropriate package manager
+# Arguments: $1 - package name, $2 - package manager (optional, defaults to auto)
 install_package() {
     local package="$1" pm="${2:-auto}"
 
@@ -371,39 +294,8 @@ is_package_installed() {
 # Interactive Confirmation Functions
 #######################################
 
-# Interactive yes/no confirmation prompt with default option support
-# This function displays a user-friendly prompt and waits for user input.
-# It supports default values and handles various input formats gracefully.
-# In dry-run mode, it automatically returns the default or assumes "yes".
-# 
-# Arguments:
-#   $1 - prompt message (required): The question to ask the user
-#   $2 - default answer (optional): Default response if user presses Enter
-#        Valid values: "y", "yes", "n", "no" (case insensitive)
-#        If not provided, user must explicitly choose
-# 
-# Returns:
-#   0 for yes/y/Y responses
-#   1 for no/n/N responses
-# 
-# Global Variables:
-#   DRY_RUN - If "true", automatically returns the default or 0 if no default
-# 
-# Usage Examples:
-#   # Simple yes/no question
-#   if ask_yes_no "Do you want to continue?"; then
-#       echo "User chose yes"
-#   fi
-#   
-#   # With default value
-#   if ask_yes_no "Install NVIDIA drivers?" "y"; then
-#       install_nvidia_drivers
-#   fi
-#   
-#   # With default no
-#   if ask_yes_no "Delete existing config?" "n"; then
-#       rm -rf ~/.config/app
-#   fi
+# Interactive yes/no prompt with default option support
+# Arguments: $1 - prompt message, $2 - default answer (y/n, optional)
 ask_yes_no() {
     local prompt="$1" default="${2:-}" response
 
@@ -456,43 +348,8 @@ ask_choice() {
 # File and Symlink Management Functions
 #######################################
 
-# Create safe symlink with automatic backup of existing files
-# This function creates symbolic links while safely handling existing files
-# by creating timestamped backups. It ensures no data loss during configuration
-# deployment and provides rollback capabilities.
-# 
-# Arguments:
-#   $1 - source file (required): Path to the source file/directory to link from
-#        Must be an absolute path or relative to current directory
-#   $2 - target location (required): Path where the symlink should be created
-#        Parent directories will be created automatically if needed
-# 
-# Returns:
-#   0 if symlink creation successful
-#   1 if symlink creation failed (missing args, source doesn't exist, etc.)
-# 
-# Global Variables:
-#   DRY_RUN - If "true", only shows what would be done
-#   HOME - Used for backup directory location
-# 
-# Side Effects:
-#   - Creates backup directory: ~/.config/install-backups/YYYYMMDD_HHMMSS/
-#   - Backs up existing target file/directory before creating symlink
-#   - Creates parent directories for target if they don't exist
-# 
-# Usage Examples:
-#   # Link dotfile configuration
-#   create_symlink "$HOME/dotfiles/kitty" "$HOME/.config/kitty"
-#   
-#   # Link single configuration file
-#   create_symlink "$PWD/configs/zshrc" "$HOME/.zshrc"
-#   
-#   # Check if symlink creation was successful
-#   if create_symlink "$source" "$target"; then
-#       echo "Configuration linked successfully"
-#   else
-#       echo "Failed to create symlink"
-#   fi
+# Create symlink with automatic backup of existing files
+# Arguments: $1 - source file, $2 - target location
 create_symlink() {
     local source="$1" target="$2"
     local backup_dir="$HOME/.config/install-backups/$(date +%Y%m%d_%H%M%S)"
@@ -607,13 +464,7 @@ install_missing_tools() {
             ;;
     esac
 
-    echo "=============================================="
-    echo "INSTALLING MISSING TOOLS"
-    echo "=============================================="
-    echo "Distribution: $distro"
-    echo "Package Manager: $package_manager"
-    echo "Missing tools: ${missing_tools[*]}"
-    echo
+    echo "Installing missing tools: ${missing_tools[*]}"
 
     # Update package database first for Ubuntu/Debian
     if [[ "$package_manager" == "apt-get" ]]; then
@@ -667,8 +518,18 @@ validate_system() {
     # Check distribution support
     validate_distro_support || return 1
 
-    # Check internet connectivity
-    if ! check_internet_retry 3; then
+    # Check internet connectivity with retry
+    local retries=3 count=0
+    while [[ $count -lt $retries ]]; do
+        check_internet && break
+        ((count++))
+        [[ $count -lt $retries ]] && {
+            echo "Internet connectivity check failed, retrying in 2 seconds... ($count/$retries)"
+            sleep 2
+        }
+    done
+    
+    if [[ $count -eq $retries ]]; then
         echo "Error: No internet connectivity detected"
         echo "Internet access is required for package installation"
         return 1
@@ -688,39 +549,13 @@ validate_system() {
     [[ ${#missing_tools[@]} -gt 0 ]] && install_missing_tools "${missing_tools[@]}"
 }
 
-# Validate specific component prerequisites
-# Arguments: $1 - component name
-validate_component_prereqs() {
-    local component="$1"
-    
-    case "$component" in
-        "hyprland")
-            # Check for Wayland support
-            [[ -z "$WAYLAND_DISPLAY" && -z "$XDG_SESSION_TYPE" ]] && {
-                echo "Warning: Wayland session not detected"
-                echo "Hyprland requires Wayland support"
-            }
-            ;;
-        "nvidia")
-            # Check for NVIDIA GPU
-            if ! lspci | grep -i nvidia >/dev/null 2>&1; then
-                echo "Warning: No NVIDIA GPU detected"
-                return 1
-            fi
-            ;;
-    esac
 
-    return 0
-}
 
 #######################################
 # Utility Helper Functions
 #######################################
 
 is_dry_run() { [[ "$DRY_RUN" == "true" ]]; }
-enable_verbose() { VERBOSE="true"; }
-disable_verbose() { VERBOSE="false"; }
-debug_print() { [[ "$VERBOSE" == "true" ]] && echo "[DEBUG] $*"; }
 
 # Source this file to make functions available
 # This allows other scripts to use: source "$(dirname "$0")/core/common.sh"
