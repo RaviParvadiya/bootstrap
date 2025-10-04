@@ -3,12 +3,8 @@
 # Package Manager and Dependency Resolution System
 # Handles component dependencies, conflicts, and hardware requirements
 
-# Initialize all project paths (only if not already initialized)
-if [[ -z "${PATHS_SOURCED:-}" ]]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
-fi
-
 # Source required modules
+[[ -z "${PATHS_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
@@ -20,25 +16,20 @@ RESOLVED_DEPENDENCIES=()
 DETECTED_CONFLICTS=()
 HARDWARE_PROFILE=""
 
-# Load component dependencies from JSON file
-load_component_dependencies() {
-    if [[ ! -f "$COMPONENT_DEPS_FILE" ]]; then
-        log_error "Component dependencies file not found: $COMPONENT_DEPS_FILE"
-        return 1
-    fi
-    
-    log_info "Loading component dependencies..."
-    return 0
-}
+# Hardware detection cache
+GPU_TYPE_CACHE=""
+VM_STATUS_CACHE=""
 
-# Load hardware profiles from JSON file
-load_hardware_profiles() {
-    if [[ ! -f "$HARDWARE_PROFILES_FILE" ]]; then
-        log_error "Hardware profiles file not found: $HARDWARE_PROFILES_FILE"
+# Load JSON configuration file
+load_json_file() {
+    local file="$1" description="$2"
+    
+    if [[ ! -f "$file" ]]; then
+        log_error "$description file not found: $file"
         return 1
     fi
     
-    log_info "Loading hardware profiles..."
+    log_info "Loaded $description"
     return 0
 }
 
@@ -81,93 +72,79 @@ detect_hardware_profile() {
     return 0
 }
 
-# Detect GPU type from lspci output
+# Detect GPU type from lspci output (cached)
 detect_gpu_type() {
+    [[ -n "$GPU_TYPE_CACHE" ]] && { echo "$GPU_TYPE_CACHE"; return 0; }
+    
     local lspci_output
     lspci_output=$(lspci | grep -i vga)
     
     if echo "$lspci_output" | grep -qi "nvidia\|geforce\|quadro\|tesla"; then
-        echo "nvidia"
+        GPU_TYPE_CACHE="nvidia"
     elif echo "$lspci_output" | grep -qi "amd\|radeon\|rx "; then
-        echo "amd"
+        GPU_TYPE_CACHE="amd"
     elif echo "$lspci_output" | grep -qi "intel.*graphics\|intel.*hd\|intel.*iris"; then
-        echo "intel"
+        GPU_TYPE_CACHE="intel"
     else
-        echo "unknown"
+        GPU_TYPE_CACHE="unknown"
     fi
+    
+    echo "$GPU_TYPE_CACHE"
 }
 
-# Check if system is running in a virtual machine
+# Check if system is running in a virtual machine (cached)
 is_virtual_machine() {
-    # Check DMI information
-    local dmi_info
-    dmi_info=$(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "")
+    [[ -n "$VM_STATUS_CACHE" ]] && [[ "$VM_STATUS_CACHE" == "true" ]] && return 0
+    [[ -n "$VM_STATUS_CACHE" ]] && [[ "$VM_STATUS_CACHE" == "false" ]] && return 1
     
-    if echo "$dmi_info" | grep -qi "virtualbox\|vmware\|qemu\|kvm\|xen\|microsoft corporation"; then
-        return 0
-    fi
-    
-    # Check for virtualization indicators
+    # Check for virtualization indicators first (fastest)
     if [[ -d /proc/vz ]] || [[ -f /proc/xen/capabilities ]] || [[ -d /sys/bus/vmbus ]]; then
+        VM_STATUS_CACHE="true"
         return 0
     fi
     
     # Check lscpu output
     if lscpu | grep -qi "hypervisor\|virtualization"; then
+        VM_STATUS_CACHE="true"
         return 0
     fi
     
+    # Check DMI information (slowest, do last)
+    local dmi_info
+    dmi_info=$(sudo dmidecode -s system-manufacturer 2>/dev/null || echo "")
+    if echo "$dmi_info" | grep -qi "virtualbox\|vmware\|qemu\|kvm\|xen\|microsoft corporation"; then
+        VM_STATUS_CACHE="true"
+        return 0
+    fi
+    
+    VM_STATUS_CACHE="false"
     return 1
+}
+
+# Generic JSON field getter
+get_json_field() {
+    local path="$1" file="$2"
+    jq -r "$path // empty" "$file" 2>/dev/null
 }
 
 # Get component information from JSON
 get_component_info() {
-    local component="$1"
-    local field="$2"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".components.\"$component\".\"$field\" // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+    get_json_field ".components.\"$1\".\"$2\"" "$COMPONENT_DEPS_FILE"
 }
 
 # Get component packages for current distribution
 get_component_packages() {
-    local component="$1"
-    local distro="$2"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".components.\"$component\".packages.\"$distro\"[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+    get_json_field ".components.\"$1\".packages.\"$2\"[]?" "$COMPONENT_DEPS_FILE"
 }
 
 # Get component dependencies
 get_component_dependencies() {
-    local component="$1"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".components.\"$component\".dependencies[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+    get_json_field ".components.\"$1\".dependencies[]?" "$COMPONENT_DEPS_FILE"
 }
 
 # Get component conflicts
 get_component_conflicts() {
-    local component="$1"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".components.\"$component\".conflicts[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+    get_json_field ".components.\"$1\".conflicts[]?" "$COMPONENT_DEPS_FILE"
 }
 
 # Resolve dependencies for a list of components
@@ -184,7 +161,7 @@ resolve_dependencies() {
     
     # Process each component
     for component in "${components[@]}"; do
-        if ! resolve_component_dependencies "$component" "resolved" "processing"; then
+        if ! resolve_component_dependencies "$component" resolved processing; then
             log_error "Failed to resolve dependencies for component: $component"
             return 1
         fi
@@ -255,15 +232,7 @@ resolve_component_dependencies() {
 
 # Check if component exists in the dependencies file
 component_exists() {
-    local component="$1"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        return 1
-    fi
-    
-    local exists
-    exists=$(jq -r ".components | has(\"$component\")" "$COMPONENT_DEPS_FILE" 2>/dev/null)
-    [[ "$exists" == "true" ]]
+    [[ "$(get_json_field ".components | has(\"$1\")" "$COMPONENT_DEPS_FILE")" == "true" ]]
 }
 
 # Detect conflicts between selected components
@@ -314,18 +283,13 @@ detect_conflicts() {
 
 # Check for category-based conflicts (mutually exclusive categories)
 check_category_conflicts() {
-    local component="$1"
-    local category="$2"
+    local component="$1" category="$2"
     shift 2
     local all_components=("$@")
     
-    if ! command -v jq >/dev/null 2>&1; then
-        return 0
-    fi
-    
     # Check if category is mutually exclusive
     local is_exclusive
-    is_exclusive=$(jq -r ".categories.\"$category\".mutually_exclusive // false" "$COMPONENT_DEPS_FILE" 2>/dev/null)
+    is_exclusive=$(get_json_field ".categories.\"$category\".mutually_exclusive // false" "$COMPONENT_DEPS_FILE")
     
     if [[ "$is_exclusive" == "true" ]]; then
         # Find other components in the same category
@@ -344,27 +308,12 @@ check_category_conflicts() {
 
 # Get hardware profile packages for current distribution
 get_hardware_packages() {
-    local profile="$1"
-    local distro="$2"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".profiles.\"$profile\".packages.\"$distro\"[]? // empty" "$HARDWARE_PROFILES_FILE" 2>/dev/null
+    get_json_field ".profiles.\"$1\".packages.\"$2\"[]?" "$HARDWARE_PROFILES_FILE"
 }
 
 # Get hardware profile environment variables
 get_hardware_env_vars() {
-    local profile="$1"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".profiles.\"$profile\".environment_vars // {} | to_entries[] | \"\(.key)=\(.value)\"" "$HARDWARE_PROFILES_FILE" 2>/dev/null
+    get_json_field ".profiles.\"$1\".environment_vars // {} | to_entries[] | \"\(.key)=\(.value)\"" "$HARDWARE_PROFILES_FILE"
 }
 
 # Check hardware requirements for components
@@ -379,11 +328,9 @@ check_hardware_requirements() {
         mapfile -t requirements < <(jq -r ".components.\"$component\".hardware_requirements[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null)
         
         for requirement in "${requirements[@]}"; do
-            if [[ -n "$requirement" ]]; then
-                if ! check_hardware_requirement "$requirement"; then
-                    missing_requirements+=("$component: $requirement")
-                    log_warn "Hardware requirement not met for $component: $requirement"
-                fi
+            if [[ -n "$requirement" ]] && ! check_hardware_requirement "$requirement"; then
+                missing_requirements+=("$component: $requirement")
+                log_warn "Hardware requirement not met for $component: $requirement"
             fi
         done
     done
@@ -415,8 +362,7 @@ check_hardware_requirement() {
             fi
             ;;
         "wayland_support")
-            # Check if Wayland is available
-            [[ "$XDG_SESSION_TYPE" == "wayland" ]] || command -v wayland-scanner >/dev/null 2>&1
+            [[ "$XDG_SESSION_TYPE" == "wayland" || -n "$(command -v wayland-scanner)" ]]
             ;;
         "vulkan_support")
             # Check for Vulkan support
@@ -433,19 +379,16 @@ check_hardware_requirement() {
 show_dependency_summary() {
     local selected=("$@")
     
-    echo
     log_info "=== Dependency Resolution Summary ==="
-    echo
     
-    echo "Selected components:"
+    log_info "Selected components:"
     for component in "${selected[@]}"; do
         local name
         name=$(get_component_info "$component" "name")
-        echo "  - $component${name:+ ($name)}"
+        log_info "  - $component${name:+ ($name)}"
     done
     
-    echo
-    echo "Resolved dependencies (final install list):"
+    log_info "Resolved dependencies (final install list):"
     for component in "${RESOLVED_DEPENDENCIES[@]}"; do
         local name
         name=$(get_component_info "$component" "name")
@@ -455,76 +398,49 @@ show_dependency_summary() {
         else
             is_selected=" [DEPENDENCY]"
         fi
-        echo "  - $component${name:+ ($name)}$is_selected"
+        log_info "  - $component${name:+ ($name)}$is_selected"
     done
     
     if [[ ${#DETECTED_CONFLICTS[@]} -gt 0 ]]; then
-        echo
         log_warn "Detected conflicts:"
         for conflict in "${DETECTED_CONFLICTS[@]}"; do
-            echo "  - $conflict"
+            log_warn "  - $conflict"
         done
     fi
     
     if [[ -n "$HARDWARE_PROFILE" ]]; then
-        echo
-        echo "Hardware profile: $HARDWARE_PROFILE"
         local profile_name
-        profile_name=$(jq -r ".profiles.\"$HARDWARE_PROFILE\".name // \"$HARDWARE_PROFILE\"" "$HARDWARE_PROFILES_FILE" 2>/dev/null)
-        echo "  - $profile_name"
+        profile_name=$(get_json_field ".profiles.\"$HARDWARE_PROFILE\".name // \"$HARDWARE_PROFILE\"" "$HARDWARE_PROFILES_FILE")
+        log_info "Hardware profile: $HARDWARE_PROFILE ($profile_name)"
     fi
-    
-    echo
 }
 
 # Get preset components
 get_preset_components() {
-    local preset="$1"
-    
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    jq -r ".presets.\"$preset\".components[]? // empty" "$COMPONENT_DEPS_FILE" 2>/dev/null
+    get_json_field ".presets.\"$1\".components[]?" "$COMPONENT_DEPS_FILE"
 }
 
 # List available presets
 list_presets() {
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    echo "Available presets:"
-    jq -r '.presets | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE" 2>/dev/null
+    log_info "Available presets:"
+    get_json_field '.presets | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE"
 }
 
 # List available components
 list_components() {
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for JSON parsing but not installed"
-        return 1
-    fi
-    
-    echo "Available components:"
-    jq -r '.components | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE" 2>/dev/null
+    log_info "Available components:"
+    get_json_field '.components | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE"
 }
 
 # Validate component dependency structure
 validate_component_structure() {
     log_info "Validating component dependency structure..."
     
-    if ! command -v jq >/dev/null 2>&1; then
-        log_error "jq is required for validation but not installed"
-        return 1
-    fi
-    
     local validation_errors=0
     
     # Get all component names
     local all_components
-    mapfile -t all_components < <(jq -r '.components | keys[]' "$COMPONENT_DEPS_FILE" 2>/dev/null)
+    mapfile -t all_components < <(get_json_field '.components | keys[]' "$COMPONENT_DEPS_FILE")
     
     # Validate each component
     for component in "${all_components[@]}"; do
@@ -574,13 +490,8 @@ init_package_manager() {
     fi
     
     # Load configuration files
-    if ! load_component_dependencies; then
-        return 1
-    fi
-    
-    if ! load_hardware_profiles; then
-        return 1
-    fi
+    load_json_file "$COMPONENT_DEPS_FILE" "component dependencies" || return 1
+    load_json_file "$HARDWARE_PROFILES_FILE" "hardware profiles" || return 1
     
     # Detect hardware profile
     if ! detect_hardware_profile; then
@@ -597,34 +508,14 @@ init_package_manager() {
     return 0
 }
 
-# Simple safe package installation
-install_package_safe() {
-    local package="$1"
-    local package_manager="${2:-auto}"
-    
-    if [[ -z "$package" ]]; then
-        fail "install_package_safe" "Package name is required"
-        return 1
-    fi
-    
-    log_info "Installing package: $package"
-    
-    if install_package "$package" "$package_manager"; then
-        log_success "Package installed successfully: $package"
-        return 0
-    else
-        fail "install_$package" "Failed to install package: $package"
-        return 1
-    fi
-}
-
-# Simple safe command execution 
+# Safe command execution with error handling and dry-run support
 exec_safe() {
     local command="$1"
     local description="${2:-$command}"
     
     if [[ -z "$command" ]]; then
-        die "Command is required"
+        log_error "Command is required"
+        return 1
     fi
     
     log_info "Executing: $description"
@@ -639,7 +530,8 @@ exec_safe() {
         return 0
     else
         local exit_code=$?
-        fail "exec_safe" "Command failed: $description (exit code: $exit_code)"
+        log_error "Command failed: $description (exit code: $exit_code)"
         return $exit_code
     fi
 }
+
