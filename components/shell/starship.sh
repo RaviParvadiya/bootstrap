@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Starship cross-shell prompt
 # with proper dotfiles integration, theme support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly STARSHIP_COMPONENT_NAME="starship"
@@ -38,15 +37,11 @@ declare -A STARSHIP_FONT_PACKAGES=(
 #######################################
 
 # Check if Starship is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_starship_installed() {
     command -v starship >/dev/null 2>&1
 }
 
 # Install Starship via package manager (Arch) or install script (Ubuntu)
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_starship_binary() {
     local distro
     distro=$(get_distro)
@@ -93,7 +88,6 @@ install_starship_binary() {
 }
 
 # Install Starship via official install script
-# Returns: 0 if successful, 1 if failed
 install_starship_via_script() {
     log_info "Installing Starship via official install script..."
     
@@ -130,7 +124,6 @@ install_starship_via_script() {
 }
 
 # Install font dependencies for proper Starship display
-# Returns: 0 if successful, 1 if failed
 install_starship_fonts() {
     local distro
     distro=$(get_distro)
@@ -161,8 +154,6 @@ install_starship_fonts() {
 }
 
 # Configure Starship with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_starship() {
     log_info "Configuring Starship prompt..."
     
@@ -197,8 +188,6 @@ configure_starship() {
 }
 
 # Add Starship initialization to shell configuration files
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Shell integration
 setup_starship_shell_integration() {
     log_info "Setting up Starship shell integration..."
     
@@ -260,8 +249,6 @@ setup_starship_shell_integration() {
 }
 
 # Validate Starship installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_starship_installation() {
     log_info "Validating Starship installation..."
     
@@ -296,7 +283,6 @@ validate_starship_installation() {
 }
 
 # Test Starship prompt rendering
-# Returns: 0 if successful, 1 if failed
 test_starship_prompt() {
     log_info "Testing Starship prompt rendering..."
     
@@ -327,8 +313,6 @@ test_starship_prompt() {
 #######################################
 
 # Main Starship installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_starship() {
     log_section "Installing Starship Cross-Shell Prompt"
     
@@ -384,7 +368,6 @@ install_starship() {
 }
 
 # Uninstall Starship (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_starship() {
     log_info "Uninstalling Starship..."
     
@@ -427,12 +410,5 @@ uninstall_starship() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_starship
-    export -f configure_starship
-    export -f is_starship_installed
-    export -f validate_starship_installation
-    export -f uninstall_starship
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_starship configure_starship is_starship_installed

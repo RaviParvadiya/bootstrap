@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Kitty terminal emulator
 # with proper dotfiles integration, theme support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly KITTY_COMPONENT_NAME="kitty"
@@ -42,58 +41,19 @@ declare -A KITTY_THEME_PACKAGES=(
 # Kitty Installation Functions
 #######################################
 
-# Check if Kitty terminal emulator is already installed on the system
-# This function performs comprehensive detection by checking both the command
-# availability and package manager installation status to ensure accurate
-# detection across different installation methods.
-# 
-# Arguments: None
-# 
-# Returns:
-#   0 if Kitty is installed and available
-#   1 if Kitty is not installed or not available
-# 
-# Global Variables:
-#   Uses get_distro() to determine distribution-specific package checking
-# 
-# Side Effects: None (read-only function)
-# 
-# Requirements: 7.1 - Component installation detection
-# 
-# Usage Examples:
-#   if is_kitty_installed; then
-#       echo "Kitty is already installed"
-#   else
-#       echo "Kitty needs to be installed"
-#   fi
-#   
-#   # Use in conditional installation
-#   is_kitty_installed || install_kitty_packages
+# Check if Kitty is already installed
 is_kitty_installed() {
-    if command -v kitty >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi kitty >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l kitty >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v kitty >/dev/null 2>&1 || {
+        local distro=$(get_distro)
+        case "$distro" in
+            "arch") pacman -Qi kitty >/dev/null 2>&1 ;;
+            "ubuntu") dpkg -l kitty >/dev/null 2>&1 ;;
+            *) return 1 ;;
+        esac
+    }
 }
 
 # Install Kitty packages
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_kitty_packages() {
     local distro
     distro=$(get_distro)
@@ -140,7 +100,6 @@ install_kitty_packages() {
 }
 
 # Download and install Kitty themes
-# Returns: 0 if successful, 1 if failed
 install_kitty_themes() {
     log_info "Installing Kitty themes..."
     
@@ -181,8 +140,6 @@ install_kitty_themes() {
 }
 
 # Configure Kitty with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_kitty() {
     log_info "Configuring Kitty terminal emulator..."
     
@@ -237,7 +194,6 @@ configure_kitty() {
 }
 
 # Setup theme symlink for current-theme.conf
-# Returns: 0 if successful, 1 if failed
 setup_kitty_theme_link() {
     local current_theme_file="$KITTY_CONFIG_TARGET/current-theme.conf"
     local catppuccin_theme="$KITTY_CONFIG_TARGET/themes/catppuccin-mocha.conf"
@@ -261,8 +217,6 @@ setup_kitty_theme_link() {
 }
 
 # Validate Kitty installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_kitty_installation() {
     log_info "Validating Kitty installation..."
     
@@ -295,7 +249,6 @@ validate_kitty_installation() {
 }
 
 # Set Kitty as default terminal (optional)
-# Returns: 0 if successful, 1 if failed
 set_kitty_as_default() {
     log_info "Setting Kitty as default terminal..."
     
@@ -333,51 +286,7 @@ set_kitty_as_default() {
 # Main Installation Function
 #######################################
 
-# Main Kitty terminal emulator installation and configuration function
-# This is the primary entry point for installing Kitty terminal emulator.
-# It handles the complete installation process including package installation,
-# configuration deployment, theme setup, and post-installation validation.
-# The function is designed to be idempotent and safe to run multiple times.
-# 
-# Arguments: None
-# 
-# Returns:
-#   0 if installation and configuration completed successfully
-#   1 if installation failed at any step
-# 
-# Global Variables:
-#   DRY_RUN - If "true", shows what would be done without making changes
-#   VERBOSE - If "true", provides detailed progress information
-# 
-# Side Effects:
-#   - Installs Kitty package via system package manager
-#   - Installs recommended fonts (JetBrains Mono Nerd Font)
-#   - Creates symlinks to dotfiles configuration
-#   - Downloads and installs Kitty themes
-#   - Creates backup of existing configuration
-#   - Validates installation completeness
-# 
-# Dependencies:
-#   - Requires internet connection for package downloads
-#   - Requires sudo privileges for package installation
-#   - Requires dotfiles repository structure in PROJECT_ROOT/dotfiles/
-# 
-# Requirements: 7.1, 7.2 - Complete component installation
-# 
-# Usage Examples:
-#   # Standard installation
-#   install_kitty
-#   
-#   # Check installation result
-#   if install_kitty; then
-#       echo "Kitty installation completed successfully"
-#   else
-#       echo "Kitty installation failed"
-#       exit 1
-#   fi
-#   
-#   # Use in dry-run mode
-#   DRY_RUN=true install_kitty
+# Main Kitty installation function
 install_kitty() {
     log_section "Installing Kitty Terminal Emulator"
     
@@ -426,7 +335,6 @@ install_kitty() {
 }
 
 # Uninstall Kitty (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_kitty() {
     log_info "Uninstalling Kitty..."
     
@@ -460,12 +368,5 @@ uninstall_kitty() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_kitty
-    export -f configure_kitty
-    export -f is_kitty_installed
-    export -f validate_kitty_installation
-    export -f uninstall_kitty
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_kitty configure_kitty is_kitty_installed

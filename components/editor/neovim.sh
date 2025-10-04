@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Neovim with
 # plugin management via lazy.nvim, language server support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly NEOVIM_COMPONENT_NAME="neovim"
@@ -43,95 +42,55 @@ declare -A NEOVIM_OPTIONAL_PACKAGES=(
 #######################################
 
 # Check if Neovim is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_neovim_installed() {
-    if command -v nvim >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi neovim >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l neovim >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v nvim >/dev/null 2>&1 || {
+        local distro=$(get_distro)
+        case "$distro" in
+            "arch") pacman -Qi neovim >/dev/null 2>&1 ;;
+            "ubuntu") dpkg -l neovim >/dev/null 2>&1 ;;
+            *) return 1 ;;
+        esac
+    }
 }
 
 # Install Neovim packages
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_neovim_packages() {
-    local distro
-    distro=$(get_distro)
+    local distro=$(get_distro)
     
-    if [[ -z "${NEOVIM_PACKAGES[$distro]}" ]]; then
-        log_error "Neovim packages not defined for distribution: $distro"
-        return 1
-    fi
+    [[ -z "${NEOVIM_PACKAGES[$distro]}" ]] && { log_error "Neovim packages not defined for distribution: $distro"; return 1; }
     
     log_info "Installing Neovim packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${NEOVIM_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install LSP packages: ${NEOVIM_LSP_PACKAGES[$distro]:-none}"
-        log_info "[DRY-RUN] Would install optional packages: ${NEOVIM_OPTIONAL_PACKAGES[$distro]:-none}"
+    if _dry_run_check "install packages: ${NEOVIM_PACKAGES[$distro]} ${NEOVIM_LSP_PACKAGES[$distro]:-} ${NEOVIM_OPTIONAL_PACKAGES[$distro]:-}"; then
         return 0
     fi
     
-    # Install main Neovim package
-    local packages
-    read -ra packages <<< "${NEOVIM_PACKAGES[$distro]}"
-    
+    # Install main packages
+    local packages; read -ra packages <<< "${NEOVIM_PACKAGES[$distro]}"
     for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Neovim package: $package"
-            return 1
-        fi
+        install_package "$package" || { log_error "Failed to install Neovim package: $package"; return 1; }
     done
     
-    # Install LSP and development tool packages
+    # Install LSP packages
     if [[ -n "${NEOVIM_LSP_PACKAGES[$distro]:-}" ]]; then
-        log_info "Installing Neovim LSP and development dependencies..."
-        local lsp_packages
-        read -ra lsp_packages <<< "${NEOVIM_LSP_PACKAGES[$distro]}"
-        
+        local lsp_packages; read -ra lsp_packages <<< "${NEOVIM_LSP_PACKAGES[$distro]}"
         for lsp_package in "${lsp_packages[@]}"; do
-            if ! install_package "$lsp_package"; then
-                log_warn "Failed to install LSP package: $lsp_package (continuing anyway)"
-            fi
+            install_package "$lsp_package" || log_warn "Failed to install LSP package: $lsp_package"
         done
     fi
     
-    # Install optional packages for enhanced experience
+    # Install optional packages
     if [[ -n "${NEOVIM_OPTIONAL_PACKAGES[$distro]:-}" ]]; then
-        log_info "Installing optional Neovim enhancement packages..."
-        local optional_packages
-        read -ra optional_packages <<< "${NEOVIM_OPTIONAL_PACKAGES[$distro]}"
-        
+        local optional_packages; read -ra optional_packages <<< "${NEOVIM_OPTIONAL_PACKAGES[$distro]}"
         for opt_package in "${optional_packages[@]}"; do
-            if ! install_package "$opt_package"; then
-                log_warn "Failed to install optional package: $opt_package (continuing anyway)"
-            fi
+            install_package "$opt_package" || log_warn "Failed to install optional package: $opt_package"
         done
     fi
     
     log_success "Neovim packages installed successfully"
-    return 0
 }
 
 # Install language servers via npm and pip
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.2 - Language server configuration
 install_language_servers() {
     log_info "Installing language servers for Neovim..."
     
@@ -195,58 +154,29 @@ install_language_servers() {
 }
 
 # Configure Neovim with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_neovim() {
     log_info "Configuring Neovim editor..."
     
-    if [[ ! -d "$NEOVIM_CONFIG_SOURCE" ]]; then
-        log_error "Neovim configuration source not found: $NEOVIM_CONFIG_SOURCE"
-        return 1
-    fi
+    [[ ! -d "$NEOVIM_CONFIG_SOURCE" ]] && { log_error "Neovim configuration source not found: $NEOVIM_CONFIG_SOURCE"; return 1; }
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $NEOVIM_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $NEOVIM_CONFIG_SOURCE"
-        return 0
-    fi
+    _dry_run_check "create configuration directory and copy configurations from: $NEOVIM_CONFIG_SOURCE" && return 0
     
-    # Create configuration directory
-    if ! mkdir -p "$NEOVIM_CONFIG_TARGET"; then
-        log_error "Failed to create Neovim config directory: $NEOVIM_CONFIG_TARGET"
-        return 1
-    fi
+    mkdir -p "$NEOVIM_CONFIG_TARGET" || { log_error "Failed to create Neovim config directory: $NEOVIM_CONFIG_TARGET"; return 1; }
     
-    # Copy configuration files using symlinks for easy updates
     log_info "Creating symlinks for Neovim configuration files..."
-    
-    # Find all configuration files in the source directory
     while IFS= read -r -d '' config_file; do
         local relative_path="${config_file#$NEOVIM_CONFIG_SOURCE/}"
         local target_file="$NEOVIM_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
+        local target_dir=$(dirname "$target_file")
         
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
+        [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
+        create_symlink "$config_file" "$target_file" || log_warn "Failed to create symlink for: $relative_path"
     done < <(find "$NEOVIM_CONFIG_SOURCE" -type f -print0)
     
     log_success "Neovim configuration completed"
-    return 0
 }
 
 # Initialize Neovim plugins (run nvim to trigger lazy.nvim plugin installation)
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.2 - Plugin management setup
 initialize_neovim_plugins() {
     log_info "Initializing Neovim plugins..."
     
@@ -269,7 +199,6 @@ initialize_neovim_plugins() {
 }
 
 # Setup Neovim as default editor
-# Returns: 0 if successful, 1 if failed
 set_neovim_as_default() {
     log_info "Setting Neovim as default editor..."
     
@@ -306,8 +235,6 @@ set_neovim_as_default() {
 }
 
 # Validate Neovim installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_neovim_installation() {
     log_info "Validating Neovim installation..."
     
@@ -349,8 +276,6 @@ validate_neovim_installation() {
 #######################################
 
 # Main Neovim installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_neovim() {
     log_section "Installing Neovim Editor"
     
@@ -410,7 +335,6 @@ install_neovim() {
 }
 
 # Uninstall Neovim (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_neovim() {
     log_info "Uninstalling Neovim..."
     
@@ -453,13 +377,5 @@ uninstall_neovim() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_neovim
-    export -f configure_neovim
-    export -f is_neovim_installed
-    export -f validate_neovim_installation
-    export -f uninstall_neovim
-    export -f set_neovim_as_default
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_neovim configure_neovim is_neovim_installed

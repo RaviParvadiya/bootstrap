@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Waybar status bar
 # with proper dotfiles integration, theme support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly WAYBAR_COMPONENT_NAME="waybar"
@@ -43,8 +42,6 @@ declare -A WAYBAR_OPTIONAL=(
 #######################################
 
 # Check if Waybar is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_waybar_installed() {
     if command -v waybar >/dev/null 2>&1; then
         return 0
@@ -68,8 +65,6 @@ is_waybar_installed() {
 }
 
 # Install Waybar packages
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_waybar_packages() {
     local distro
     distro=$(get_distro)
@@ -130,8 +125,6 @@ install_waybar_packages() {
 }
 
 # Configure Waybar with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_waybar() {
     log_info "Configuring Waybar status bar..."
     
@@ -183,7 +176,6 @@ configure_waybar() {
 }
 
 # Validate Waybar configuration files
-# Returns: 0 if valid, 1 if invalid
 validate_waybar_config() {
     log_info "Validating Waybar configuration..."
     
@@ -222,7 +214,6 @@ validate_waybar_config() {
 }
 
 # Setup Waybar systemd service (optional)
-# Returns: 0 if successful, 1 if failed
 setup_waybar_service() {
     log_info "Setting up Waybar systemd user service..."
     
@@ -270,7 +261,6 @@ WantedBy=graphical-session.target"
 }
 
 # Enable Waybar service
-# Returns: 0 if successful, 1 if failed
 enable_waybar_service() {
     log_info "Enabling Waybar systemd service..."
     
@@ -290,7 +280,6 @@ enable_waybar_service() {
 }
 
 # Start Waybar service
-# Returns: 0 if successful, 1 if failed
 start_waybar_service() {
     log_info "Starting Waybar service..."
     
@@ -310,8 +299,6 @@ start_waybar_service() {
 }
 
 # Validate Waybar installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_waybar_installation() {
     log_info "Validating Waybar installation..."
     
@@ -354,8 +341,6 @@ validate_waybar_installation() {
 #######################################
 
 # Main Waybar installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_waybar() {
     log_section "Installing Waybar Status Bar"
     
@@ -413,7 +398,6 @@ install_waybar() {
 }
 
 # Uninstall Waybar (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_waybar() {
     log_info "Uninstalling Waybar..."
     
@@ -457,12 +441,5 @@ uninstall_waybar() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_waybar
-    export -f configure_waybar
-    export -f is_waybar_installed
-    export -f validate_waybar_installation
-    export -f uninstall_waybar
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_waybar configure_waybar is_waybar_installed

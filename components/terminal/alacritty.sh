@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Alacritty terminal emulator
 # with proper dotfiles integration and cross-distribution support.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly ALACRITTY_COMPONENT_NAME="alacritty"
@@ -37,8 +36,6 @@ declare -A ALACRITTY_FONT_PACKAGES=(
 #######################################
 
 # Check if Alacritty is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_alacritty_installed() {
     if command -v alacritty >/dev/null 2>&1; then
         return 0
@@ -62,8 +59,6 @@ is_alacritty_installed() {
 }
 
 # Install Alacritty packages
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_alacritty_packages() {
     local distro
     distro=$(get_distro)
@@ -110,8 +105,6 @@ install_alacritty_packages() {
 }
 
 # Configure Alacritty with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_alacritty() {
     log_info "Configuring Alacritty terminal emulator..."
     
@@ -160,8 +153,6 @@ configure_alacritty() {
 }
 
 # Validate Alacritty installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_alacritty_installation() {
     log_info "Validating Alacritty installation..."
     
@@ -187,7 +178,6 @@ validate_alacritty_installation() {
 }
 
 # Set Alacritty as default terminal (optional)
-# Returns: 0 if successful, 1 if failed
 set_alacritty_as_default() {
     log_info "Setting Alacritty as default terminal..."
     
@@ -217,8 +207,6 @@ set_alacritty_as_default() {
 #######################################
 
 # Main Alacritty installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_alacritty() {
     log_section "Installing Alacritty Terminal Emulator"
     
@@ -267,7 +255,6 @@ install_alacritty() {
 }
 
 # Uninstall Alacritty (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_alacritty() {
     log_info "Uninstalling Alacritty..."
     
@@ -301,12 +288,5 @@ uninstall_alacritty() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_alacritty
-    export -f configure_alacritty
-    export -f is_alacritty_installed
-    export -f validate_alacritty_installation
-    export -f uninstall_alacritty
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_alacritty configure_alacritty is_alacritty_installed
