@@ -61,7 +61,6 @@ source_with_error_check() {
 
 source_with_error_check "$CORE_DIR/common.sh"
 source_with_error_check "$CORE_DIR/logger.sh"
-source_with_error_check "$CORE_DIR/validator.sh"
 source_with_error_check "$CORE_DIR/menu.sh"
 source_with_error_check "$CORE_DIR/recovery-system.sh"
 

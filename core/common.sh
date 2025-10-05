@@ -199,8 +199,6 @@ check_internet() {
     return 1
 }
 
-
-
 #######################################
 # Package Installation Functions
 #######################################
@@ -481,6 +479,18 @@ install_missing_tools() {
 
 # Check system prerequisites
 validate_system() {
+    # Check if we're running as root (we shouldn't be)
+    if [[ $EUID -eq 0 ]]; then
+        echo "Error: This script should not be run as root"
+        return 1
+    fi
+    
+    # Check if we have sudo access
+    if ! sudo -n true 2>/dev/null && ! sudo -v; then
+        echo "Error: Sudo access is required but not available"
+        return 1
+    fi
+
     local missing_tools=() required_tools=("curl" "wget" "git")
 
     # Check for required tools
@@ -519,10 +529,10 @@ validate_system() {
     fi
 
     # Install missing tools automatically
-    [[ ${#missing_tools[@]} -gt 0 ]] && install_missing_tools "${missing_tools[@]}"
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        install_missing_tools "${missing_tools[@]}" || return 1
+    fi
 }
-
-
 
 #######################################
 # Utility Helper Functions

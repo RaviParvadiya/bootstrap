@@ -9,7 +9,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 # Source core utilities
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-source "$CORE_DIR/validator.sh"
 
 # Source Arch-specific modules
 source "$DISTROS_DIR/arch/packages.sh"

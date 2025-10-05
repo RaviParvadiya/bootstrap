@@ -575,9 +575,8 @@ rm -rf ~/.config/hypr
 ├── install.sh              # Main entry point
 ├── README.md               # Main documentation
 ├── core/                   # Core utilities
-│   ├── common.sh           # Shared functions
+│   ├── common.sh           # Shared functions & system validation
 │   ├── logger.sh           # Logging system
-│   ├── validator.sh        # System validation
 │   └── menu.sh             # Interactive menus
 ├── distros/               # Distribution-specific modules
 │   ├── arch/              # Arch Linux support
