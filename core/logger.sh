@@ -46,7 +46,8 @@ init_logger() {
 _log() {
     local level="$1" color="$2" prefix="$3" message="$4"
     
-    [[ $level -gt $LOG_LEVEL ]] && return 0
+    # NOTE: will log all level messages
+    # [[ $level -gt $LOG_LEVEL ]] && return 0
     
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -62,7 +63,6 @@ log_warn() { _log $LOG_WARN "$YELLOW" "WARN" "$1"; }
 log_info() { _log $LOG_INFO "$BLUE" "INFO" "$1"; }
 log_success() { _log $LOG_SUCCESS "$GREEN" "SUCCESS" "$1"; }
 log_debug() { _log $LOG_DEBUG "$PURPLE" "DEBUG" "$1"; }
-log_custom() { _log $LOG_INFO "$1" "$2" "$3"; }
 
 # Progress indicator for long-running operations
 show_progress() {
@@ -132,7 +132,6 @@ handle_error() {
 }
 
 push_error_context() { log_debug "Context: $1 - $2"; }
-pop_error_context() { return 0; }
 
 # Error handler stubs
 handle_package_error() { fail "$1" "$2"; }

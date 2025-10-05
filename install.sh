@@ -282,7 +282,6 @@ main() {
         fi
         log_success "Dotfiles repository cloned successfully"
     fi
-    pop_error_context
     
     # Execute command with comprehensive error handling
     push_error_context "command_execution" "Executing command: $COMMAND"
@@ -317,8 +316,6 @@ main() {
             ;;
     esac
     
-    pop_error_context
-    
     # Show error summary if there were any issues
     if [[ ${#FAILED_OPERATIONS[@]} -gt 0 ]]; then
         show_failures
@@ -350,7 +347,6 @@ run_installation() {
         log_info "Opening component selection menu..."
         if ! select_components; then
             handle_error "critical" "Component selection failed" "component_selection"
-            pop_error_context
             return 1
         fi
     else
@@ -360,13 +356,11 @@ run_installation() {
     # Validate component selection
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
         handle_error "critical" "No components selected for installation" "component_selection"
-        pop_error_context
         return 1
     fi
     
     # Check shell safety before proceeding
     if ! check_shell_safety "${SELECTED_COMPONENTS[@]}"; then
-        pop_error_context
         return 1
     fi
     
@@ -382,8 +376,6 @@ run_installation() {
                 if ask_yes_no "Continue installation without backup?" "n"; then
                     log_warn "Continuing installation without backup"
                 else
-                    pop_error_context
-                    pop_error_context
                     return 1
                 fi
             else
@@ -400,8 +392,6 @@ run_installation() {
         else
             handle_error "config" "Backup utilities not found" "backup_utilities"
         fi
-        
-        pop_error_context
     fi
     
     # Route to distribution-specific handler with error handling
@@ -418,8 +408,6 @@ run_installation() {
                 fi
             else
                 handle_error "critical" "Arch Linux installer not found" "arch_installer"
-                pop_error_context
-                pop_error_context
                 return 1
             fi
             ;;
@@ -433,20 +421,14 @@ run_installation() {
                 fi
             else
                 handle_error "critical" "Ubuntu installer not found" "ubuntu_installer"
-                pop_error_context
-                pop_error_context
                 return 1
             fi
             ;;
         *)
             handle_error "critical" "Unsupported distribution: $DETECTED_DISTRO" "distro_support"
-            pop_error_context
-            pop_error_context
             return 1
             ;;
     esac
-    
-    pop_error_context
     
     # Apply dotfiles configurations with error handling
     push_error_context "dotfiles" "Applying dotfiles configurations"
@@ -465,8 +447,6 @@ run_installation() {
         installation_success=false
     fi
     
-    pop_error_context
-    
     # Post-installation validation with error handling
     push_error_context "validation" "Post-installation validation"
     
@@ -483,24 +463,20 @@ run_installation() {
         log_warn "Validation utilities not found, skipping validation"
     fi
     
-    pop_error_context
-    
     # Final status
     if [[ "$installation_success" == "true" ]]; then
         log_success "Installation process completed successfully! ✓"
         
         # Show installation summary
         show_installation_summary "${SELECTED_COMPONENTS[@]}"
-        
-        pop_error_context
+
         return 0
     else
         log_error "Installation process completed with errors"
         
         # Offer recovery options
         offer_recovery_options
-        
-        pop_error_context
+
         return 1
     fi
 }
@@ -654,7 +630,6 @@ run_restoration() {
         source "$CONFIGS_DIR/restore.sh"
     else
         handle_error "critical" "Restoration utilities not found" "restore_utilities"
-        pop_error_context
         return 1
     fi
     
@@ -686,11 +661,9 @@ run_restoration() {
     
     if [[ "$restore_success" == "true" ]]; then
         log_success "Restoration process completed successfully ✓"
-        pop_error_context
         return 0
     else
         log_error "Restoration process completed with errors"
-        pop_error_context
         return 1
     fi
 }
@@ -706,18 +679,15 @@ run_validation() {
         source "$TESTS_DIR/validate.sh"
     else
         handle_error "critical" "Validation utilities not found" "validation_utilities"
-        pop_error_context
         return 1
     fi
     
     # Validate system state
     if validate_installation "${SELECTED_COMPONENTS[@]}"; then
         log_success "System validation completed successfully ✓"
-        pop_error_context
         return 0
     else
         handle_error "validation" "System validation failed" "system_validation"
-        pop_error_context
         return 1
     fi
 }
@@ -733,7 +703,6 @@ run_backup() {
         source "$CONFIGS_DIR/backup.sh"
     else
         handle_error "critical" "Backup utilities not found" "backup_utilities"
-        pop_error_context
         return 1
     fi
     
@@ -759,11 +728,9 @@ run_backup() {
     
     if [[ "$backup_success" == "true" ]]; then
         log_success "Backup process completed successfully ✓"
-        pop_error_context
         return 0
     else
         log_error "Backup process completed with errors"
-        pop_error_context
         return 1
     fi
 }
