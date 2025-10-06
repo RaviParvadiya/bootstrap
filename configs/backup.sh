@@ -33,12 +33,6 @@ create_backup_session() {
     timestamp=$(date +%Y%m%d_%H%M%S)
     local session_dir="$BACKUP_BASE_DIR/${session_name}_$timestamp"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would create backup session: $session_dir"
-        echo "$session_dir"
-        return 0
-    fi
-    
     # Create backup directory structure
     if ! mkdir -p "$session_dir"; then
         log_error "Failed to create backup session directory: $session_dir"
@@ -190,11 +184,6 @@ backup_path() {
         fi
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would backup: $source_path -> $backup_path"
-        return 0
-    fi
-    
     # Create backup directory
     local backup_dir
     backup_dir=$(dirname "$backup_path")
@@ -318,9 +307,7 @@ backup_component_configs() {
     
     # Create component-specific backup directory
     local component_backup_dir="$session_dir/components/$component"
-    if [[ "$DRY_RUN" != "true" ]]; then
-        mkdir -p "$component_backup_dir"
-    fi
+    mkdir -p "$component_backup_dir"
     
     # Backup each configuration path
     local success_count=0
@@ -595,17 +582,12 @@ cleanup_old_backups() {
     local removed_count=0
     for ((i=keep_count; i<${#sessions[@]}; i++)); do
         local session_dir="${sessions[i]}"
-        
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_info "[DRY RUN] Would remove old backup session: $(basename "$session_dir")"
+
+        if rm -rf "$session_dir"; then
+            log_info "Removed old backup session: $(basename "$session_dir")"
             ((removed_count++))
         else
-            if rm -rf "$session_dir"; then
-                log_info "Removed old backup session: $(basename "$session_dir")"
-                ((removed_count++))
-            else
-                log_error "Failed to remove backup session: $session_dir"
-            fi
+            log_error "Failed to remove backup session: $session_dir"
         fi
     done
     

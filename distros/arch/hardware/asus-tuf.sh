@@ -37,11 +37,6 @@ configure_asus_tuf() {
 install_asus_utilities() {
     log_info "Installing ASUS utilities..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install ASUS utilities"
-        return 0
-    fi
-    
     # Install from AUR
     local asus_packages=(
         "asusctl"
@@ -62,11 +57,6 @@ install_asus_utilities() {
 # Configure power management for ASUS TUF
 configure_asus_power_management() {
     log_info "Configuring ASUS power management..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would configure ASUS power management"
-        return 0
-    fi
     
     # Configure TLP for better battery life
     install_pacman_packages "tlp" "tlp-rdw"
@@ -113,11 +103,6 @@ EOF
 configure_asus_keyboard() {
     log_info "Configuring ASUS keyboard settings..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would configure ASUS keyboard"
-        return 0
-    fi
-    
     # Configure keyboard backlight
     sudo tee /etc/udev/rules.d/99-asus-keyboard.rules > /dev/null << 'EOF'
 # ASUS keyboard backlight permissions
@@ -133,11 +118,6 @@ EOF
 # Configure thermal management
 configure_asus_thermal() {
     log_info "Configuring ASUS thermal management..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would configure ASUS thermal management"
-        return 0
-    fi
     
     # Install thermal monitoring tools
     install_pacman_packages "lm_sensors" "thermald"
@@ -181,11 +161,6 @@ EOF
 # Create ASUS control scripts
 create_asus_scripts() {
     log_info "Creating ASUS control scripts..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create ASUS control scripts"
-        return 0
-    fi
     
     local script_dir="$HOME/.local/bin"
     mkdir -p "$script_dir"

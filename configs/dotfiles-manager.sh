@@ -122,11 +122,6 @@ init_backup_session() {
     timestamp=$(date +%Y%m%d_%H%M%S)
     CURRENT_BACKUP_DIR="$BACKUP_BASE_DIR/dotfiles_$timestamp"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would create backup directory: $CURRENT_BACKUP_DIR"
-        return 0
-    fi
-    
     if ! mkdir -p "$CURRENT_BACKUP_DIR"; then
         log_error "Failed to create backup directory: $CURRENT_BACKUP_DIR"
         return 1
@@ -167,11 +162,6 @@ create_backup() {
     else
         # For absolute paths, create full path structure
         backup_path="$CURRENT_BACKUP_DIR/root$source_path"
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would backup: $source_path -> $backup_path"
-        return 0
     fi
     
     # Create backup directory
@@ -232,11 +222,6 @@ restore_from_backup() {
             return 1
         fi
         
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_info "[DRY RUN] Would restore: $backup_file -> $target_file"
-            return 0
-        fi
-        
         cp -r "$backup_file" "$target_file"
         log_success "Restored: $target_file"
     else
@@ -246,11 +231,6 @@ restore_from_backup() {
         if [[ ! -d "$home_backup" ]]; then
             log_error "Home backup not found in session: $home_backup"
             return 1
-        fi
-        
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_info "[DRY RUN] Would restore entire session from: $home_backup"
-            return 0
         fi
         
         # Copy all files from backup to home directory
@@ -389,15 +369,11 @@ create_managed_symlink() {
     local target_dir
     target_dir=$(dirname "$target_path")
     if [[ ! -d "$target_dir" ]]; then
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_debug "[DRY RUN] Would create directory: $target_dir"
-        else
-            if ! mkdir -p "$target_dir"; then
-                log_error "Failed to create directory: $target_dir"
-                return 1
-            fi
-            log_debug "Created directory: $target_dir"
+        if ! mkdir -p "$target_dir"; then
+            log_error "Failed to create directory: $target_dir"
+            return 1
         fi
+        log_debug "Created directory: $target_dir"
     fi
     
     # Handle existing file/symlink
@@ -435,26 +411,18 @@ create_managed_symlink() {
         esac
         
         # Remove existing file/symlink
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_debug "[DRY RUN] Would remove existing: $target_path"
-        else
-            if ! rm -rf "$target_path"; then
-                log_error "Failed to remove existing file: $target_path"
-                return 1
-            fi
+        if ! rm -rf "$target_path"; then
+            log_error "Failed to remove existing file: $target_path"
+            return 1
         fi
     fi
     
     # Create the symlink
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would create symlink: $target_path -> $source_file"
-    else
-        if ! ln -s "$source_file" "$target_path"; then
-            log_error "Failed to create symlink: $target_path -> $source_file"
-            return 1
-        fi
-        log_success "Created symlink: $target_path -> $source_file"
+    if ! ln -s "$source_file" "$target_path"; then
+        log_error "Failed to create symlink: $target_path -> $source_file"
+        return 1
     fi
+    log_success "Created symlink: $target_path -> $source_file"
     
     return 0
 }
@@ -479,17 +447,12 @@ remove_component_symlinks() {
             local current_target
             current_target=$(readlink "$target_path")
             if [[ "$current_target" == "$source_file" ]]; then
-                if [[ "$DRY_RUN" == "true" ]]; then
-                    log_info "[DRY RUN] Would remove symlink: $target_path"
+                if rm "$target_path"; then
+                    log_debug "Removed symlink: $target_path"
                     ((removed_count++))
                 else
-                    if rm "$target_path"; then
-                        log_debug "Removed symlink: $target_path"
-                        ((removed_count++))
-                    else
-                        log_error "Failed to remove symlink: $target_path"
-                        ((failed_count++))
-                    fi
+                    log_error "Failed to remove symlink: $target_path"
+                    ((failed_count++))
                 fi
             fi
         fi
@@ -884,15 +847,11 @@ create_symlink_safe() {
     fi
     
     # Create the symlink
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would create symlink: $destination -> $source"
+    if ln -s "$source" "$destination"; then
+        log_success "Symlink created successfully: $destination -> $source"
     else
-        if ln -s "$source" "$destination"; then
-            log_success "Symlink created successfully: $destination -> $source"
-        else
-            fail "create_symlink_safe" "Failed to create symlink: $destination -> $source"
-            return 1
-        fi
+        fail "create_symlink_safe" "Failed to create symlink: $destination -> $source"
+        return 1
     fi
     
     return 0

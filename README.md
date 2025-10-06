@@ -8,7 +8,7 @@ A comprehensive, modular installation framework for automating Linux development
 - **Modular Architecture**: Install only what you need
 - **Interactive Component Selection**: Choose components through an intuitive menu
 - **Hardware Detection**: Automatic NVIDIA GPU and ASUS TUF laptop support
-- **Safety Features**: Dry-run mode, backups, and VM testing
+- **Safety Features**: backups, and VM testing
 - **Comprehensive Logging**: Detailed operation logs and progress tracking
 - **Service Management**: No auto-start policy - you control what runs
 
@@ -46,9 +46,6 @@ chmod +x install.sh
 ```bash
 # Interactive installation with component selection
 ./install.sh
-
-# Dry-run mode (preview without changes)
-./install.sh --dry-run
 
 # Install specific components
 ./install.sh --components terminal,shell,editor
@@ -115,13 +112,6 @@ Dependencies are automatically resolved during selection.
 
 ## Safety Features
 
-### Dry-Run Mode
-
-Preview all operations without making changes:
-```bash
-./install.sh --dry-run
-```
-
 ### Backup System
 
 Automatic backup creation before making changes:
@@ -171,10 +161,9 @@ Available services include:
 
 ```bash
 # 1. Start with a dry-run to see what will be installed
-./install.sh --dry-run
+
 
 # 2. Install everything at once (all components)
-./install.sh --all --dry-run  # Preview first
 ./install.sh --all            # Install everything
 
 # 3. Or run the interactive installation for selective components
@@ -196,7 +185,7 @@ sudo systemctl enable bluetooth
 
 ```bash
 # 1. Preview the Hyprland installation
-./install.sh --components wm --dry-run
+
 
 # 2. Install Hyprland environment (builds from source)
 ./install.sh --components wm
@@ -238,7 +227,7 @@ cd modular-install-framework
 
 ```bash
 # 1. Preview what will be installed with --all
-./install.sh --all --dry-run
+
 
 # 2. Install everything at once
 ./install.sh --all
@@ -369,7 +358,7 @@ sudo apt update
 **Solutions**:
 ```bash
 # Preview what will be installed
-./install.sh --dry-run
+
 
 # For Arch: Clear package cache and update
 sudo pacman -Scc
@@ -498,7 +487,6 @@ apt list --installed | wc -l
 #### Log File Locations
 
 - **Installation logs**: `/tmp/modular-install-YYYYMMDD-HHMMSS.log`
-- **Dry-run logs**: `/tmp/dry-run-modular-install-YYYYMMDD-HHMMSS.log`
 - **Component logs**: `/tmp/component-<name>-YYYYMMDD-HHMMSS.log`
 
 #### Enabling Debug Mode

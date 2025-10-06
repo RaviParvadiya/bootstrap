@@ -30,7 +30,6 @@ RESTORE_LOG_FILE="$HOME/.config/install-restore.log"
 # Initialize restore environment
 init_restore_environment() {
     # Create temporary directory for restore operations
-    if [[ "$DRY_RUN" != "true" ]]; then
         if ! mkdir -p "$RESTORE_TEMP_DIR"; then
             log_error "Failed to create restore temporary directory: $RESTORE_TEMP_DIR"
             return 1
@@ -38,7 +37,6 @@ init_restore_environment() {
         
         # Set up cleanup trap
         trap 'cleanup_restore_environment' EXIT
-    fi
     
     log_debug "Restore environment initialized"
     return 0
@@ -105,13 +103,9 @@ restore_path() {
         case "$restore_mode" in
             "replace")
                 log_info "Replacing existing file: $target_path"
-                if [[ "$DRY_RUN" == "true" ]]; then
-                    log_info "[DRY RUN] Would remove existing: $target_path"
-                else
-                    if ! rm -rf "$target_path"; then
-                        log_error "Failed to remove existing file: $target_path"
-                        return 1
-                    fi
+                if ! rm -rf "$target_path"; then
+                    log_error "Failed to remove existing file: $target_path"
+                    return 1
                 fi
                 ;;
             "skip")
@@ -124,9 +118,7 @@ restore_path() {
                     # Directory merge will be handled by cp -r
                 else
                     log_warn "Cannot merge non-directory files, replacing: $target_path"
-                    if [[ "$DRY_RUN" != "true" ]]; then
-                        rm -rf "$target_path"
-                    fi
+                    rm -rf "$target_path"
                 fi
                 ;;
             *)
@@ -140,23 +132,14 @@ restore_path() {
     local target_dir
     target_dir=$(dirname "$target_path")
     if [[ ! -d "$target_dir" ]]; then
-        if [[ "$DRY_RUN" == "true" ]]; then
-            log_debug "[DRY RUN] Would create directory: $target_dir"
-        else
-            if ! mkdir -p "$target_dir"; then
-                log_error "Failed to create target directory: $target_dir"
-                return 1
-            fi
-            log_debug "Created target directory: $target_dir"
+        if ! mkdir -p "$target_dir"; then
+            log_error "Failed to create target directory: $target_dir"
+            return 1
         fi
+        log_debug "Created target directory: $target_dir"
     fi
     
     # Perform restore based on backup type
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would restore: $backup_path -> $target_path"
-        return 0
-    fi
-    
     if [[ -d "$backup_path" ]]; then
         # Restore directory
         if [[ "$restore_mode" == "merge" && -d "$target_path" ]]; then
@@ -432,7 +415,7 @@ restore_system_configs() {
             local target_dir
             target_dir=$(dirname "$target_path")
             
-            if [[ ! -w "$target_dir" ]] && [[ "$DRY_RUN" != "true" ]]; then
+            if [[ ! -w "$target_dir" ]]; then
                 log_warn "Insufficient permissions to restore system file: $target_path"
                 log_info "You may need to run this with sudo or restore manually"
                 ((failed_count++))

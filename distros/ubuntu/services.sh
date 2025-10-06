@@ -233,11 +233,6 @@ ubuntu_configure_ssh_security() {
     
     log_info "Configuring SSH security settings..."
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would configure SSH security settings"
-        return 0
-    fi
-    
     # Create backup of SSH config
     local backup_file="$sshd_config.backup.$(date +%Y%m%d_%H%M%S)"
     sudo cp "$sshd_config" "$backup_file"

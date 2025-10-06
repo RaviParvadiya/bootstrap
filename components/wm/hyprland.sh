@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly HYPRLAND_COMPONENT_NAME="hyprland"
 readonly HYPRLAND_CONFIG_SOURCE="$DOTFILES_DIR/hyprland/.config/hypr"
@@ -72,13 +66,6 @@ is_hyprland_installed() {
 install_hyprland_arch() {
     log_info "Installing Hyprland packages for Arch Linux..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${HYPRLAND_PACKAGES[arch]}"
-        log_info "[DRY-RUN] Would install dependencies: ${HYPRLAND_DEPS[arch]}"
-        log_info "[DRY-RUN] Would install tools: ${HYPRLAND_TOOLS[arch]}"
-        return 0
-    fi
-    
     # Install dependencies first
     local deps
     read -ra deps <<< "${HYPRLAND_DEPS[arch]}"
@@ -117,13 +104,6 @@ install_hyprland_arch() {
 # Build and install Hyprland from source for Ubuntu
 install_hyprland_ubuntu() {
     log_info "Building Hyprland from source for Ubuntu..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install build dependencies: ${HYPRLAND_DEPS[ubuntu]}"
-        log_info "[DRY-RUN] Would clone and build Hyprland from source"
-        log_info "[DRY-RUN] Would install tools: ${HYPRLAND_TOOLS[ubuntu]}"
-        return 0
-    fi
     
     # Install build dependencies
     log_info "Installing build dependencies..."
@@ -222,12 +202,6 @@ configure_hyprland() {
     if [[ ! -d "$HYPRLAND_CONFIG_SOURCE" ]]; then
         log_error "Hyprland configuration source not found: $HYPRLAND_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $HYPRLAND_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from multiple sources"
-        return 0
     fi
     
     # Create configuration directory
@@ -340,11 +314,6 @@ setup_hyprland_wallpapers() {
     local wallpapers_source="$DOTFILES_DIR/backgrounds/.config/backgrounds"
     local wallpapers_target="$HOME/.config/backgrounds"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would setup wallpapers directory: $wallpapers_target"
-        return 0
-    fi
-    
     if [[ -d "$wallpapers_source" ]]; then
         log_info "Setting up wallpapers directory..."
         if ! create_symlink "$wallpapers_source" "$wallpapers_target"; then
@@ -362,11 +331,6 @@ setup_hyprland_wallpapers() {
 # Setup Hyprland session files
 setup_hyprland_session() {
     log_info "Setting up Hyprland session files..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create Hyprland desktop session file"
-        return 0
-    fi
     
     # Create desktop session file if it doesn't exist
     local session_file="/usr/share/wayland-sessions/hyprland.desktop"
@@ -483,11 +447,6 @@ install_hyprland() {
 # Uninstall Hyprland (for testing/cleanup)
 uninstall_hyprland() {
     log_info "Uninstalling Hyprland..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Hyprland packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

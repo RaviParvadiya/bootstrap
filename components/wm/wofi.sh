@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly WOFI_COMPONENT_NAME="wofi"
 readonly WOFI_CONFIG_SOURCE="$DOTFILES_DIR/wofi/.config/wofi"
@@ -76,13 +70,6 @@ install_wofi_packages() {
     
     log_info "Installing Wofi packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${WOFI_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install dependencies: ${WOFI_DEPS[$distro]:-none}"
-        log_info "[DRY-RUN] Would install optional packages: ${WOFI_OPTIONAL[$distro]:-none}"
-        return 0
-    fi
-    
     # Install dependencies first
     if [[ -n "${WOFI_DEPS[$distro]:-}" ]]; then
         log_info "Installing Wofi dependencies..."
@@ -133,12 +120,6 @@ configure_wofi() {
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $WOFI_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $WOFI_CONFIG_SOURCE"
-        return 0
-    fi
-    
     # Create configuration directory
     if ! mkdir -p "$WOFI_CONFIG_TARGET"; then
         log_error "Failed to create Wofi config directory: $WOFI_CONFIG_TARGET"
@@ -179,11 +160,6 @@ configure_wofi() {
 create_default_wofi_config() {
     local config_file="$WOFI_CONFIG_TARGET/config"
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create default Wofi config if needed"
-        return 0
-    fi
-    
     # Only create if no config exists and no style.css exists
     if [[ ! -f "$config_file" && ! -f "$WOFI_CONFIG_TARGET/style.css" ]]; then
         log_info "Creating default Wofi configuration..."
@@ -217,11 +193,6 @@ gtk_dark=true"
 # Setup Wofi keybindings helper script
 setup_wofi_scripts() {
     log_info "Setting up Wofi helper scripts..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create Wofi helper scripts"
-        return 0
-    fi
     
     local scripts_dir="$HOME/.local/bin"
     mkdir -p "$scripts_dir"
@@ -295,11 +266,6 @@ fi
 # Test Wofi configuration
 test_wofi_config() {
     log_info "Testing Wofi configuration..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would test Wofi configuration"
-        return 0
-    fi
     
     # Test if wofi can start and exit cleanly
     if timeout 5 wofi --help >/dev/null 2>&1; then
@@ -426,11 +392,6 @@ install_wofi() {
 # Uninstall Wofi (for testing/cleanup)
 uninstall_wofi() {
     log_info "Uninstalling Wofi..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Wofi packages and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)

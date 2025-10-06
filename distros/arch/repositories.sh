@@ -10,16 +10,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 
-# Helper function for dry-run checks
-_dry_run_check() {
-    local action="$1"
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would $action"
-        return 0
-    fi
-    return 1
-}
-
 # Helper function to create pacman.conf backup
 _backup_pacman_conf() {
     local suffix="${1:-$(date +%Y%m%d_%H%M%S)}"
@@ -54,8 +44,6 @@ arch_enable_multilib() {
         return 0
     fi
     
-    _dry_run_check "enable multilib repository in $pacman_conf" && return 0
-    
     _backup_pacman_conf || return 1
     
     if sudo sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' "$pacman_conf"; then
@@ -81,11 +69,6 @@ arch_setup_chaotic_aur() {
     # Check if chaotic-aur is already configured
     if grep -q "\[chaotic-aur\]" "$pacman_conf"; then
         log_info "Chaotic-aur repository already configured"
-        return 0
-    fi
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would setup chaotic-aur repository"
         return 0
     fi
     
@@ -154,8 +137,6 @@ arch_setup_chaotic_aur() {
 arch_update_package_database() {
     log_info "Updating package database..."
     
-    _dry_run_check "run: pacman -Sy" && return 0
-    
     if sudo pacman -Sy; then
         log_success "Package database updated"
     else
@@ -177,8 +158,6 @@ arch_add_custom_repository() {
         log_info "Repository $repo_name already exists"
         return 0
     fi
-    
-    _dry_run_check "add repository: $repo_name -> $repo_url" && return 0
     
     # Add GPG key if provided
     if [[ -n "$repo_key" ]]; then
@@ -224,7 +203,6 @@ arch_restore_pacman_conf() {
     [[ -z "$backup_file" || ! -f "$backup_file" ]] && { log_error "No backup file found"; return 1; }
     
     log_info "Restoring pacman.conf from: $backup_file"
-    _dry_run_check "restore pacman.conf from $backup_file" && return 0
     
     if sudo cp "$backup_file" /etc/pacman.conf; then
         log_success "pacman.conf restored from backup"
