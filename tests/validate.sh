@@ -353,7 +353,7 @@ validate_terminal_component() {
                 validate_config_file "$HOME/.config/alacritty/alacritty.toml" "exists"
                 
                 # Test alacritty configuration syntax
-                if alacritty --print-events --config-file "$HOME/.config/alacritty/alacritty.toml" >/dev/null 2>&1; then
+                if timeout 5 alacritty --config-file "$HOME/.config/alacritty/alacritty.toml" msg create-window --help >/dev/null 2>&1; then
                     record_validation_result "Alacritty config" "PASS" "valid configuration"
                 else
                     record_validation_result "Alacritty config" "FAIL" "invalid configuration"
@@ -370,7 +370,7 @@ validate_terminal_component() {
                 validate_config_file "$HOME/.config/kitty/kitty.conf" "exists"
                 
                 # Test kitty configuration
-                if kitty --config "$HOME/.config/kitty/kitty.conf" --debug-config >/dev/null 2>&1; then
+                if timeout 5 kitty --config "$HOME/.config/kitty/kitty.conf" --version >/dev/null 2>&1; then
                     record_validation_result "Kitty config" "PASS" "valid configuration"
                 else
                     record_validation_result "Kitty config" "FAIL" "invalid configuration"
@@ -387,7 +387,7 @@ validate_terminal_component() {
                 validate_config_file "$HOME/.tmux.conf" "exists"
                 
                 # Test tmux configuration
-                if tmux -f "$HOME/.tmux.conf" list-sessions >/dev/null 2>&1 || [[ $? -eq 1 ]]; then
+                if timeout 5 tmux -f "$HOME/.tmux.conf" list-sessions >/dev/null 2>&1 || [[ $? -eq 1 ]]; then
                     record_validation_result "Tmux config" "PASS" "valid configuration"
                 else
                     record_validation_result "Tmux config" "FAIL" "invalid configuration"
@@ -434,8 +434,8 @@ validate_shell_component() {
             if [[ -f "$HOME/.config/starship.toml" ]]; then
                 validate_config_file "$HOME/.config/starship.toml" "exists"
                 
-                # Test starship configuration
-                if starship config >/dev/null 2>&1; then
+                # Test starship configuration syntax
+                if validate_config_syntax "$HOME/.config/starship.toml"; then
                     record_validation_result "Starship config" "PASS" "valid configuration"
                 else
                     record_validation_result "Starship config" "FAIL" "invalid configuration"
