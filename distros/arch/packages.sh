@@ -13,11 +13,6 @@ arch_install_pacman_packages() {
     
     log_info "Installing pacman packages: ${packages[*]}"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] pacman -S --needed --noconfirm ${packages[*]}"
-        return 0
-    fi
-    
     if ! sudo pacman -S --needed --noconfirm "${packages[@]}"; then
         log_error "Failed to install pacman packages"
         return 1
@@ -36,11 +31,6 @@ arch_install_aur_packages() {
     [[ -z "$aur_helper" ]] && { log_error "No AUR helper available"; return 1; }
     
     log_info "Installing AUR packages with $aur_helper: ${packages[*]}"
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] $aur_helper -S --needed --noconfirm ${packages[*]}"
-        return 0
-    fi
     
     local failed_packages=()
     
@@ -76,8 +66,6 @@ arch_ensure_aur_helper() {
     fi
     
     log_info "Installing yay AUR helper..."
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] Would install yay"; return 0; }
     
     sudo pacman -S --needed --noconfirm base-devel git || { log_error "Failed to install yay dependencies"; return 1; }
     
@@ -244,8 +232,6 @@ arch_remove_packages() {
     
     log_info "Removing packages: ${packages[*]}"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] pacman -Rs --noconfirm ${packages[*]}"; return 0; }
-    
     if ! sudo pacman -Rs --noconfirm "${packages[@]}"; then
         log_error "Failed to remove packages"
         return 1
@@ -256,8 +242,6 @@ arch_remove_packages() {
 
 arch_clean_package_cache() {
     log_info "Cleaning package cache"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] pacman -Sc --noconfirm"; return 0; }
     
     sudo pacman -Sc --noconfirm || log_warn "Failed to clean package cache"
 }
@@ -273,8 +257,6 @@ arch_configure_pacman() {
     
     log_info "Configuring pacman"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] Would configure pacman"; return 0; }
-    
     sudo cp "$pacman_conf" "$pacman_conf.backup.$(date +%Y%m%d_%H%M%S)"
     sudo sed -i 's/^#Color/Color/; s/^#VerbosePkgLists/VerbosePkgLists/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' "$pacman_conf"
     
@@ -285,8 +267,6 @@ arch_configure_makepkg() {
     local makepkg_conf="/etc/makepkg.conf"
     
     log_info "Configuring makepkg"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] Would configure makepkg"; return 0; }
     
     sudo cp "$makepkg_conf" "$makepkg_conf.backup.$(date +%Y%m%d_%H%M%S)"
     sudo sed -i 's/COMPRESSZST=(zstd -c -T0 --ultra -20 -)/COMPRESSZST=(zstd -c -T0 --fast -)/' "$makepkg_conf"
@@ -299,8 +279,6 @@ arch_setup_reflector() {
     
     arch_is_package_installed "reflector" || arch_install_pacman_packages "reflector"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] Would configure reflector"; return 0; }
-    
     sudo systemctl enable reflector.timer
     sudo systemctl start reflector.timer
     
@@ -309,8 +287,6 @@ arch_setup_reflector() {
 
 arch_enable_trim() {
     log_info "Enabling SSD TRIM"
-    
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] Would enable fstrim.timer"; return 0; }
     
     sudo systemctl enable fstrim.timer
     log_success "TRIM enabled"

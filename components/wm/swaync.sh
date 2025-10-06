@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly SWAYNC_COMPONENT_NAME="swaync"
 readonly SWAYNC_CONFIG_SOURCE="$DOTFILES_DIR/swaync/.config/swaync"
@@ -68,12 +62,6 @@ is_swaync_installed() {
 install_swaync_arch() {
     log_info "Installing SwayNC packages for Arch Linux..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${SWAYNC_PACKAGES[arch]}"
-        log_info "[DRY-RUN] Would install dependencies: ${SWAYNC_DEPS[arch]}"
-        return 0
-    fi
-    
     # Install dependencies first
     local deps
     read -ra deps <<< "${SWAYNC_DEPS[arch]}"
@@ -102,12 +90,6 @@ install_swaync_arch() {
 # Build and install SwayNC from source for Ubuntu
 install_swaync_ubuntu() {
     log_info "Building SwayNC from source for Ubuntu..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install build dependencies: ${SWAYNC_BUILD_DEPS[ubuntu]}"
-        log_info "[DRY-RUN] Would clone and build SwayNC from source"
-        return 0
-    fi
     
     # Install runtime dependencies first
     log_info "Installing SwayNC runtime dependencies..."
@@ -205,12 +187,6 @@ configure_swaync() {
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $SWAYNC_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $SWAYNC_CONFIG_SOURCE"
-        return 0
-    fi
-    
     # Create configuration directory
     if ! mkdir -p "$SWAYNC_CONFIG_TARGET"; then
         log_error "Failed to create SwayNC config directory: $SWAYNC_CONFIG_TARGET"
@@ -251,11 +227,6 @@ configure_swaync() {
 validate_swaync_config() {
     log_info "Validating SwayNC configuration..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would validate SwayNC configuration files"
-        return 0
-    fi
-    
     # Check if main config file exists
     if [[ ! -f "$SWAYNC_CONFIG_TARGET/config.json" ]]; then
         log_warn "SwayNC main config file not found: config.json"
@@ -295,11 +266,6 @@ validate_swaync_config() {
 # Setup SwayNC systemd service
 setup_swaync_service() {
     log_info "Setting up SwayNC systemd user service..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create SwayNC systemd user service"
-        return 0
-    fi
     
     local service_dir="$HOME/.config/systemd/user"
     local service_file="$service_dir/swaync.service"
@@ -345,11 +311,6 @@ WantedBy=graphical-session.target"
 enable_swaync_service() {
     log_info "Enabling SwayNC systemd service..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would enable SwayNC systemd service"
-        return 0
-    fi
-    
     if systemctl --user enable swaync.service; then
         log_success "SwayNC service enabled"
     else
@@ -364,11 +325,6 @@ enable_swaync_service() {
 start_swaync_service() {
     log_info "Starting SwayNC service..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would start SwayNC service"
-        return 0
-    fi
-    
     if systemctl --user start swaync.service; then
         log_success "SwayNC service started"
     else
@@ -382,11 +338,6 @@ start_swaync_service() {
 # Test SwayNC functionality
 test_swaync_functionality() {
     log_info "Testing SwayNC functionality..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would test SwayNC functionality"
-        return 0
-    fi
     
     # Test if swaync-client is available
     if ! command -v swaync-client >/dev/null 2>&1; then
@@ -517,11 +468,6 @@ install_swaync() {
 # Uninstall SwayNC (for testing/cleanup)
 uninstall_swaync() {
     log_info "Uninstalling SwayNC..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall SwayNC packages and remove configurations"
-        return 0
-    fi
     
     # Stop and disable service first
     systemctl --user stop swaync.service 2>/dev/null || true

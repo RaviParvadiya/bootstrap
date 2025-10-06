@@ -22,7 +22,7 @@ git clone <repository-url>
 cd modular-install-framework
 
 # Step 2: Preview what will be installed
-./install.sh --dry-run
+
 
 # Step 3: Run interactive installation
 ./install.sh
@@ -60,7 +60,7 @@ cd modular-install-framework
 chmod +x install.sh
 
 # Step 3: Preview Hyprland installation (builds from source)
-./install.sh --components wm --dry-run
+
 
 # Step 4: Install Hyprland environment
 ./install.sh --components wm
@@ -376,7 +376,7 @@ for component in terminal shell editor wm dev-tools; do
 done
 
 # Test dependency resolution
-./install.sh --components wm --dry-run  # Should include terminal and shell
+
 ```
 
 ## Troubleshooting Guide

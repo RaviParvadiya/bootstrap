@@ -21,7 +21,6 @@ source "$DISTROS_DIR/arch/hardware/nvidia.sh"
 # Main Arch Linux installation orchestrator
 arch_main_install() {
     local selected_components=("$@")
-    local dry_run="${DRY_RUN:-false}"
     local use_minimal="${USE_MINIMAL_PACKAGES:-true}"
     
     log_info "Starting Arch Linux installation process..."
@@ -140,11 +139,6 @@ validate_arch_system() {
 arch_update_system() {
     log_info "Updating Arch Linux system..."
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: pacman -Syu --noconfirm"
-        return 0
-    fi
-    
     # Update package database and system
     if ! sudo pacman -Syu --noconfirm; then
         log_error "Failed to update system"
@@ -162,7 +156,7 @@ arch_configure_hardware() {
     # Check for NVIDIA GPU and offer installation
     if detect_nvidia_gpu; then
         if ask_yes_no "NVIDIA GPU detected. Would you like to install NVIDIA drivers?"; then
-            if ! install_nvidia "${DRY_RUN:-false}"; then
+            if ! install_nvidia; then
                 log_warn "NVIDIA installation failed, continuing with other components"
             fi
         else

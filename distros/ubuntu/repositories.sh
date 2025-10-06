@@ -49,11 +49,6 @@ ubuntu_enable_universe() {
         return 0
     fi
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would enable universe repository"
-        return 0
-    fi
-    
     # Enable universe repository
     if sudo add-apt-repository universe -y; then
         log_success "Universe repository enabled"
@@ -71,11 +66,6 @@ ubuntu_enable_multiverse() {
     # Check if multiverse is already enabled
     if grep -q "^deb.*multiverse" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
         log_info "Multiverse repository already enabled"
-        return 0
-    fi
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would enable multiverse repository"
         return 0
     fi
     
@@ -153,11 +143,6 @@ ubuntu_add_ppa() {
         return 0
     fi
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would add PPA: $ppa"
-        return 0
-    fi
-    
     # Add PPA
     if sudo add-apt-repository "$ppa" -y; then
         log_success "PPA $ppa added successfully"
@@ -178,11 +163,6 @@ ubuntu_remove_ppa() {
     fi
     
     log_info "Removing PPA: $ppa"
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would remove PPA: $ppa"
-        return 0
-    fi
     
     # Remove PPA
     if sudo add-apt-repository --remove "$ppa" -y; then
@@ -213,11 +193,6 @@ ubuntu_add_external_repository() {
     # Check if repository already exists
     if [[ -f "$sources_file" ]]; then
         log_info "Repository $repo_name already exists"
-        return 0
-    fi
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would add repository: $repo_name -> $repo_url"
         return 0
     fi
     
@@ -287,11 +262,6 @@ ubuntu_setup_nodejs_repository() {
     
     log_info "Setting up Node.js $node_version repository..."
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would setup Node.js $node_version repository"
-        return 0
-    fi
-    
     # Download and run NodeSource setup script
     curl -fsSL "https://deb.nodesource.com/setup_${node_version}.x" | sudo -E bash -
     
@@ -301,11 +271,6 @@ ubuntu_setup_nodejs_repository() {
 # Update package database
 ubuntu_update_package_database() {
     log_info "Updating package database..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: apt update"
-        return 0
-    fi
     
     if ! sudo apt update; then
         log_error "Failed to update package database"
@@ -360,11 +325,6 @@ ubuntu_remove_external_repository() {
     
     local sources_file="/etc/apt/sources.list.d/${repo_name}.list"
     local keyring_file="/usr/share/keyrings/${repo_name}-keyring.gpg"
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would remove repository: $repo_name"
-        return 0
-    fi
     
     # Remove sources list file
     if [[ -f "$sources_file" ]]; then

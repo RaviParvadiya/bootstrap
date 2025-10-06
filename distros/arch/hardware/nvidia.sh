@@ -70,8 +70,6 @@ is_rtx_gpu() {
 
 # Install NVIDIA drivers based on GPU type
 install_nvidia_drivers() {
-    local dry_run="${1:-false}"
-    
     log_info "Installing NVIDIA GPU drivers..."
     
     # Determine which driver package to install
@@ -86,14 +84,10 @@ install_nvidia_drivers() {
     
     # Install packages
     for package in "${packages_to_install[@]}"; do
-        if [[ "$dry_run" == "true" ]]; then
-            log_info "[DRY-RUN] Would install package: $package"
-        else
-            log_info "Installing $package..."
-            if ! install_package "$package"; then
-                log_error "Failed to install $package"
-                return 1
-            fi
+        log_info "Installing $package..."
+        if ! install_package "$package"; then
+            log_error "Failed to install $package"
+            return 1
         fi
     done
     
@@ -102,31 +96,24 @@ install_nvidia_drivers() {
 
 # Configure NVIDIA kernel modules
 configure_nvidia_modules() {
-    local dry_run="${1:-false}"
-    
     log_info "Configuring NVIDIA kernel modules..."
     
     # Edit /etc/mkinitcpio.conf to add NVIDIA modules
     local mkinitcpio_conf="/etc/mkinitcpio.conf"
     local nvidia_modules="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
+
+    log_info "Adding NVIDIA modules to $mkinitcpio_conf..."
     
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY-RUN] Would add NVIDIA modules to $mkinitcpio_conf"
-        log_info "[DRY-RUN] Modules to add: $nvidia_modules"
+    # Check if modules are already present
+    if grep -q "nvidia" "$mkinitcpio_conf"; then
+        log_warn "NVIDIA modules already present in $mkinitcpio_conf"
     else
-        log_info "Adding NVIDIA modules to $mkinitcpio_conf..."
-        
-        # Check if modules are already present
-        if grep -q "nvidia" "$mkinitcpio_conf"; then
-            log_warn "NVIDIA modules already present in $mkinitcpio_conf"
+        # Add NVIDIA modules to MODULES array
+        if sudo sed -i "s/^MODULES=(/&$nvidia_modules /" "$mkinitcpio_conf"; then
+            log_success "NVIDIA modules added to $mkinitcpio_conf"
         else
-            # Add NVIDIA modules to MODULES array
-            if sudo sed -i "s/^MODULES=(/&$nvidia_modules /" "$mkinitcpio_conf"; then
-                log_success "NVIDIA modules added to $mkinitcpio_conf"
-            else
-                log_error "Failed to modify $mkinitcpio_conf"
-                return 1
-            fi
+            log_error "Failed to modify $mkinitcpio_conf"
+            return 1
         fi
     fi
     
@@ -135,24 +122,18 @@ configure_nvidia_modules() {
 
 # Configure NVIDIA modprobe settings
 configure_nvidia_modprobe() {
-    local dry_run="${1:-false}"
-    
     log_info "Configuring NVIDIA modprobe settings..."
     
     local nvidia_conf="/etc/modprobe.d/nvidia.conf"
     local nvidia_options="options nvidia_drm modeset=1 fbdev=1"
+
+    log_info "Creating $nvidia_conf..."
     
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY-RUN] Would create $nvidia_conf with options: $nvidia_options"
+    if echo "$nvidia_options" | sudo tee "$nvidia_conf" > /dev/null; then
+        log_success "Created $nvidia_conf with NVIDIA options"
     else
-        log_info "Creating $nvidia_conf..."
-        
-        if echo "$nvidia_options" | sudo tee "$nvidia_conf" > /dev/null; then
-            log_success "Created $nvidia_conf with NVIDIA options"
-        else
-            log_error "Failed to create $nvidia_conf"
-            return 1
-        fi
+        log_error "Failed to create $nvidia_conf"
+        return 1
     fi
     
     return 0
@@ -160,21 +141,15 @@ configure_nvidia_modprobe() {
 
 # Rebuild initramfs
 rebuild_initramfs() {
-    local dry_run="${1:-false}"
-    
     log_info "Rebuilding initramfs..."
+
+    log_info "Running mkinitcpio -P..."
     
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY-RUN] Would rebuild initramfs with: mkinitcpio -P"
+    if sudo mkinitcpio -P; then
+        log_success "Initramfs rebuilt successfully"
     else
-        log_info "Running mkinitcpio -P..."
-        
-        if sudo mkinitcpio -P; then
-            log_success "Initramfs rebuilt successfully"
-        else
-            log_error "Failed to rebuild initramfs"
-            return 1
-        fi
+        log_error "Failed to rebuild initramfs"
+        return 1
     fi
     
     return 0
@@ -182,8 +157,6 @@ rebuild_initramfs() {
 
 # Configure NVIDIA environment variables for Hyprland
 configure_nvidia_environment() {
-    local dry_run="${1:-false}"
-    
     log_info "Configuring NVIDIA environment variables for Hyprland..."
     
     local hypr_config_dir="$HOME/.config/hypr"
@@ -199,30 +172,24 @@ env = NVD_BACKEND,direct
 cursor {
     no_hardware_cursors = true
 }"
+
+    # Create directory if it doesn't exist
+    if ! mkdir -p "$hypr_config_dir"; then
+        log_error "Failed to create directory $hypr_config_dir"
+        return 1
+    fi
     
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY-RUN] Would create/update $env_file with NVIDIA environment variables"
-        log_info "[DRY-RUN] Environment variables to add:"
-        echo "$nvidia_env_vars"
+    # Check if NVIDIA variables already exist
+    if [[ -f "$env_file" ]] && grep -q "LIBVA_DRIVER_NAME,nvidia" "$env_file"; then
+        log_warn "NVIDIA environment variables already present in $env_file"
     else
-        # Create directory if it doesn't exist
-        if ! mkdir -p "$hypr_config_dir"; then
-            log_error "Failed to create directory $hypr_config_dir"
-            return 1
-        fi
+        log_info "Adding NVIDIA environment variables to $env_file..."
         
-        # Check if NVIDIA variables already exist
-        if [[ -f "$env_file" ]] && grep -q "LIBVA_DRIVER_NAME,nvidia" "$env_file"; then
-            log_warn "NVIDIA environment variables already present in $env_file"
+        if echo "$nvidia_env_vars" >> "$env_file"; then
+            log_success "NVIDIA environment variables added to $env_file"
         else
-            log_info "Adding NVIDIA environment variables to $env_file..."
-            
-            if echo "$nvidia_env_vars" >> "$env_file"; then
-                log_success "NVIDIA environment variables added to $env_file"
-            else
-                log_error "Failed to write to $env_file"
-                return 1
-            fi
+            log_error "Failed to write to $env_file"
+            return 1
         fi
     fi
     
@@ -231,21 +198,15 @@ cursor {
 
 # Enable NVIDIA services (but don't start them automatically)
 configure_nvidia_services() {
-    local dry_run="${1:-false}"
-    
     log_info "Configuring NVIDIA services..."
     
     for service in "${NVIDIA_SERVICES[@]}"; do
-        if [[ "$dry_run" == "true" ]]; then
-            log_info "[DRY-RUN] Would enable service: $service"
+        log_info "Enabling $service..."
+        
+        if sudo systemctl enable "$service"; then
+            log_success "Enabled $service"
         else
-            log_info "Enabling $service..."
-            
-            if sudo systemctl enable "$service"; then
-                log_success "Enabled $service"
-            else
-                log_warn "Failed to enable $service (may not be critical)"
-            fi
+            log_warn "Failed to enable $service (may not be critical)"
         fi
     done
     
@@ -254,35 +215,29 @@ configure_nvidia_services() {
 
 # Configure NVIDIA kernel parameters for refind (MUX switch support)
 configure_nvidia_kernel_params() {
-    local dry_run="${1:-false}"
-    
     log_info "Configuring NVIDIA kernel parameters for MUX switch support..."
     
     local refind_conf="/boot/refind_linux.conf"
     local nvidia_param="nvidia.NVreg_PreserveVideoMemoryAllocations=1"
+
+    # Check if refind configuration exists
+    if [[ ! -f "$refind_conf" ]]; then
+        log_warn "Refind configuration not found at $refind_conf, skipping kernel parameter configuration"
+        return 0
+    fi
     
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY-RUN] Would add kernel parameter to $refind_conf: $nvidia_param"
+    # Check if parameter already exists
+    if grep -q "$nvidia_param" "$refind_conf"; then
+        log_warn "NVIDIA kernel parameter already present in $refind_conf"
     else
-        # Check if refind configuration exists
-        if [[ ! -f "$refind_conf" ]]; then
-            log_warn "Refind configuration not found at $refind_conf, skipping kernel parameter configuration"
-            return 0
-        fi
+        log_info "Adding NVIDIA kernel parameter to $refind_conf..."
         
-        # Check if parameter already exists
-        if grep -q "$nvidia_param" "$refind_conf"; then
-            log_warn "NVIDIA kernel parameter already present in $refind_conf"
+        # Use the same sed pattern as the original install.sh for consistency
+        if sudo sed -i "s/\"Boot using default options\"/&/; s/\(.*\"Boot using default options\".*\)\"/\1 $nvidia_param\"/" "$refind_conf"; then
+            log_success "NVIDIA kernel parameter added to $refind_conf"
         else
-            log_info "Adding NVIDIA kernel parameter to $refind_conf..."
-            
-            # Use the same sed pattern as the original install.sh for consistency
-            if sudo sed -i "s/\"Boot using default options\"/&/; s/\(.*\"Boot using default options\".*\)\"/\1 $nvidia_param\"/" "$refind_conf"; then
-                log_success "NVIDIA kernel parameter added to $refind_conf"
-            else
-                log_error "Failed to modify $refind_conf"
-                return 1
-            fi
+            log_error "Failed to modify $refind_conf"
+            return 1
         fi
     fi
     
@@ -291,8 +246,6 @@ configure_nvidia_kernel_params() {
 
 # Main NVIDIA installation function
 install_nvidia() {
-    local dry_run="${1:-false}"
-    
     log_info "Starting NVIDIA GPU configuration..."
     
     # Check if NVIDIA GPU is present
@@ -302,43 +255,43 @@ install_nvidia() {
     fi
     
     # Install NVIDIA drivers
-    if ! install_nvidia_drivers "$dry_run"; then
+    if ! install_nvidia_drivers; then
         log_error "Failed to install NVIDIA drivers"
         return 1
     fi
     
     # Configure kernel modules
-    if ! configure_nvidia_modules "$dry_run"; then
+    if ! configure_nvidia_modules; then
         log_error "Failed to configure NVIDIA kernel modules"
         return 1
     fi
     
     # Configure modprobe settings
-    if ! configure_nvidia_modprobe "$dry_run"; then
+    if ! configure_nvidia_modprobe; then
         log_error "Failed to configure NVIDIA modprobe settings"
         return 1
     fi
     
     # Rebuild initramfs
-    if ! rebuild_initramfs "$dry_run"; then
+    if ! rebuild_initramfs; then
         log_error "Failed to rebuild initramfs"
         return 1
     fi
     
     # Configure environment variables
-    if ! configure_nvidia_environment "$dry_run"; then
+    if ! configure_nvidia_environment; then
         log_error "Failed to configure NVIDIA environment variables"
         return 1
     fi
     
     # Configure services
-    if ! configure_nvidia_services "$dry_run"; then
+    if ! configure_nvidia_services; then
         log_error "Failed to configure NVIDIA services"
         return 1
     fi
     
     # Configure kernel parameters for MUX switch support
-    if ! configure_nvidia_kernel_params "$dry_run"; then
+    if ! configure_nvidia_kernel_params; then
         log_error "Failed to configure NVIDIA kernel parameters"
         return 1
     fi
@@ -346,9 +299,7 @@ install_nvidia() {
     log_success "NVIDIA GPU configuration completed successfully"
     
     # Inform user about reboot requirement
-    if [[ "$dry_run" != "true" ]]; then
-        log_info "NVIDIA configuration complete. A system reboot is recommended to apply all changes."
-    fi
+    log_info "NVIDIA configuration complete. A system reboot is recommended to apply all changes."
     
     return 0
 }

@@ -508,7 +508,7 @@ init_package_manager() {
     return 0
 }
 
-# Safe command execution with error handling and dry-run support
+# Safe command execution with error handling
 exec_safe() {
     local command="$1"
     local description="${2:-$command}"

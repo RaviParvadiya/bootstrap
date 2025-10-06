@@ -13,7 +13,6 @@
 # Features:
 #   - Interactive component selection
 #   - Hardware detection (NVIDIA, ASUS TUF)
-#   - Safety modes (dry-run, VM testing, backups)
 #   - Modular architecture for easy extension
 #   - Comprehensive logging and error handling
 # 
@@ -91,7 +90,6 @@ COMMANDS:
 
 EXAMPLES:
     $0                                 # Interactive installation
-    $0 --dry-run install               # Preview installation
     $0 --components terminal,shell     # Install specific components
     $0 --all                           # Install all available components
     $0 validate                        # Validate installation

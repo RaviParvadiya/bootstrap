@@ -13,8 +13,6 @@ ubuntu_install_apt_packages() {
     
     log_info "Installing APT packages: ${packages[*]}"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt install -y ${packages[*]}"; return 0; }
-    
     sudo apt update
     
     if ! sudo apt install -y "${packages[@]}"; then
@@ -229,8 +227,6 @@ ubuntu_remove_apt_packages() {
     
     log_info "Removing APT packages: ${packages[*]}"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt remove -y ${packages[*]}"; return 0; }
-    
     if ! sudo apt remove -y "${packages[@]}"; then
         log_error "Failed to remove packages"
         return 1
@@ -244,8 +240,6 @@ ubuntu_remove_apt_packages() {
 ubuntu_clean_package_cache() {
     log_info "Cleaning package cache"
     
-    [[ "${DRY_RUN:-false}" == "true" ]] && { log_info "[DRY RUN] apt autoremove -y && apt autoclean"; return 0; }
-    
     sudo apt autoremove -y
     sudo apt autoclean
     
@@ -258,12 +252,8 @@ ubuntu_update_all_packages() {
     
     # Update APT packages
     log_info "Updating APT packages..."
-    if [[ "${DRY_RUN:-false}" != "true" ]]; then
-        sudo apt update && sudo apt upgrade -y
-    fi
-    
+    sudo apt update && sudo apt upgrade -y
 
-    
     log_success "All package managers updated"
     return 0
 }

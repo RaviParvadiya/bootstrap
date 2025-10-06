@@ -19,7 +19,6 @@ source "$DISTROS_DIR/ubuntu/services.sh"
 # Main Ubuntu installation orchestrator
 ubuntu_main_install() {
     local selected_components=("$@")
-    local dry_run="${DRY_RUN:-false}"
     
     log_info "Starting Ubuntu Hyprland environment installation..."
     
@@ -137,11 +136,6 @@ validate_ubuntu_system() {
 # Update Ubuntu system
 ubuntu_update_system() {
     log_info "Updating Ubuntu system..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would run: apt update && apt upgrade -y"
-        return 0
-    fi
     
     # Update package database
     if ! sudo apt update; then

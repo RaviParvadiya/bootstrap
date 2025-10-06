@@ -8,12 +8,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
-# Helper functions
-_dry_run_check() {
-    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
-    return 1
-}
-
 # Component metadata
 readonly WAYBAR_COMPONENT_NAME="waybar"
 readonly WAYBAR_CONFIG_SOURCE="$DOTFILES_DIR/waybar/.config/waybar"
@@ -76,13 +70,6 @@ install_waybar_packages() {
     
     log_info "Installing Waybar packages for $distro..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${WAYBAR_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install dependencies: ${WAYBAR_DEPS[$distro]:-none}"
-        log_info "[DRY-RUN] Would install optional packages: ${WAYBAR_OPTIONAL[$distro]:-none}"
-        return 0
-    fi
-    
     # Install dependencies first
     if [[ -n "${WAYBAR_DEPS[$distro]:-}" ]]; then
         log_info "Installing Waybar dependencies..."
@@ -133,12 +120,6 @@ configure_waybar() {
         return 1
     fi
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $WAYBAR_CONFIG_TARGET"
-        log_info "[DRY-RUN] Would copy configurations from: $WAYBAR_CONFIG_SOURCE"
-        return 0
-    fi
-    
     # Create configuration directory
     if ! mkdir -p "$WAYBAR_CONFIG_TARGET"; then
         log_error "Failed to create Waybar config directory: $WAYBAR_CONFIG_TARGET"
@@ -179,11 +160,6 @@ configure_waybar() {
 validate_waybar_config() {
     log_info "Validating Waybar configuration..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would validate Waybar configuration files"
-        return 0
-    fi
-    
     # Check if main config file exists
     if [[ ! -f "$WAYBAR_CONFIG_TARGET/config.jsonc" ]]; then
         log_warn "Waybar main config file not found: config.jsonc"
@@ -216,11 +192,6 @@ validate_waybar_config() {
 # Setup Waybar systemd service (optional)
 setup_waybar_service() {
     log_info "Setting up Waybar systemd user service..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create Waybar systemd user service"
-        return 0
-    fi
     
     local service_dir="$HOME/.config/systemd/user"
     local service_file="$service_dir/waybar.service"
@@ -264,11 +235,6 @@ WantedBy=graphical-session.target"
 enable_waybar_service() {
     log_info "Enabling Waybar systemd service..."
     
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would enable Waybar systemd service"
-        return 0
-    fi
-    
     if systemctl --user enable waybar.service; then
         log_success "Waybar service enabled"
     else
@@ -282,11 +248,6 @@ enable_waybar_service() {
 # Start Waybar service
 start_waybar_service() {
     log_info "Starting Waybar service..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would start Waybar service"
-        return 0
-    fi
     
     if systemctl --user start waybar.service; then
         log_success "Waybar service started"
@@ -400,11 +361,6 @@ install_waybar() {
 # Uninstall Waybar (for testing/cleanup)
 uninstall_waybar() {
     log_info "Uninstalling Waybar..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Waybar packages and remove configurations"
-        return 0
-    fi
     
     # Stop and disable service first
     systemctl --user stop waybar.service 2>/dev/null || true

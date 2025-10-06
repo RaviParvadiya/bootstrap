@@ -151,11 +151,6 @@ ubuntu_install_hyprland_dependencies() {
         fi
     done
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would install ${#available_deps[@]} build dependencies"
-        return 0
-    fi
-    
     # Install available dependencies
     if ! sudo apt install -y "${available_deps[@]}"; then
         log_error "Failed to install some build dependencies"
@@ -221,11 +216,6 @@ ubuntu_build_wlroots() {
     local wlroots_build_dir="/tmp/wlroots-build"
     local wlroots_version="0.17.1"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would build wlroots $wlroots_version"
-        return 0
-    fi
-    
     # Clean previous build
     rm -rf "$wlroots_build_dir"
     mkdir -p "$wlroots_build_dir"
@@ -270,11 +260,6 @@ ubuntu_install_hyprland_protocols() {
     
     local protocols_build_dir="/tmp/hyprland-protocols-build"
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would install hyprland-protocols"
-        return 0
-    fi
-    
     # Clean previous build
     rm -rf "$protocols_build_dir"
     mkdir -p "$protocols_build_dir"
@@ -306,11 +291,6 @@ ubuntu_install_hyprland_protocols() {
 # Build Hyprland from source
 ubuntu_build_hyprland() {
     log_info "Building Hyprland $HYPRLAND_VERSION from source..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would build Hyprland $HYPRLAND_VERSION"
-        return 0
-    fi
     
     # Clean previous build
     rm -rf "$HYPRLAND_BUILD_DIR"
@@ -355,11 +335,6 @@ ubuntu_build_hyprland() {
 ubuntu_install_hyprland_binary() {
     log_info "Installing Hyprland binary and files..."
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would install Hyprland binary"
-        return 0
-    fi
-    
     cd "$HYPRLAND_BUILD_DIR" || return 1
     
     # Install Hyprland
@@ -394,11 +369,6 @@ ubuntu_install_hyprland_binary() {
 # Configure Hyprland Wayland session
 ubuntu_configure_hyprland_session() {
     log_info "Configuring Hyprland Wayland session..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would configure Hyprland session"
-        return 0
-    fi
     
     # Create Hyprland desktop entry for display managers
     local desktop_entry="/usr/share/wayland-sessions/hyprland.desktop"
@@ -659,11 +629,6 @@ ubuntu_install_hyprland_ecosystem() {
         fi
     done
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would install ${#available_packages[@]} ecosystem packages"
-        return 0
-    fi
-    
     # Install available packages
     if ! sudo apt install -y "${available_packages[@]}"; then
         log_warn "Some ecosystem packages failed to install"
@@ -677,11 +642,6 @@ ubuntu_install_hyprland_ecosystem() {
 # Configure environment for Hyprland
 ubuntu_configure_hyprland_environment() {
     log_info "Configuring environment for Hyprland..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would configure Hyprland environment"
-        return 0
-    fi
     
     # Create environment configuration file
     local env_file="$HOME/.config/hypr/hyprland-env.conf"
@@ -814,11 +774,6 @@ ubuntu_show_hyprland_info() {
 ubuntu_uninstall_hyprland() {
     log_info "Uninstalling Hyprland..."
     
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would uninstall Hyprland"
-        return 0
-    fi
-    
     # Remove Hyprland binary
     if [[ -f "$HYPRLAND_INSTALL_PREFIX/bin/Hyprland" ]]; then
         sudo rm -f "$HYPRLAND_INSTALL_PREFIX/bin/Hyprland"
@@ -837,11 +792,6 @@ ubuntu_uninstall_hyprland() {
 # Clean Hyprland build artifacts
 ubuntu_clean_hyprland_build() {
     log_info "Cleaning Hyprland build artifacts..."
-    
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would clean build artifacts"
-        return 0
-    fi
     
     # Remove build directories
     rm -rf "$HYPRLAND_BUILD_DIR"
