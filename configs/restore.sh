@@ -620,7 +620,7 @@ interactive_restore() {
         # Let user select from available sessions
         log_section "Available Backup Sessions"
         list_backup_sessions
-        
+
         echo
         read -p "Enter backup session directory path: " session_dir
         
@@ -708,7 +708,6 @@ interactive_restore() {
     esac
     
     # Confirm restore operation
-    echo
     log_warn "This will restore files from the backup session to your system"
     if [[ "$restore_mode" == "replace" ]]; then
         log_warn "Existing files will be REPLACED without backup"

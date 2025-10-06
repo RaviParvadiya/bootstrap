@@ -54,7 +54,7 @@ source_with_error_check() {
     if [[ -f "$file" ]]; then
         source "$file"
     else
-        echo "ERROR: Required file not found: $file" >&2
+        log_error "Required file not found: $file"
         exit 1
     fi
 }
@@ -795,7 +795,7 @@ list_components() {
 }
 
 # Error handling
-trap 'echo "ERROR: Script interrupted" >&2; exit 1' INT TERM
+trap 'log_error "Script interrupted"; exit 1' INT TERM
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

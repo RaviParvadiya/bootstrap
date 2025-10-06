@@ -170,8 +170,11 @@ arch_install_packages_by_category() {
             arch_install_from_package_list "$aur_list" "aur" "$conditions"
             ;;
         "all")
-            arch_install_packages_by_category "base" "$conditions" "$data_dir" "$use_minimal" || local base_failed=true
-            arch_install_packages_by_category "aur" "$conditions" "$data_dir" "$use_minimal" || local aur_failed=true
+            local base_failed=false
+            local aur_failed=false
+            
+            arch_install_packages_by_category "base" "$conditions" "$data_dir" "$use_minimal" || base_failed=true
+            arch_install_packages_by_category "aur" "$conditions" "$data_dir" "$use_minimal" || aur_failed=true
             
             if [[ "$base_failed" == "true" || "$aur_failed" == "true" ]]; then
                 log_warn "Some packages failed to install"

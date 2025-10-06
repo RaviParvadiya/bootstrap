@@ -219,7 +219,6 @@ resolve_dependencies() {
         for dep in "${added_deps[@]}"; do
             echo "  - $dep: ${COMPONENTS[$dep]}"
         done
-        echo
     fi
 }
 
@@ -234,8 +233,7 @@ display_selection_summary() {
         return 0
     fi
     
-    echo "The following components will be installed:"
-    echo
+    log_info "The following components will be installed:"
     
     # Calculate total packages
     local total_packages=0
@@ -346,7 +344,7 @@ validate_components() {
         log_error "Invalid components specified: ${invalid_components[*]}"
         log_info "Available components:"
         for component in $(printf '%s\n' "${!COMPONENTS[@]}" | sort); do
-            echo "  - $component"
+            log_info "  - $component"
         done
         return 1
     fi

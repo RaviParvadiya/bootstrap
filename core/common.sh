@@ -119,9 +119,9 @@ is_supported_distro() { detect_distro; [[ "$DISTRO_COMPATIBLE" == "true" ]]; }
 # Get detailed distribution information
 get_distro_info() {
     detect_distro
-    echo "Distribution: $DETECTED_DISTRO"
-    [[ -n "$DISTRO_VERSION" && "$DISTRO_VERSION" != "unknown" ]] && echo "Version: $DISTRO_VERSION"
-    echo "Fully Supported: $DISTRO_COMPATIBLE"
+    log_info "Distribution: $DETECTED_DISTRO"
+    [[ -n "$DISTRO_VERSION" && "$DISTRO_VERSION" != "unknown" ]] && log_info "Version: $DISTRO_VERSION"
+    log_info "Fully Supported: $DISTRO_COMPATIBLE"
 }
 
 # Handle unsupported distribution with user-friendly error message
@@ -146,19 +146,17 @@ handle_unsupported_distro() {
     echo
     
     if [[ "$distro" == "ubuntu" && "$DISTRO_COMPATIBLE" == "false" ]]; then
-        echo "Your Ubuntu version may be too old or could not be verified."
-        echo "Please ensure you are running Ubuntu 18.04 LTS or newer."
-        echo
+        log_warn "Your Ubuntu version may be too old or could not be verified."
+        log_warn "Please ensure you are running Ubuntu 18.04 LTS or newer."
         if ask_yes_no "Would you like to continue anyway? (not recommended)" "n"; then
-            echo "Continuing with limited support..."
+            log_warn "Continuing with limited support..."
             return 0
         fi
     elif [[ "$distro" != "unsupported" ]]; then
-        echo "Your distribution might be compatible but is not officially supported."
-        echo "You may encounter issues during installation."
-        echo
+        log_warn "Your distribution might be compatible but is not officially supported."
+        log_warn "You may encounter issues during installation."
         if ask_yes_no "Would you like to continue anyway? (not recommended)" "n"; then
-            echo "Continuing with limited support..."
+            log_warn "Continuing with limited support..."
             return 0
         fi
     fi
@@ -208,7 +206,7 @@ check_internet() {
 install_package() {
     local package="$1" pm="${2:-auto}"
 
-    [[ -z "$package" ]] && { echo "Error: Package name is required"; return 1; }
+    [[ -z "$package" ]] && { log_error "Package name is required"; return 1; }
 
     local distro=$(get_distro)
     
@@ -216,7 +214,7 @@ install_package() {
         case "$distro" in
             "arch") pm="pacman" ;;
             "ubuntu") pm="apt" ;;
-            *) echo "Error: Unsupported distribution for auto package manager detection"; return 1 ;;
+            *) log_error "Unsupported distribution for auto package manager detection"; return 1 ;;
         esac
     fi
 
@@ -224,7 +222,7 @@ install_package() {
         "pacman") sudo pacman -S --noconfirm "$package" ;;
         "yay") yay -S --noconfirm "$package" ;;
         "apt") sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y "$package" ;;
-        *) echo "Error: Unsupported package manager: $pm"; return 1 ;;
+        *) log_error "Unsupported package manager: $pm"; return 1 ;;
     esac
 }
 
@@ -242,12 +240,12 @@ install_packages() {
     done
 
     if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        echo "Warning: Failed to install packages: ${failed_packages[*]}"
-        echo "Successfully installed: $success_count/${#packages[@]} packages"
+        log_warn "Failed to install packages: ${failed_packages[*]}"
+        log_info "Successfully installed: $success_count/${#packages[@]} packages"
         return 1
     fi
 
-    echo "Successfully installed all $success_count packages"
+    log_success "Successfully installed all $success_count packages"
     return 0
 }
 
@@ -297,7 +295,7 @@ ask_yes_no() {
         case "$response" in
             [Yy]|[Yy][Ee][Ss]) return 0 ;;
             [Nn]|[Nn][Oo]) return 1 ;;
-            *) echo "Please answer yes (y) or no (n)." ;;
+            *) log_warn "Please answer yes (y) or no (n)." ;;
         esac
     done
 }
@@ -321,7 +319,7 @@ ask_choice() {
             echo "${options[$((choice - 1))]}"
             return 0
         else
-            echo "Invalid choice. Please enter a number between 1 and ${#options[@]}."
+            log_warn "Invalid choice. Please enter a number between 1 and ${#options[@]}."
         fi
     done
 }
@@ -336,8 +334,8 @@ create_symlink() {
     local source="$1" target="$2"
     local backup_dir="$HOME/.config/install-backups/$(date +%Y%m%d_%H%M%S)"
 
-    [[ -z "$source" || -z "$target" ]] && { echo "Error: Source and target are required for symlink creation"; return 1; }
-    [[ ! -e "$source" ]] && { echo "Error: Source file does not exist: $source"; return 1; }
+    [[ -z "$source" || -z "$target" ]] && { log_error "Source and target are required for symlink creation"; return 1; }
+    [[ ! -e "$source" ]] && { log_error "Source file does not exist: $source"; return 1; }
 
     # Create target directory if it doesn't exist
     local target_dir=$(dirname "$target")
@@ -347,20 +345,20 @@ create_symlink() {
     if [[ -e "$target" ]]; then
         if [[ -L "$target" ]]; then
             local current_target=$(readlink "$target")
-            [[ "$current_target" == "$source" ]] && { echo "Symlink already exists and points to correct target: $target"; return 0; }
+            [[ "$current_target" == "$source" ]] && { log_info "Symlink already exists and points to correct target: $target"; return 0; }
         fi
 
         # Create backup
         mkdir -p "$backup_dir"
         local backup_file="$backup_dir/$(basename "$target")"
-        echo "Backing up existing file: $target -> $backup_file"
+        log_info "Backing up existing file: $target -> $backup_file"
         cp -r "$target" "$backup_file"
         rm -rf "$target"
     fi
 
     # Create the symlink
     ln -s "$source" "$target"
-    echo "Created symlink: $target -> $source"
+    log_success "Created symlink: $target -> $source"
     return 0
 }
 
@@ -369,7 +367,7 @@ create_symlink() {
 create_symlinks_from_dir() {
     local source_dir="$1" target_dir="$2" failed_count=0
 
-    [[ ! -d "$source_dir" ]] && { echo "Error: Source directory does not exist: $source_dir"; return 1; }
+    [[ ! -d "$source_dir" ]] && { log_error "Source directory does not exist: $source_dir"; return 1; }
 
     # Find all files in source directory (excluding directories)
     while IFS= read -r -d '' file; do
@@ -379,7 +377,7 @@ create_symlinks_from_dir() {
         create_symlink "$file" "$target_file" || ((failed_count++))
     done < <(find "$source_dir" -type f -print0)
 
-    [[ $failed_count -gt 0 ]] && { echo "Warning: Failed to create $failed_count symlinks"; return 1; }
+    [[ $failed_count -gt 0 ]] && { log_warn "Failed to create $failed_count symlinks"; return 1; }
     return 0
 }
 
@@ -392,13 +390,13 @@ has_sudo() { sudo -n true 2>/dev/null; }
 
 validate_permissions() {
     if is_root; then
-        echo "Warning: Running as root is not recommended"
+        log_warn "Running as root is not recommended"
         ask_yes_no "Continue anyway?" "n" || return 1
     fi
 
     if ! has_sudo; then
-        echo "Error: This script requires sudo privileges"
-        echo "Please run: sudo -v"
+        log_error "This script requires sudo privileges"
+        log_error "Please run: sudo -v"
         return 1
     fi
 }
@@ -418,7 +416,7 @@ install_missing_tools() {
                 package_manager="pacman"
                 install_cmd="sudo pacman -S --noconfirm"
             else
-                echo "Error: pacman not found on Arch-based system"
+                log_error "pacman not found on Arch-based system"
                 return 1
             fi
             ;;
@@ -427,12 +425,12 @@ install_missing_tools() {
                 package_manager="apt-get"
                 install_cmd="sudo apt-get install -y"
             else
-                echo "Error: apt-get not found on Ubuntu/Debian system"
+                log_error "apt-get not found on Ubuntu/Debian system"
                 return 1
             fi
             ;;
         *)
-            echo "Error: No supported package manager found for distribution: $distro"
+            log_error "No supported package manager found for distribution: $distro"
             echo "This script supports:"
             echo "  • Arch Linux (pacman/yay)"
             echo "  • Ubuntu/Debian (apt)"
@@ -440,40 +438,38 @@ install_missing_tools() {
             ;;
     esac
 
-    echo "Installing missing tools: ${missing_tools[*]}"
+    log_info "Installing missing tools: ${missing_tools[*]}"
 
     # Update package database
     if [[ "$package_manager" == "apt-get" ]]; then
-        echo "Updating package database..."
+        log_info "Updating package database..."
         sudo apt-get update >/dev/null 2>&1
     elif [[ "$package_manager" == "pacman" ]]; then
-        echo "Updating package database..."
+        log_info "Updating package database..."
         sudo pacman -Sy >/dev/null 2>&1
     fi
 
     # Install each missing tool
     local failed_tools=()
     for tool in "${missing_tools[@]}"; do
-        echo "Installing $tool..."
+        log_info "Installing $tool..."
         
         if eval "$install_cmd \"$tool\"" >/dev/null 2>&1; then
-            echo "✓ Successfully installed $tool"
+            log_success "Successfully installed $tool"
         else
-            echo "✗ Failed to install $tool"
+            log_error "Failed to install $tool"
             failed_tools+=("$tool")
         fi
     done
 
     # Report results
     if [[ ${#failed_tools[@]} -gt 0 ]]; then
-        echo
-        echo "Failed to install the following tools: ${failed_tools[*]}"
-        echo "Please install them manually and run the script again"
+        log_error "Failed to install the following tools: ${failed_tools[*]}"
+        log_error "Please install them manually and run the script again"
         return 1
     fi
 
-    echo
-    echo "✓ All required tools installed successfully"
+    log_success "All required tools installed successfully"
     return 0
 }
 
@@ -481,13 +477,13 @@ install_missing_tools() {
 validate_system() {
     # Check if we're running as root (we shouldn't be)
     if [[ $EUID -eq 0 ]]; then
-        echo "Error: This script should not be run as root"
+        log_error "This script should not be run as root"
         return 1
     fi
     
     # Check if we have sudo access
     if ! sudo -n true 2>/dev/null && ! sudo -v; then
-        echo "Error: Sudo access is required but not available"
+        log_error "Sudo access is required but not available"
         return 1
     fi
 
@@ -507,14 +503,14 @@ validate_system() {
         check_internet && break
         ((count++))
         [[ $count -lt $retries ]] && {
-            echo "Internet connectivity check failed, retrying in 2 seconds... ($count/$retries)"
+            log_warn "Internet connectivity check failed, retrying in 2 seconds... ($count/$retries)"
             sleep 2
         }
     done
     
     if [[ $count -eq $retries ]]; then
-        echo "Error: No internet connectivity detected"
-        echo "Internet access is required for package installation"
+        log_error "No internet connectivity detected"
+        log_error "Internet access is required for package installation"
         return 1
     fi
 
@@ -523,8 +519,8 @@ validate_system() {
     local required_space=$((2 * 1024 * 1024))  # 2GB in KB
 
     if [[ $available_space -lt $required_space ]]; then
-        echo "Error: Insufficient disk space"
-        echo "Available: $(($available_space / 1024 / 1024))GB, Required: 2GB"
+        log_error "Insufficient disk space"
+        log_error "Available: $(($available_space / 1024 / 1024))GB, Required: 2GB"
         return 1
     fi
 
@@ -541,7 +537,7 @@ validate_system() {
 # Source this file to make functions available
 # This allows other scripts to use: source "$(dirname "$0")/core/common.sh"
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "This file should be sourced, not executed directly"
-    echo "Usage: source core/common.sh"
+    log_error "This file should be sourced, not executed directly"
+    log_error "Usage: source core/common.sh"
     exit 1
 fi

@@ -642,7 +642,7 @@ list_available_components() {
     echo "$components" | while read -r component; do
         local config_count
         config_count=$(get_component_config_structure "$component" | wc -l)
-        echo "  $component ($config_count configuration files)"
+        log_info "  $component ($config_count configuration files)"
     done
 }
 
@@ -663,7 +663,7 @@ show_component_details() {
         return 0
     fi
     
-    echo "Configuration mappings:"
+    log_info "Configuration mappings:"
     while IFS='|' read -r source_file target_path; do
         local status="NEW"
         if [[ -e "$target_path" ]]; then
@@ -682,7 +682,7 @@ show_component_details() {
         
         local relative_source="${source_file#$SCRIPT_DIR/}"
         local relative_target="${target_path#$HOME/}"
-        echo "  $relative_source -> ~/$relative_target [$status]"
+        log_info "  $relative_source -> ~/$relative_target [$status]"
     done < <(get_component_config_structure "$component")
 }
 
