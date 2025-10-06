@@ -25,15 +25,8 @@ arch_main_install() {
     
     log_info "Starting Arch Linux installation process..."
     
-    # Validate system requirements
-    if ! validate_arch_system; then
-        log_error "System validation failed"
-        return 1
-    fi
-    
     # Update system first
     if ! arch_update_system; then
-        log_error "Failed to update system"
         return 1
     fi
     
@@ -56,7 +49,7 @@ arch_main_install() {
     fi
     
     # Install base packages
-    if ! arch_install_base_packages "$use_minimal"; then
+    if ! arch_install_base_packages; then
         log_error "Failed to install base packages"
         return 1
     fi
@@ -66,7 +59,7 @@ arch_main_install() {
     
     # Ask user about optional package categories
     if ask_yes_no "Would you like to install gaming packages?"; then
-        user_preferences="$user_preferences,gaming"
+        user_preferences="gaming"
     fi
     
     # Install main package set with auto-detection
@@ -100,39 +93,6 @@ arch_main_install() {
     
     # Show summary
     arch_show_installation_summary "${selected_components[@]}"
-}
-
-# Validate Arch Linux system requirements
-validate_arch_system() {
-    log_info "Validating Arch Linux system..."
-    
-    # Check if running on Arch Linux
-    if ! grep -q "Arch Linux" /etc/os-release 2>/dev/null; then
-        log_error "This script is designed for Arch Linux"
-        return 1
-    fi
-    
-    # Check internet connectivity
-    if ! check_internet; then
-        log_error "Internet connection required"
-        return 1
-    fi
-    
-    # Check if pacman is available
-    if ! command -v pacman >/dev/null 2>&1; then
-        log_error "pacman package manager not found"
-        return 1
-    fi
-    
-    # Check available disk space (at least 5GB)
-    local available_space
-    available_space=$(df / | awk 'NR==2 {print $4}')
-    if [[ $available_space -lt 5242880 ]]; then  # 5GB in KB
-        log_warn "Low disk space detected (less than 5GB available)"
-    fi
-    
-    log_success "System validation passed"
-    return 0
 }
 
 # Update Arch Linux system

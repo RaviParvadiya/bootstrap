@@ -22,12 +22,6 @@ ubuntu_main_install() {
     
     log_info "Starting Ubuntu Hyprland environment installation..."
     
-    # Validate system requirements
-    if ! validate_ubuntu_system; then
-        log_error "System validation failed"
-        return 1
-    fi
-    
     # Update system first
     if ! ubuntu_update_system; then
         log_error "Failed to update system"
@@ -74,63 +68,6 @@ ubuntu_main_install() {
     
     # Show summary
     ubuntu_show_installation_summary "${selected_components[@]}"
-}
-
-# Validate Ubuntu system requirements
-validate_ubuntu_system() {
-    log_info "Validating Ubuntu system..."
-    
-    # Check if running on Ubuntu
-    if ! grep -q "Ubuntu" /etc/os-release 2>/dev/null; then
-        log_error "This script is designed for Ubuntu"
-        return 1
-    fi
-    
-    # Check Ubuntu version (minimum 20.04)
-    local ubuntu_version
-    ubuntu_version=$(grep "VERSION_ID" /etc/os-release | cut -d'"' -f2)
-    if [[ -n "$ubuntu_version" ]]; then
-        local major_version="${ubuntu_version%%.*}"
-        if [[ "$major_version" -lt 20 ]]; then
-            log_error "Ubuntu 20.04 or later is required (found: $ubuntu_version)"
-            return 1
-        fi
-        log_info "Ubuntu version: $ubuntu_version"
-    fi
-    
-    # Check internet connectivity
-    if ! check_internet; then
-        log_error "Internet connection required"
-        return 1
-    fi
-    
-    # Check if apt is available
-    if ! command -v apt >/dev/null 2>&1; then
-        log_error "apt package manager not found"
-        return 1
-    fi
-    
-    # Check available disk space (at least 10GB for Hyprland build)
-    local available_space
-    available_space=$(df / | awk 'NR==2 {print $4}')
-    if [[ $available_space -lt 10485760 ]]; then  # 10GB in KB
-        log_warn "Low disk space detected (less than 10GB available)"
-        log_warn "Hyprland compilation requires significant disk space"
-    fi
-    
-    # Check if we're in a desktop environment (warn about potential conflicts)
-    if [[ -n "$XDG_CURRENT_DESKTOP" ]]; then
-        log_warn "Existing desktop environment detected: $XDG_CURRENT_DESKTOP"
-        log_warn "Installing Hyprland may conflict with existing desktop environment"
-        
-        if ! ask_yes_no "Continue with installation?"; then
-            log_info "Installation cancelled by user"
-            return 1
-        fi
-    fi
-    
-    log_success "System validation passed"
-    return 0
 }
 
 # Update Ubuntu system
@@ -277,14 +214,8 @@ ubuntu_is_universe_enabled() {
 
 # Export main function for external use
 export -f ubuntu_main_install
-export -f validate_ubuntu_system
-export -f ubuntu_update_system
-export -f ubuntu_install_component
-export -f ubuntu_install_component_packages
 export -f ubuntu_configure_services
-export -f ubuntu_show_installation_summary
 export -f ubuntu_is_wayland_session
 export -f ubuntu_is_x11_session
 export -f ubuntu_get_codename
-export -f ubuntu_get_version
 export -f ubuntu_is_universe_enabled

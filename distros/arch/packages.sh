@@ -177,14 +177,9 @@ arch_install_packages_by_category() {
 }
 
 arch_install_base_packages() {
-    local use_minimal="${1:-true}"
     local base_packages
-    
-    if [[ "$use_minimal" == "true" ]]; then
-        base_packages=("git" "curl" "wget" "unzip" "tar")
-    else
-        base_packages=("base-devel" "git" "curl" "wget" "unzip" "tar" "gzip" "sudo" "which" "man-db" "man-pages")
-    fi
+
+    base_packages=("base-devel" "git" "curl" "wget" "unzip" "tar" "gzip" "sudo" "which")
     
     arch_install_pacman_packages "${base_packages[@]}"
 }
@@ -317,11 +312,8 @@ arch_install_packages_auto() {
     arch_is_vm && conditions+=("vm")
     arch_is_asus_hardware && conditions+=("asus")
     
-    if [[ -n "$user_preferences" ]]; then
-        IFS=',' read -ra user_prefs <<< "$user_preferences"
-        conditions+=("${user_prefs[@]}")
-    fi
-    
+    [[ -n "$user_preferences" ]] && conditions+=("$user_preferences")
+
     local conditions_str="${conditions[*]}"
     log_info "Auto-detected conditions: $conditions_str"
     

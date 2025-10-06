@@ -26,6 +26,21 @@ CURRENT_BACKUP_DIR=""
 # Dotfiles Discovery Functions
 #######################################
 
+# Map directory names back to component names
+# Arguments: $1 - directory name
+map_directory_to_component() {
+    local dir_name="$1"
+    
+    case "$dir_name" in
+        "zshrc")
+            echo "zsh"
+            ;;
+        *)
+            echo "$dir_name"
+            ;;
+    esac
+}
+
 # Discover all available dotfiles configurations
 discover_dotfiles_components() {
     local components=()
@@ -39,15 +54,16 @@ discover_dotfiles_components() {
     
     # Find all component directories (exclude hidden files and scripts)
     while IFS= read -r -d '' dir; do
-        local component_name
-        component_name=$(basename "$dir")
+        local dir_name component_name
+        dir_name=$(basename "$dir")
         
         # Skip non-component files and directories
-        case "$component_name" in
+        case "$dir_name" in
             ".*"|".git"|"install.sh"|"update.sh"|"README.md"|"TODO.txt"|"pkglist-"*|"banner")
                 continue
                 ;;
             *)
+                component_name=$(map_directory_to_component "$dir_name")
                 components+=("$component_name")
                 ;;
         esac
@@ -63,11 +79,28 @@ discover_dotfiles_components() {
     return 0
 }
 
+# Map component names to actual directory names
+# Arguments: $1 - component name
+map_component_to_directory() {
+    local component="$1"
+    
+    case "$component" in
+        "zsh")
+            echo "zshrc"
+            ;;
+        *)
+            echo "$component"
+            ;;
+    esac
+}
+
 # Get component configuration structure
 # Arguments: $1 - component name
 get_component_config_structure() {
     local component="$1"
-    local component_dir="$DOTFILES_DIR/$component"
+    local actual_component
+    actual_component=$(map_component_to_directory "$component")
+    local component_dir="$DOTFILES_DIR/$actual_component"
     
     if [[ -z "$component" ]]; then
         log_error "Component name is required"
