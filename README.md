@@ -56,11 +56,7 @@ chmod +x install.sh
 # Install all available components
 ./install.sh --all
 
-# VM-safe mode (skips hardware-specific configs)
-./install.sh --test
 
-# Verbose output
-./install.sh --verbose
 ```
 
 ### Available Commands
@@ -89,14 +85,14 @@ Dependencies are automatically resolved during selection.
 ### Arch Linux
 
 - **Full Installation**: Complete system setup from base installation
-- **Package Management**: Pacman + AUR (yay/paru)
+- **Package Management**: Pacman + AUR (yay)
 - **Repository Setup**: Multilib, Chaotic-AUR
 - **Hardware Support**: Full NVIDIA and ASUS TUF support
 
 ### Ubuntu
 
 - **Environment Installation**: Hyprland desktop environment setup
-- **Package Management**: APT + Snap + Flatpak
+- **Package Management**: APT
 - **Hyprland**: Built from source with all dependencies
 - **Hardware Support**: Basic NVIDIA driver installation
 
@@ -135,11 +131,6 @@ Automatic backup creation before making changes:
 
 ### VM Testing
 
-Safe testing in virtual machines:
-```bash
-./install.sh --test
-```
-- Skips hardware-specific configurations
 - VM-optimized package selection
 - Guest agent installation
 
@@ -237,11 +228,7 @@ sudo systemctl enable bluetooth
 git clone <repository-url>
 cd modular-install-framework
 
-# 2. Test in VM-safe mode
-./install.sh --test --dry-run
-
-# 3. Run actual installation in VM
-./install.sh --test
+# 2. Run actual installation
 
 # 4. Validate the installation
 ./install.sh validate
@@ -256,8 +243,8 @@ cd modular-install-framework
 # 2. Install everything at once
 ./install.sh --all
 
-# 3. Or install everything in VM-safe mode
-./install.sh --all --test
+# 3. Or install everything
+
 
 # 4. Validate the complete installation
 ./install.sh validate
@@ -303,12 +290,10 @@ EOF
 Customize behavior with environment variables:
 
 ```bash
-# Enable verbose logging
-export VERBOSE=true
 ./install.sh
 
 # Use specific AUR helper
-export AUR_HELPER=paru
+export AUR_HELPER=yay
 ./install.sh
 
 # Skip hardware detection
@@ -469,9 +454,6 @@ systemctl list-units --failed
 **Problem**: Installation fails in virtual machine
 **Solutions**:
 ```bash
-# Always use VM mode in virtual machines
-./install.sh --test
-
 # Install VM guest additions first
 # VirtualBox:
 sudo pacman -S virtualbox-guest-utils  # Arch
@@ -508,7 +490,7 @@ pacman -Qm  # AUR packages
 
 # Ubuntu:
 dpkg -l | wc -l
-snap list
+apt list --installed | wc -l
 ```
 
 ### Log Files and Debugging
@@ -522,8 +504,7 @@ snap list
 #### Enabling Debug Mode
 
 ```bash
-# Maximum verbosity
-./install.sh --verbose --dry-run
+# Debug specific component
 
 # Debug specific component
 DEBUG=true ./install.sh --components terminal
@@ -535,9 +516,8 @@ tail -f /tmp/modular-install-*.log
 ### Getting Help
 
 1. **Check the logs**: Always start with the log files for detailed error information
-2. **Use dry-run mode**: Preview operations with `--dry-run` to identify issues
-3. **Test in VM**: Use `--test` mode in a virtual machine for safe testing
-4. **Consult TESTING.md**: Detailed testing procedures and safety guidelines
+2. **Check logs**: Review log files for detailed error information
+4. **Use validate command**: Use `./install.sh validate` to check installation status
 5. **Check component status**: Use `./install.sh validate` to check installation status
 6. **Community support**: Check the project's issue tracker or community forums
 
@@ -578,7 +558,7 @@ rm -rf ~/.config/hypr
 ### User Documentation
 
 - **[README.md](README.md)** - Main installation and usage guide
-- **[TESTING.md](TESTING.md)** - Safety testing procedures and VM setup
+
 - **[docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md)** - Comprehensive usage examples and troubleshooting
 
 ### Developer Documentation
@@ -594,11 +574,9 @@ rm -rf ~/.config/hypr
 ```
 ├── install.sh              # Main entry point
 ├── README.md               # Main documentation
-├── TESTING.md              # Testing procedures
 ├── core/                   # Core utilities
-│   ├── common.sh           # Shared functions
+│   ├── common.sh           # Shared functions & system validation
 │   ├── logger.sh           # Logging system
-│   ├── validator.sh        # System validation
 │   └── menu.sh             # Interactive menus
 ├── distros/               # Distribution-specific modules
 │   ├── arch/              # Arch Linux support
@@ -623,7 +601,7 @@ rm -rf ~/.config/hypr
 2. **Add comprehensive logging** - Use the logging functions from `core/logger.sh`
 3. **Support both Arch and Ubuntu** - Test on both distributions
 4. **Include dry-run mode support** - All functions should respect `$DRY_RUN`
-5. **Test in VM environments** - Use `--test` flag for VM-safe testing
+5. **Test in safe environments** - Use validation commands for testing
 6. **Document functions** - Follow the patterns in `docs/FUNCTION_REFERENCE.md`
 7. **Add usage examples** - Include examples in function documentation
 

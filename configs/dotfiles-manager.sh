@@ -3,7 +3,6 @@
 # configs/dotfiles-manager.sh - Dotfiles management module
 # This module handles symlink creation, configuration file discovery,
 # conflict resolution, and backup creation for dotfiles management.
-# Requirements: 7.1, 7.2, 7.3
 
 # Prevent multiple sourcing
 if [[ -n "${DOTFILES_MANAGER_SOURCED:-}" ]]; then
@@ -28,8 +27,6 @@ CURRENT_BACKUP_DIR=""
 #######################################
 
 # Discover all available dotfiles configurations
-# Returns: Echoes list of available components
-# Requirements: 7.1 - Configuration file discovery from existing dotfiles repository
 discover_dotfiles_components() {
     local components=()
     
@@ -68,7 +65,6 @@ discover_dotfiles_components() {
 
 # Get component configuration structure
 # Arguments: $1 - component name
-# Returns: Echoes configuration paths and their target locations
 get_component_config_structure() {
     local component="$1"
     local component_dir="$DOTFILES_DIR/$component"
@@ -108,7 +104,6 @@ get_component_config_structure() {
 
 # Check if component has configurations
 # Arguments: $1 - component name
-# Returns: 0 if has configs, 1 if no configs
 has_configurations() {
     local component="$1"
     local config_count
@@ -122,8 +117,6 @@ has_configurations() {
 #######################################
 
 # Initialize backup directory for current session
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.3 - Backup creation for existing configurations
 init_backup_session() {
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
@@ -145,7 +138,6 @@ init_backup_session() {
 
 # Create backup of existing file or directory
 # Arguments: $1 - source path to backup
-# Returns: 0 if successful, 1 if failed
 create_backup() {
     local source_path="$1"
     local backup_path
@@ -208,7 +200,6 @@ create_backup() {
 }
 
 # List all backup sessions
-# Returns: Echoes list of backup directories
 list_backup_sessions() {
     if [[ ! -d "$BACKUP_BASE_DIR" ]]; then
         log_info "No backup sessions found"
@@ -220,7 +211,6 @@ list_backup_sessions() {
 
 # Restore from backup session
 # Arguments: $1 - backup session directory, $2 - specific file (optional)
-# Returns: 0 if successful, 1 if failed
 restore_from_backup() {
     local backup_session="$1"
     local specific_file="$2"
@@ -281,8 +271,6 @@ restore_from_backup() {
 
 # Check for configuration conflicts
 # Arguments: $1 - component name
-# Returns: 0 if no conflicts, 1 if conflicts found
-# Requirements: 7.3 - Conflict resolution
 check_config_conflicts() {
     local component="$1"
     local conflicts=()
@@ -324,7 +312,6 @@ check_config_conflicts() {
 
 # Resolve configuration conflicts interactively
 # Arguments: $1 - component name
-# Returns: 0 if resolved, 1 if user cancelled
 resolve_config_conflicts() {
     local component="$1"
     local resolution_strategy=""
@@ -383,7 +370,6 @@ resolve_config_conflicts() {
 
 # Create symlink with conflict handling
 # Arguments: $1 - source file, $2 - target path, $3 - conflict resolution strategy
-# Returns: 0 if successful, 1 if failed or skipped
 create_managed_symlink() {
     local source_file="$1"
     local target_path="$2"
@@ -475,7 +461,6 @@ create_managed_symlink() {
 
 # Remove symlinks for a component
 # Arguments: $1 - component name
-# Returns: 0 if successful, 1 if failed
 remove_component_symlinks() {
     local component="$1"
     local removed_count=0
@@ -530,8 +515,6 @@ remove_component_symlinks() {
 
 # Apply configurations for a specific component
 # Arguments: $1 - component name
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Symlink creation and configuration management
 apply_component_configs() {
     local component="$1"
     local resolution="${CONFLICT_RESOLUTION:-backup}"
@@ -582,7 +565,6 @@ apply_component_configs() {
 
 # Apply configurations for multiple components
 # Arguments: Array of component names
-# Returns: 0 if all successful, 1 if any failed
 apply_multiple_components() {
     local components=("$@")
     local failed_components=()
@@ -626,7 +608,6 @@ apply_multiple_components() {
 
 # Remove configurations for a component
 # Arguments: $1 - component name
-# Returns: 0 if successful, 1 if failed
 remove_component_configs() {
     local component="$1"
     
@@ -661,7 +642,7 @@ list_available_components() {
     echo "$components" | while read -r component; do
         local config_count
         config_count=$(get_component_config_structure "$component" | wc -l)
-        echo "  $component ($config_count configuration files)"
+        log_info "  $component ($config_count configuration files)"
     done
 }
 
@@ -682,7 +663,7 @@ show_component_details() {
         return 0
     fi
     
-    echo "Configuration mappings:"
+    log_info "Configuration mappings:"
     while IFS='|' read -r source_file target_path; do
         local status="NEW"
         if [[ -e "$target_path" ]]; then
@@ -701,7 +682,7 @@ show_component_details() {
         
         local relative_source="${source_file#$SCRIPT_DIR/}"
         local relative_target="${target_path#$HOME/}"
-        echo "  $relative_source -> ~/$relative_target [$status]"
+        log_info "  $relative_source -> ~/$relative_target [$status]"
     done < <(get_component_config_structure "$component")
 }
 
@@ -824,7 +805,6 @@ main() {
 
 # Main dotfiles management function called by install.sh
 # Arguments: Array of component names
-# Returns: 0 if successful, 1 if failed
 manage_dotfiles() {
     local components=("$@")
     
@@ -854,3 +834,66 @@ manage_dotfiles() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
+
+# Simple safe symlink creation
+create_symlink_safe() {
+    local source="$1"
+    local destination="$2"
+    local force="${3:-false}"
+    
+    if [[ -z "$source" || -z "$destination" ]]; then
+        fail "create_symlink_safe" "Source and destination are required"
+        return 1
+    fi
+    
+    if [[ ! -e "$source" ]]; then
+        fail "create_symlink_safe" "Source does not exist: $source"
+        return 1
+    fi
+    
+    # Create destination directory if needed
+    local dest_dir
+    dest_dir=$(dirname "$destination")
+    if [[ ! -d "$dest_dir" ]]; then
+        mkdir -p "$dest_dir" || {
+            fail "create_symlink_safe" "Failed to create directory: $dest_dir"
+            return 1
+        }
+    fi
+    
+    # Handle existing destination
+    if [[ -e "$destination" || -L "$destination" ]]; then
+        if [[ -L "$destination" ]]; then
+            local current_target
+            current_target=$(readlink "$destination")
+            if [[ "$current_target" == "$source" ]]; then
+                log_info "Symlink already exists and is correct: $destination"
+                return 0
+            fi
+        fi
+        
+        if [[ "$force" == "true" ]]; then
+            rm -f "$destination" || {
+                fail "create_symlink_safe" "Failed to remove existing file: $destination"
+                return 1
+            }
+        else
+            fail "create_symlink_safe" "Destination already exists (use force=true to overwrite): $destination"
+            return 1
+        fi
+    fi
+    
+    # Create the symlink
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would create symlink: $destination -> $source"
+    else
+        if ln -s "$source" "$destination"; then
+            log_success "Symlink created successfully: $destination -> $source"
+        else
+            fail "create_symlink_safe" "Failed to create symlink: $destination -> $source"
+            return 1
+        fi
+    fi
+    
+    return 0
+}

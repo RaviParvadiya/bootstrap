@@ -2,7 +2,6 @@
 
 # Arch Linux Service Management
 # Handles systemd service configuration without auto-enabling
-# Requirements: 3.1, 3.2, 3.3, 3.4 - Service management with no-auto-start policy
 
 # Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
@@ -13,7 +12,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/service-manager.sh"
 
 # Configure services for installed components (but don't enable them)
-# Requirements: 3.1 - Service management functions that respect no-auto-start requirement
 arch_configure_services() {
     local components=("$@")
     

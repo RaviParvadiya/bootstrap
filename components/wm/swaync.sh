@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of SwayNC notification daemon
 # with proper dotfiles integration, theme support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly SWAYNC_COMPONENT_NAME="swaync"
@@ -42,8 +41,6 @@ declare -A SWAYNC_BUILD_DEPS=(
 #######################################
 
 # Check if SwayNC is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_swaync_installed() {
     if command -v swaync >/dev/null 2>&1; then
         return 0
@@ -68,7 +65,6 @@ is_swaync_installed() {
 }
 
 # Install SwayNC packages for Arch Linux
-# Returns: 0 if successful, 1 if failed
 install_swaync_arch() {
     log_info "Installing SwayNC packages for Arch Linux..."
     
@@ -104,7 +100,6 @@ install_swaync_arch() {
 }
 
 # Build and install SwayNC from source for Ubuntu
-# Returns: 0 if successful, 1 if failed
 install_swaync_ubuntu() {
     log_info "Building SwayNC from source for Ubuntu..."
     
@@ -183,8 +178,6 @@ install_swaync_ubuntu() {
 }
 
 # Install SwayNC packages based on distribution
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_swaync_packages() {
     local distro
     distro=$(get_distro)
@@ -204,8 +197,6 @@ install_swaync_packages() {
 }
 
 # Configure SwayNC with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_swaync() {
     log_info "Configuring SwayNC notification daemon..."
     
@@ -257,7 +248,6 @@ configure_swaync() {
 }
 
 # Validate SwayNC configuration files
-# Returns: 0 if valid, 1 if invalid
 validate_swaync_config() {
     log_info "Validating SwayNC configuration..."
     
@@ -303,7 +293,6 @@ validate_swaync_config() {
 }
 
 # Setup SwayNC systemd service
-# Returns: 0 if successful, 1 if failed
 setup_swaync_service() {
     log_info "Setting up SwayNC systemd user service..."
     
@@ -353,7 +342,6 @@ WantedBy=graphical-session.target"
 }
 
 # Enable SwayNC service
-# Returns: 0 if successful, 1 if failed
 enable_swaync_service() {
     log_info "Enabling SwayNC systemd service..."
     
@@ -373,7 +361,6 @@ enable_swaync_service() {
 }
 
 # Start SwayNC service
-# Returns: 0 if successful, 1 if failed
 start_swaync_service() {
     log_info "Starting SwayNC service..."
     
@@ -393,7 +380,6 @@ start_swaync_service() {
 }
 
 # Test SwayNC functionality
-# Returns: 0 if successful, 1 if failed
 test_swaync_functionality() {
     log_info "Testing SwayNC functionality..."
     
@@ -420,8 +406,6 @@ test_swaync_functionality() {
 }
 
 # Validate SwayNC installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_swaync_installation() {
     log_info "Validating SwayNC installation..."
     
@@ -468,8 +452,6 @@ validate_swaync_installation() {
 #######################################
 
 # Main SwayNC installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_swaync() {
     log_section "Installing SwayNC Notification Daemon"
     
@@ -533,7 +515,6 @@ install_swaync() {
 }
 
 # Uninstall SwayNC (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_swaync() {
     log_info "Uninstalling SwayNC..."
     
@@ -579,12 +560,5 @@ uninstall_swaync() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_swaync
-    export -f configure_swaync
-    export -f is_swaync_installed
-    export -f validate_swaync_installation
-    export -f uninstall_swaync
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_swaync configure_swaync is_swaync_installed

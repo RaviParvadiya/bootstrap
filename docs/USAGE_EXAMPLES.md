@@ -145,12 +145,11 @@ EOF
 # Create environment configuration
 cat > ~/.config/modular-install/environment << EOF
 # Framework behavior
-export VERBOSE=true
-export DRY_RUN=false
+
 export BACKUP_CONFIGS=true
 
 # Package manager preferences
-export AUR_HELPER=paru  # or yay
+export AUR_HELPER=yay
 export PARALLEL_DOWNLOADS=5
 
 # Hardware detection
@@ -212,13 +211,8 @@ sudo systemctl enable optimus-manager
 ./install.sh --components wm,terminal,shell,editor,dev-tools
 
 # Additional Ubuntu-specific setup
-# Install snap packages
-sudo snap install code discord
-
-# Install flatpak applications
-sudo apt install flatpak
-sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install flathub org.mozilla.firefox
+# Install additional applications via APT
+sudo apt install code firefox
 ```
 
 #### Hyprland-Only Installation
@@ -337,24 +331,22 @@ EOF
 ### Comprehensive Testing Workflow
 
 ```bash
-# Step 1: Test in dry-run mode
-./install.sh --dry-run --verbose > test-output.log 2>&1
+# Step 1: Run installation
+./install.sh > install-output.log 2>&1
 
-# Step 2: Review what would be installed
+# Step 2: Review installation results
 less test-output.log
 
-# Step 3: Test in VM environment
-# (In virtual machine)
-./install.sh --test --dry-run
+# Step 3: Run installation
 
-# Step 4: Run actual installation in VM
-./install.sh --test
+# Step 4: Run actual installation
+./install.sh
 
 # Step 5: Validate installation
 ./install.sh validate
 
-# Step 6: Test specific components
-./install.sh --components terminal --test
+# Step 6: Install specific components
+./install.sh --components terminal
 ```
 
 ### Backup and Recovery Testing
@@ -378,8 +370,8 @@ less test-output.log
 ```bash
 # Test each component individually
 for component in terminal shell editor wm dev-tools; do
-    echo "Testing component: $component"
-    ./install.sh --components $component --test --dry-run
+    echo "Installing component: $component"
+    ./install.sh --components $component
     echo "---"
 done
 
@@ -535,7 +527,7 @@ export GBM_BACKEND=nvidia-drm
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
 # Check Hyprland configuration
-hyprland --config ~/.config/hypr/hyprland.conf --verbose
+hyprland --config ~/.config/hypr/hyprland.conf
 
 # Reset to default configuration
 mv ~/.config/hypr ~/.config/hypr.backup
@@ -701,4 +693,4 @@ sudo ip addr add 192.168.1.100/24 dev eth0
 sudo ip route add default via 192.168.1.1
 ```
 
-This comprehensive guide covers most common scenarios and issues you might encounter. For additional help, consult the main README.md and TESTING.md files, or check the project's issue tracker.
+This comprehensive guide covers most common scenarios and issues you might encounter. For additional help, consult the main README.md file, or check the project's issue tracker.

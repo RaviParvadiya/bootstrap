@@ -2,7 +2,6 @@
 
 # configs/backup.sh - Configuration backup utilities
 # This module provides timestamp-based backup directory creation and selective backup capabilities
-# Requirements: 6.2, 10.2
 
 # Prevent multiple sourcing
 if [[ -n "${BACKUP_UTILS_SOURCED:-}" ]]; then
@@ -28,8 +27,6 @@ BACKUP_INDEX_FILE="backup_index.json"
 
 # Create a new backup session with timestamp
 # Arguments: $1 - session name (optional, defaults to 'system')
-# Returns: Echoes backup session directory path
-# Requirements: 6.2 - Create backups of existing configurations before making changes
 create_backup_session() {
     local session_name="${1:-system}"
     local timestamp
@@ -67,7 +64,6 @@ EOF
 
 # Get the latest backup session for a given name
 # Arguments: $1 - session name (optional, defaults to 'system')
-# Returns: Echoes latest backup session directory path
 get_latest_backup_session() {
     local session_name="${1:-system}"
     
@@ -91,7 +87,6 @@ get_latest_backup_session() {
 
 # List all backup sessions
 # Arguments: $1 - session name filter (optional)
-# Returns: Echoes list of backup sessions with metadata
 list_backup_sessions() {
     local session_filter="$1"
     local pattern="*"
@@ -161,7 +156,6 @@ list_backup_sessions() {
 
 # Backup a single file or directory
 # Arguments: $1 - source path, $2 - backup session directory, $3 - relative backup path (optional)
-# Returns: 0 if successful, 1 if failed
 backup_path() {
     local source_path="$1"
     local session_dir="$2"
@@ -240,7 +234,6 @@ backup_path() {
 
 # Backup multiple paths to a session
 # Arguments: $1 - session directory, $@ - list of paths to backup
-# Returns: 0 if all successful, 1 if any failed
 backup_multiple_paths() {
     local session_dir="$1"
     shift
@@ -293,7 +286,6 @@ backup_multiple_paths() {
 
 # Backup configurations for a specific component
 # Arguments: $1 - component name, $2 - session directory
-# Returns: 0 if successful, 1 if failed
 backup_component_configs() {
     local component="$1"
     local session_dir="$2"
@@ -359,7 +351,6 @@ backup_component_configs() {
 
 # Backup configurations for multiple components
 # Arguments: $1 - session directory, $@ - list of component names
-# Returns: 0 if all successful, 1 if any failed
 backup_multiple_components() {
     local session_dir="$1"
     shift
@@ -410,7 +401,6 @@ backup_multiple_components() {
 
 # Backup common system configuration files
 # Arguments: $1 - session directory
-# Returns: 0 if successful, 1 if failed
 backup_system_configs() {
     local session_dir="$1"
     
@@ -471,7 +461,6 @@ backup_system_configs() {
 
 # Create a system backup (wrapper for create_full_system_backup)
 # Arguments: $1 - session name (optional)
-# Returns: 0 if successful, 1 if failed
 create_system_backup() {
     local session_name="${1:-system}"
     create_full_system_backup "$session_name"
@@ -479,7 +468,6 @@ create_system_backup() {
 
 # Create a backup for a specific component configuration
 # Arguments: $1 - component name
-# Returns: 0 if successful, 1 if failed
 create_config_backup() {
     local component="$1"
     
@@ -508,7 +496,6 @@ create_config_backup() {
 
 # Create a full system backup
 # Arguments: $1 - session name (optional)
-# Returns: 0 if successful, 1 if failed
 create_full_system_backup() {
     local session_name="${1:-full_system}"
     
@@ -548,7 +535,6 @@ create_full_system_backup() {
 
 # Validate backup session integrity
 # Arguments: $1 - session directory
-# Returns: 0 if valid, 1 if invalid
 validate_backup_session() {
     local session_dir="$1"
     
@@ -585,7 +571,6 @@ validate_backup_session() {
 
 # Clean up old backup sessions
 # Arguments: $1 - number of sessions to keep (default: 5), $2 - session name pattern (optional)
-# Returns: 0 if successful, 1 if failed
 cleanup_old_backups() {
     local keep_count="${1:-5}"
     local session_pattern="${2:-*}"

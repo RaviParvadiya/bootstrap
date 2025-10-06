@@ -24,12 +24,8 @@ declare -g COMPONENT_METADATA_FILE="data/component-deps.json"
 load_component_metadata() {
     local metadata_file="$1"
     
-    if [[ ! -f "$metadata_file" ]]; then
-        log_error "Component metadata file not found: $metadata_file"
-        return 1
-    fi
+    [[ ! -f "$metadata_file" ]] && { log_error "Component metadata file not found: $metadata_file"; return 1; }
     
-    # Check if jq is available
     if ! command -v jq &> /dev/null; then
         log_error "jq is required for parsing component metadata"
         log_info "Please install jq: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
@@ -38,44 +34,31 @@ load_component_metadata() {
     
     log_info "Loading component metadata from $metadata_file..."
     
-    # Parse JSON and populate arrays
-    local components
-    components=$(jq -r '.components | keys[]' "$metadata_file" 2>/dev/null)
-    
-    if [[ $? -ne 0 ]]; then
+    local components distro
+    components=$(jq -r '.components | keys[]' "$metadata_file" 2>/dev/null) || {
         log_error "Failed to parse component metadata JSON"
         return 1
-    fi
+    }
+    
+    distro=$(detect_distro)
     
     while IFS= read -r component; do
         [[ -z "$component" ]] && continue
         
         # Load component description
-        local description
-        description=$(jq -r ".components.\"$component\".description // \"No description available\"" "$metadata_file")
-        COMPONENTS["$component"]="$description"
+        COMPONENTS["$component"]=$(jq -r ".components.\"$component\".description // \"No description available\"" "$metadata_file")
         
         # Load dependencies
-        local deps
-        deps=$(jq -r ".components.\"$component\".dependencies[]? // empty" "$metadata_file" | tr '\n' ' ')
-        COMPONENT_DEPS["$component"]="${deps% }"  # Remove trailing space
+        COMPONENT_DEPS["$component"]=$(jq -r ".components.\"$component\".dependencies[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
         
         # Load conflicts
-        local conflicts
-        conflicts=$(jq -r ".components.\"$component\".conflicts[]? // empty" "$metadata_file" | tr '\n' ' ')
-        COMPONENT_CONFLICTS["$component"]="${conflicts% }"  # Remove trailing space
+        COMPONENT_CONFLICTS["$component"]=$(jq -r ".components.\"$component\".conflicts[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
         
         # Load options (if any)
-        local options
-        options=$(jq -r ".components.\"$component\".options[]? // empty" "$metadata_file" | tr '\n' ' ')
-        COMPONENT_OPTIONS["$component"]="${options% }"  # Remove trailing space
+        COMPONENT_OPTIONS["$component"]=$(jq -r ".components.\"$component\".options[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
         
         # Load packages for current distribution
-        local distro
-        distro=$(detect_distro)
-        local packages
-        packages=$(jq -r ".components.\"$component\".packages.\"$distro\"[]? // empty" "$metadata_file" | tr '\n' ' ')
-        COMPONENT_PACKAGES["$component"]="${packages% }"  # Remove trailing space
+        COMPONENT_PACKAGES["$component"]=$(jq -r ".components.\"$component\".packages.\"$distro\"[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
         
     done <<< "$components"
     
@@ -85,19 +68,13 @@ load_component_metadata() {
 
 # Display component selection menu
 select_components() {
-    # Load component metadata first
-    if ! load_component_metadata "$COMPONENT_METADATA_FILE"; then
-        log_error "Failed to load component metadata"
-        return 1
-    fi
+    load_component_metadata "$COMPONENT_METADATA_FILE" || { log_error "Failed to load component metadata"; return 1; }
     
     log_section "Component Selection"
-    
     echo "Select components to install (use space to toggle, enter to confirm, 'd' for details):"
     echo
     
-    local options=()
-    local selected=()
+    local options=() selected=() current=0 show_details=false
     
     # Build options array from loaded metadata
     for component in "${!COMPONENTS[@]}"; do
@@ -110,39 +87,29 @@ select_components() {
     unset IFS
     
     # Interactive selection
-    local current=0
-    local key
-    local show_details=false
-    
     while true; do
         # Clear screen and display menu
         clear
         echo "=== Component Selection ==="
-        echo
         echo "Use arrow keys to navigate, space to toggle, 'd' for details, enter to confirm:"
         echo
         
         # Display options
         for i in "${!options[@]}"; do
             local component="${options[$i]}"
-            local description="${COMPONENTS[$component]}"
             local status="[ ]"
             
             # Check if selected
-            if [[ "${selected[$i]}" == "true" ]]; then
-                status="[x]"
-            fi
+            [[ "${selected[$i]}" == "true" ]] && status="[x]"
             
             # Highlight current option
             if [[ $i -eq $current ]]; then
-                echo -e "${CYAN}> $status $component - $description${NC}"
+                echo -e "${CYAN}> $status $component - ${COMPONENTS[$component]}${NC}"
                 
                 # Show component details if requested
-                if [[ "$show_details" == "true" ]]; then
-                    show_component_details "$component"
-                fi
+                [[ "$show_details" == "true" ]] && show_component_details "$component"
             else
-                echo "  $status $component - $description"
+                echo "  $status $component - ${COMPONENTS[$component]}"
             fi
         done
         
@@ -153,9 +120,8 @@ select_components() {
         show_details=false
         
         # Read key input
-	    # Disable IFS splitting here to capture space/Enter keys correctly
+        # Disable IFS splitting here to capture space/Enter keys correctly
         IFS= read -rsn1 key
-        
         case "$key" in
             $'\x1b')  # Escape sequence
                 IFS= read -rsn2 key
@@ -169,11 +135,7 @@ select_components() {
                 esac
                 ;;
             ' ')  # Space - toggle selection
-                if [[ "${selected[$current]}" == "true" ]]; then
-                    selected[$current]="false"
-                else
-                    selected[$current]="true"
-                fi
+                selected[$current]=$([[ "${selected[$current]}" == "true" ]] && echo "false" || echo "true")
                 ;;
             'd'|'D')  # Show details
                 show_details=true
@@ -191,21 +153,10 @@ select_components() {
     # Build selected components list
     SELECTED_COMPONENTS=()
     for i in "${!options[@]}"; do
-        if [[ "${selected[$i]}" == "true" ]]; then
-            SELECTED_COMPONENTS+=("${options[$i]}")
-        fi
+        [[ "${selected[$i]}" == "true" ]] && SELECTED_COMPONENTS+=("${options[$i]}")
     done
     
-    # Check for conflicts before resolving dependencies
-    if ! check_conflicts; then
-        return 1
-    fi
-    
-    # Resolve dependencies
-    resolve_dependencies
-    
-    # Display final selection
-    display_selection_summary
+    check_conflicts && resolve_dependencies && display_selection_summary
 }
 
 # Show detailed information about a component
@@ -214,37 +165,17 @@ show_component_details() {
     
     echo
     echo -e "${YELLOW}--- Component Details: $component ---${NC}"
-    
-    # Description
     echo "Description: ${COMPONENTS[$component]}"
+    echo "Dependencies: ${COMPONENT_DEPS[$component]:-None}"
     
-    # Dependencies
-    local deps="${COMPONENT_DEPS[$component]:-}"
-    if [[ -n "$deps" ]]; then
-        echo "Dependencies: $deps"
-    else
-        echo "Dependencies: None"
-    fi
-    
-    # Conflicts
     local conflicts="${COMPONENT_CONFLICTS[$component]:-}"
-    if [[ -n "$conflicts" ]]; then
-        echo -e "${RED}Conflicts with: $conflicts${NC}"
-    fi
+    [[ -n "$conflicts" ]] && echo -e "${RED}Conflicts with: $conflicts${NC}"
     
-    # Options (if any)
     local options="${COMPONENT_OPTIONS[$component]:-}"
-    if [[ -n "$options" ]]; then
-        echo "Available options: $options"
-    fi
+    [[ -n "$options" ]] && echo "Available options: $options"
     
-    # Packages
     local packages="${COMPONENT_PACKAGES[$component]:-}"
-    if [[ -n "$packages" ]]; then
-        echo "Packages: $packages"
-    else
-        echo "Packages: None (configuration only)"
-    fi
+    echo "Packages: ${packages:-None (configuration only)}"
     
     echo -e "${YELLOW}--- End Details ---${NC}"
     echo
@@ -252,9 +183,7 @@ show_component_details() {
 
 # Resolve component dependencies
 resolve_dependencies() {
-    local resolved=()
-    local to_process=("${SELECTED_COMPONENTS[@]}")
-    local added_deps=()
+    local resolved=() to_process=("${SELECTED_COMPONENTS[@]}") added_deps=()
     
     log_info "Resolving component dependencies..."
     
@@ -264,24 +193,20 @@ resolve_dependencies() {
         to_process=("${to_process[@]:1}")  # Remove first element
         
         # Skip if already resolved
-        if [[ " ${resolved[*]} " =~ " $component " ]]; then
-            continue
-        fi
+        [[ " ${resolved[*]} " =~ " $component " ]] && continue
         
         # Add component to resolved list
         resolved+=("$component")
         
         # Add dependencies to processing queue
         local deps="${COMPONENT_DEPS[$component]:-}"
-        if [[ -n "$deps" ]]; then
-            for dep in $deps; do
-                if [[ ! " ${resolved[*]} " =~ " $dep " ]] && [[ ! " ${to_process[*]} " =~ " $dep " ]]; then
-                    to_process+=("$dep")
-                    added_deps+=("$dep")
-                    log_info "Added dependency: $dep (required by $component)"
-                fi
-            done
-        fi
+        [[ -n "$deps" ]] && for dep in $deps; do
+            if [[ ! " ${resolved[*]} " =~ " $dep " ]] && [[ ! " ${to_process[*]} " =~ " $dep " ]]; then
+                to_process+=("$dep")
+                added_deps+=("$dep")
+                log_info "Added dependency: $dep (required by $component)"
+            fi
+        done
     done
     
     # Update selected components with resolved dependencies
@@ -294,7 +219,6 @@ resolve_dependencies() {
         for dep in "${added_deps[@]}"; do
             echo "  - $dep: ${COMPONENTS[$dep]}"
         done
-        echo
     fi
 }
 
@@ -305,24 +229,16 @@ display_selection_summary() {
     
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
         log_warn "No components selected for installation"
-        if ask_yes_no "Continue anyway?"; then
-            return 0
-        else
-            log_info "Installation cancelled"
-            exit 0
-        fi
+        ask_yes_no "Continue anyway?" || { log_info "Installation cancelled"; exit 0; }
+        return 0
     fi
     
-    echo "The following components will be installed:"
-    echo
+    log_info "The following components will be installed:"
     
     # Calculate total packages
     local total_packages=0
-    local distro
-    distro=$(detect_distro)
     
     for component in "${SELECTED_COMPONENTS[@]}"; do
-        local description="${COMPONENTS[$component]}"
         local packages="${COMPONENT_PACKAGES[$component]:-}"
         local package_count=0
         
@@ -331,18 +247,14 @@ display_selection_summary() {
             total_packages=$((total_packages + package_count))
         fi
         
-        echo -e "  ${GREEN}✓${NC} $component - $description"
+        echo -e "  ${GREEN}✓${NC} $component - ${COMPONENTS[$component]}"
         
         # Show package count if any
-        if [[ $package_count -gt 0 ]]; then
-            echo "    Packages ($package_count): $packages"
-        fi
+        [[ $package_count -gt 0 ]] && echo "    Packages ($package_count): $packages"
         
         # Show options if any
         local options="${COMPONENT_OPTIONS[$component]:-}"
-        if [[ -n "$options" ]]; then
-            echo "    Available options: $options"
-        fi
+        [[ -n "$options" ]] && echo "    Available options: $options"
     done
     
     echo
@@ -355,7 +267,6 @@ display_selection_summary() {
     
     echo "Estimated installation time: ${estimated_time} minutes"
     echo "Estimated disk space required: ${estimated_space} MB"
-    echo
     
     # Show any warnings
     show_installation_warnings
@@ -369,21 +280,11 @@ display_selection_summary() {
 # Show installation warnings
 show_installation_warnings() {
     local warnings=()
+    local selected=" ${SELECTED_COMPONENTS[*]} "
     
-    # Check for hardware component
-    if [[ " ${SELECTED_COMPONENTS[*]} " =~ " hardware " ]]; then
-        warnings+=("Hardware configuration will be applied - ensure you're on the correct system")
-    fi
-    
-    # Check for window manager
-    if [[ " ${SELECTED_COMPONENTS[*]} " =~ " wm " ]]; then
-        warnings+=("Window manager installation may require logout/reboot to take effect")
-    fi
-    
-    # Check for development tools
-    if [[ " ${SELECTED_COMPONENTS[*]} " =~ " dev-tools " ]]; then
-        warnings+=("Development tools may require additional configuration after installation")
-    fi
+    [[ "$selected" =~ " hardware " ]] && warnings+=("Hardware configuration will be applied - ensure you're on the correct system")
+    [[ "$selected" =~ " wm " ]] && warnings+=("Window manager installation may require logout/reboot to take effect")
+    [[ "$selected" =~ " dev-tools " ]] && warnings+=("Development tools may require additional configuration after installation")
     
     if [[ ${#warnings[@]} -gt 0 ]]; then
         echo -e "${YELLOW}Warnings:${NC}"
@@ -396,42 +297,26 @@ show_installation_warnings() {
 
 # List all available components
 list_all_components() {
-    # Load component metadata first
-    if ! load_component_metadata "$COMPONENT_METADATA_FILE"; then
-        log_error "Failed to load component metadata"
-        return 1
-    fi
+    load_component_metadata "$COMPONENT_METADATA_FILE" || { log_error "Failed to load component metadata"; return 1; }
     
     log_section "Available Components"
-    
     echo "The following components are available for installation:"
     echo
     
     for component in $(printf '%s\n' "${!COMPONENTS[@]}" | sort); do
-        local description="${COMPONENTS[$component]}"
+        echo -e "${BLUE}$component${NC} - ${COMPONENTS[$component]}"
+        
         local deps="${COMPONENT_DEPS[$component]:-}"
+        [[ -n "$deps" ]] && echo "  Dependencies: $deps"
+        
         local conflicts="${COMPONENT_CONFLICTS[$component]:-}"
+        [[ -n "$conflicts" ]] && echo -e "  ${RED}Conflicts: $conflicts${NC}"
+        
         local options="${COMPONENT_OPTIONS[$component]:-}"
+        [[ -n "$options" ]] && echo "  Options: $options"
+        
         local packages="${COMPONENT_PACKAGES[$component]:-}"
-        
-        echo -e "${BLUE}$component${NC} - $description"
-        
-        if [[ -n "$deps" ]]; then
-            echo "  Dependencies: $deps"
-        fi
-        
-        if [[ -n "$conflicts" ]]; then
-            echo -e "  ${RED}Conflicts: $conflicts${NC}"
-        fi
-        
-        if [[ -n "$options" ]]; then
-            echo "  Options: $options"
-        fi
-        
-        if [[ -n "$packages" ]]; then
-            local package_count=$(echo "$packages" | wc -w)
-            echo "  Packages ($package_count): $packages"
-        fi
+        [[ -n "$packages" ]] && echo "  Packages ($(echo "$packages" | wc -w)): $packages"
         
         echo
     done
@@ -459,7 +344,7 @@ validate_components() {
         log_error "Invalid components specified: ${invalid_components[*]}"
         log_info "Available components:"
         for component in $(printf '%s\n' "${!COMPONENTS[@]}" | sort); do
-            echo "  - $component"
+            log_info "  - $component"
         done
         return 1
     fi
@@ -517,7 +402,6 @@ select_component_options() {
 # Process all component options after selection
 process_component_options() {
     log_info "Processing component options..."
-    
     for component in "${SELECTED_COMPONENTS[@]}"; do
         select_component_options "$component"
     done
@@ -565,7 +449,6 @@ run_interactive_menu() {
 
 # Check for component conflicts
 check_conflicts() {
-    local conflicts_found=()
     local conflict_messages=()
     
     log_info "Checking for component conflicts..."
@@ -577,16 +460,13 @@ check_conflicts() {
         if [[ -n "$component_conflicts" ]]; then
             # Check if any conflicting components are also selected
             for conflict in $component_conflicts; do
-                if [[ " ${SELECTED_COMPONENTS[*]} " =~ " $conflict " ]]; then
-                    conflicts_found+=("$component <-> $conflict")
-                    conflict_messages+=("$component conflicts with $conflict")
-                fi
+                [[ " ${SELECTED_COMPONENTS[*]} " =~ " $conflict " ]] && conflict_messages+=("$component conflicts with $conflict")
             done
         fi
     done
     
     # Handle conflicts if found
-    if [[ ${#conflicts_found[@]} -gt 0 ]]; then
+    if [[ ${#conflict_messages[@]} -gt 0 ]]; then
         echo
         log_error "Component conflicts detected:"
         
@@ -617,14 +497,12 @@ get_selected_components() {
 
 # Get component packages for a specific component
 get_component_packages() {
-    local component="$1"
-    echo "${COMPONENT_PACKAGES[$component]:-}"
+    echo "${COMPONENT_PACKAGES[$1]:-}"
 }
 
 # Check if a component is selected
 is_component_selected() {
-    local component="$1"
-    [[ " ${SELECTED_COMPONENTS[*]} " =~ " $component " ]]
+    [[ " ${SELECTED_COMPONENTS[*]} " =~ " $1 " ]]
 }
 
 # Add component programmatically (for scripted installations)
@@ -632,10 +510,10 @@ add_component() {
     local component="$1"
     
     if [[ -v "COMPONENTS[$component]" ]]; then
-        if [[ ! " ${SELECTED_COMPONENTS[*]} " =~ " $component " ]]; then
+        [[ ! " ${SELECTED_COMPONENTS[*]} " =~ " $component " ]] && {
             SELECTED_COMPONENTS+=("$component")
             log_info "Added component: $component"
-        fi
+        }
     else
         log_error "Unknown component: $component"
         return 1
@@ -644,13 +522,10 @@ add_component() {
 
 # Remove component programmatically
 remove_component() {
-    local component="$1"
-    local new_selection=()
+    local component="$1" new_selection=()
     
     for selected in "${SELECTED_COMPONENTS[@]}"; do
-        if [[ "$selected" != "$component" ]]; then
-            new_selection+=("$selected")
-        fi
+        [[ "$selected" != "$component" ]] && new_selection+=("$selected")
     done
     
     SELECTED_COMPONENTS=("${new_selection[@]}")
@@ -661,18 +536,13 @@ remove_component() {
 export_selection() {
     local export_file="${1:-/tmp/selected_components.txt}"
     
-    if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
-        log_warn "No components selected to export"
-        return 1
-    fi
+    [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]] && { log_warn "No components selected to export"; return 1; }
     
     {
         echo "# Selected components - $(date)"
         echo "# Generated by modular install framework"
         echo
-        for component in "${SELECTED_COMPONENTS[@]}"; do
-            echo "$component"
-        done
+        printf '%s\n' "${SELECTED_COMPONENTS[@]}"
     } > "$export_file"
     
     log_success "Selected components exported to: $export_file"
@@ -682,24 +552,15 @@ export_selection() {
 import_selection() {
     local import_file="$1"
     
-    if [[ ! -f "$import_file" ]]; then
-        log_error "Import file not found: $import_file"
-        return 1
-    fi
+    [[ ! -f "$import_file" ]] && { log_error "Import file not found: $import_file"; return 1; }
     
-    # Initialize menu system first
-    if ! init_menu_system; then
-        return 1
-    fi
+    init_menu_system || return 1
     
     SELECTED_COMPONENTS=()
     
     while IFS= read -r line; do
-        # Skip comments and empty lines
-        [[ "$line" =~ ^#.*$ ]] && continue
-        [[ -z "$line" ]] && continue
+        [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
         
-        # Validate component exists
         if [[ -v "COMPONENTS[$line]" ]]; then
             SELECTED_COMPONENTS+=("$line")
             log_info "Imported component: $line"
@@ -708,9 +569,7 @@ import_selection() {
         fi
     done < "$import_file"
     
-    # Resolve dependencies for imported selection
     resolve_dependencies
-    
     log_success "Imported ${#SELECTED_COMPONENTS[@]} components from $import_file"
 }
 
@@ -718,10 +577,7 @@ import_selection() {
 select_preset() {
     local preset="$1"
     
-    # Initialize menu system first
-    if ! init_menu_system; then
-        return 1
-    fi
+    init_menu_system || return 1
     
     case "$preset" in
         "minimal")
@@ -747,10 +603,7 @@ select_preset() {
             ;;
     esac
     
-    # Resolve dependencies
     resolve_dependencies
-    
-    # Display selection
     display_selection_summary
 }
 
@@ -792,8 +645,6 @@ Functions:
 
 Environment variables:
   COMPONENT_METADATA_FILE      - Path to component metadata JSON
-  DRY_RUN                      - Enable dry-run mode
-  VERBOSE                      - Enable verbose logging
 
 EOF
 }

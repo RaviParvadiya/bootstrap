@@ -4,16 +4,15 @@
 # This module handles the installation and configuration of Hyprland window manager
 # with proper dotfiles integration, session setup, and cross-distribution support.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+# Helper functions
+_dry_run_check() {
+    [[ "$DRY_RUN" == "true" ]] && { log_info "[DRY-RUN] Would $1"; return 0; }
+    return 1
+}
 
 # Component metadata
 readonly HYPRLAND_COMPONENT_NAME="hyprland"
@@ -46,8 +45,6 @@ declare -A HYPRLAND_TOOLS=(
 #######################################
 
 # Check if Hyprland is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_hyprland_installed() {
     if command -v Hyprland >/dev/null 2>&1; then
         return 0
@@ -72,7 +69,6 @@ is_hyprland_installed() {
 }
 
 # Install Hyprland packages for Arch Linux
-# Returns: 0 if successful, 1 if failed
 install_hyprland_arch() {
     log_info "Installing Hyprland packages for Arch Linux..."
     
@@ -119,7 +115,6 @@ install_hyprland_arch() {
 }
 
 # Build and install Hyprland from source for Ubuntu
-# Returns: 0 if successful, 1 if failed
 install_hyprland_ubuntu() {
     log_info "Building Hyprland from source for Ubuntu..."
     
@@ -202,8 +197,6 @@ install_hyprland_ubuntu() {
 }
 
 # Install Hyprland packages based on distribution
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_hyprland_packages() {
     local distro
     distro=$(get_distro)
@@ -223,8 +216,6 @@ install_hyprland_packages() {
 }
 
 # Configure Hyprland with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_hyprland() {
     log_info "Configuring Hyprland window manager..."
     
@@ -345,7 +336,6 @@ configure_hyprland() {
 }
 
 # Setup wallpapers for Hyprland
-# Returns: 0 if successful, 1 if failed
 setup_hyprland_wallpapers() {
     local wallpapers_source="$DOTFILES_DIR/backgrounds/.config/backgrounds"
     local wallpapers_target="$HOME/.config/backgrounds"
@@ -370,7 +360,6 @@ setup_hyprland_wallpapers() {
 }
 
 # Setup Hyprland session files
-# Returns: 0 if successful, 1 if failed
 setup_hyprland_session() {
     log_info "Setting up Hyprland session files..."
     
@@ -402,8 +391,6 @@ Type=Application"
 }
 
 # Validate Hyprland installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_hyprland_installation() {
     log_info "Validating Hyprland installation..."
     
@@ -444,8 +431,6 @@ validate_hyprland_installation() {
 #######################################
 
 # Main Hyprland installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_hyprland() {
     log_section "Installing Hyprland Window Manager"
     
@@ -496,7 +481,6 @@ install_hyprland() {
 }
 
 # Uninstall Hyprland (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_hyprland() {
     log_info "Uninstalling Hyprland..."
     
@@ -532,12 +516,5 @@ uninstall_hyprland() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_hyprland
-    export -f configure_hyprland
-    export -f is_hyprland_installed
-    export -f validate_hyprland_installation
-    export -f uninstall_hyprland
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_hyprland configure_hyprland is_hyprland_installed

@@ -4,16 +4,9 @@
 # This module handles the installation and configuration of Starship cross-shell prompt
 # with proper dotfiles integration, theme support, and cross-distribution compatibility.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
-
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
 # Component metadata
 readonly STARSHIP_COMPONENT_NAME="starship"
@@ -38,32 +31,16 @@ declare -A STARSHIP_FONT_PACKAGES=(
 #######################################
 
 # Check if Starship is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_starship_installed() {
     command -v starship >/dev/null 2>&1
 }
 
 # Install Starship via package manager (Arch) or install script (Ubuntu)
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_starship_binary() {
     local distro
     distro=$(get_distro)
     
     log_info "Installing Starship binary for $distro..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        case "$distro" in
-            "arch")
-                log_info "[DRY-RUN] Would install package: ${STARSHIP_PACKAGES[$distro]}"
-                ;;
-            "ubuntu")
-                log_info "[DRY-RUN] Would download and run Starship install script"
-                ;;
-        esac
-        return 0
-    fi
     
     case "$distro" in
         "arch")
@@ -93,7 +70,6 @@ install_starship_binary() {
 }
 
 # Install Starship via official install script
-# Returns: 0 if successful, 1 if failed
 install_starship_via_script() {
     log_info "Installing Starship via official install script..."
     
@@ -130,7 +106,6 @@ install_starship_via_script() {
 }
 
 # Install font dependencies for proper Starship display
-# Returns: 0 if successful, 1 if failed
 install_starship_fonts() {
     local distro
     distro=$(get_distro)
@@ -141,11 +116,6 @@ install_starship_fonts() {
     fi
     
     log_info "Installing Starship font dependencies..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install font packages: ${STARSHIP_FONT_PACKAGES[$distro]}"
-        return 0
-    fi
     
     local font_packages
     read -ra font_packages <<< "${STARSHIP_FONT_PACKAGES[$distro]}"
@@ -161,20 +131,12 @@ install_starship_fonts() {
 }
 
 # Configure Starship with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_starship() {
     log_info "Configuring Starship prompt..."
     
     if [[ ! -f "$STARSHIP_CONFIG_SOURCE" ]]; then
         log_error "Starship configuration source not found: $STARSHIP_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create configuration directory: $(dirname "$STARSHIP_CONFIG_TARGET")"
-        log_info "[DRY-RUN] Would create symlink: $STARSHIP_CONFIG_TARGET -> $STARSHIP_CONFIG_SOURCE"
-        return 0
     fi
     
     # Create configuration directory
@@ -197,15 +159,8 @@ configure_starship() {
 }
 
 # Add Starship initialization to shell configuration files
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Shell integration
 setup_starship_shell_integration() {
     log_info "Setting up Starship shell integration..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would add Starship initialization to shell configs"
-        return 0
-    fi
     
     local shells_configured=0
     
@@ -260,8 +215,6 @@ setup_starship_shell_integration() {
 }
 
 # Validate Starship installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_starship_installation() {
     log_info "Validating Starship installation..."
     
@@ -296,14 +249,8 @@ validate_starship_installation() {
 }
 
 # Test Starship prompt rendering
-# Returns: 0 if successful, 1 if failed
 test_starship_prompt() {
     log_info "Testing Starship prompt rendering..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would test Starship prompt rendering"
-        return 0
-    fi
     
     # Test prompt generation
     if command -v starship >/dev/null 2>&1; then
@@ -327,8 +274,6 @@ test_starship_prompt() {
 #######################################
 
 # Main Starship installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_starship() {
     log_section "Installing Starship Cross-Shell Prompt"
     
@@ -384,14 +329,8 @@ install_starship() {
 }
 
 # Uninstall Starship (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_starship() {
     log_info "Uninstalling Starship..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Starship binary and remove configurations"
-        return 0
-    fi
     
     local distro
     distro=$(get_distro)
@@ -427,12 +366,5 @@ uninstall_starship() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_starship
-    export -f configure_starship
-    export -f is_starship_installed
-    export -f validate_starship_installation
-    export -f uninstall_starship
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_starship configure_starship is_starship_installed

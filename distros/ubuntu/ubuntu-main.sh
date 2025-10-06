@@ -9,7 +9,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 # Source core utilities
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-source "$CORE_DIR/validator.sh"
 
 # Source Ubuntu-specific modules
 source "$DISTROS_DIR/ubuntu/packages.sh"
@@ -36,7 +35,7 @@ ubuntu_main_install() {
         return 1
     fi
     
-    # Setup additional repositories (PPAs, flatpak, snap)
+    # Setup additional repositories (PPAs)
     if ! ubuntu_setup_repositories; then
         log_error "Failed to setup repositories"
         return 1
@@ -216,38 +215,11 @@ ubuntu_install_component_packages() {
     
     log_info "Installing packages for component $component: ${packages[*]}"
     
-    # Separate packages by type (similar to package list parsing)
-    local apt_packages=()
-    local snap_packages=()
-    local flatpak_packages=()
-    
-    for package in "${packages[@]}"; do
-        if [[ "$package" =~ ^snap: ]]; then
-            snap_packages+=("${package#snap:}")
-        elif [[ "$package" =~ ^flatpak: ]]; then
-            flatpak_packages+=("${package#flatpak:}")
-        else
-            apt_packages+=("$package")
-        fi
-    done
-    
-    # Install packages by type
+    # Install all packages via APT
     local install_success=true
     
-    if [[ ${#apt_packages[@]} -gt 0 ]]; then
-        if ! ubuntu_install_apt_packages "${apt_packages[@]}"; then
-            install_success=false
-        fi
-    fi
-    
-    if [[ ${#snap_packages[@]} -gt 0 ]]; then
-        if ! ubuntu_install_snap_packages "${snap_packages[@]}"; then
-            install_success=false
-        fi
-    fi
-    
-    if [[ ${#flatpak_packages[@]} -gt 0 ]]; then
-        if ! ubuntu_install_flatpak_packages "${flatpak_packages[@]}"; then
+    if [[ ${#packages[@]} -gt 0 ]]; then
+        if ! ubuntu_install_apt_packages "${packages[@]}"; then
             install_success=false
         fi
     fi

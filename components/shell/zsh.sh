@@ -4,16 +4,9 @@
 # This module handles the installation and configuration of Zsh shell with
 # plugin management via Zinit, proper dotfiles integration, and cross-distribution support.
 
-# Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
-
-# Source core modules if not already loaded
-if [[ -z "${LOGGER_SOURCED:-}" ]]; then
-    source "$CORE_DIR/logger.sh"
-fi
-if ! declare -f detect_distro >/dev/null 2>&1; then
-    source "$CORE_DIR/common.sh"
-fi
+source "$CORE_DIR/logger.sh"
+source "$CORE_DIR/common.sh"
 
 # Component metadata
 readonly ZSH_COMPONENT_NAME="zsh"
@@ -38,8 +31,6 @@ declare -A ZSH_OPTIONAL_PACKAGES=(
 #######################################
 
 # Check if Zsh is already installed
-# Returns: 0 if installed, 1 if not installed
-# Requirements: 7.1 - Component installation detection
 is_zsh_installed() {
     if command -v zsh >/dev/null 2>&1; then
         return 0
@@ -63,14 +54,11 @@ is_zsh_installed() {
 }
 
 # Check if Zsh is the current user's default shell
-# Returns: 0 if default, 1 if not default
 is_zsh_default_shell() {
     [[ "$SHELL" == *"zsh"* ]]
 }
 
 # Install Zsh packages
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Package installation with distribution detection
 install_zsh_packages() {
     local distro
     distro=$(get_distro)
@@ -81,12 +69,6 @@ install_zsh_packages() {
     fi
     
     log_info "Installing Zsh packages for $distro..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would install packages: ${ZSH_PACKAGES[$distro]}"
-        log_info "[DRY-RUN] Would install optional packages: ${ZSH_OPTIONAL_PACKAGES[$distro]:-none}"
-        return 0
-    fi
     
     # Install main Zsh packages
     local packages
@@ -117,16 +99,9 @@ install_zsh_packages() {
 }
 
 # Install Zinit plugin manager
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Plugin management setup
 install_zinit() {
     log_info "Installing Zinit plugin manager..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would clone Zinit to: $ZINIT_HOME"
-        return 0
-    fi
-    
+        
     # Check if Zinit is already installed
     if [[ -d "$ZINIT_HOME" ]]; then
         log_info "Zinit already installed, updating..."
@@ -156,20 +131,12 @@ install_zinit() {
 }
 
 # Configure Zsh with dotfiles
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Configuration management with dotfiles integration
 configure_zsh() {
     log_info "Configuring Zsh shell..."
     
     if [[ ! -f "$ZSH_CONFIG_SOURCE" ]]; then
         log_error "Zsh configuration source not found: $ZSH_CONFIG_SOURCE"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would create symlink: $ZSH_CONFIG_TARGET -> $ZSH_CONFIG_SOURCE"
-        log_info "[DRY-RUN] Would install Zinit plugin manager"
-        return 0
     fi
     
     # Install Zinit first
@@ -208,15 +175,8 @@ configure_zsh() {
 }
 
 # Set Zsh as default shell
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1 - Shell configuration
 set_zsh_as_default() {
     log_info "Setting Zsh as default shell..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would set Zsh as default shell for user: $USER"
-        return 0
-    fi
     
     # Check if Zsh is already the default shell
     if is_zsh_default_shell; then
@@ -255,14 +215,8 @@ set_zsh_as_default() {
 }
 
 # Initialize Zsh plugins (run Zsh once to trigger plugin installation)
-# Returns: 0 if successful, 1 if failed
 initialize_zsh_plugins() {
     log_info "Initializing Zsh plugins..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would initialize Zsh plugins"
-        return 0
-    fi
     
     # Run Zsh with a simple command to trigger plugin installation
     log_info "Running Zsh to initialize plugins (this may take a moment)..."
@@ -282,8 +236,6 @@ initialize_zsh_plugins() {
 }
 
 # Validate Zsh installation
-# Returns: 0 if valid, 1 if invalid
-# Requirements: 10.1 - Post-installation validation
 validate_zsh_installation() {
     log_info "Validating Zsh installation..."
     
@@ -325,8 +277,6 @@ validate_zsh_installation() {
 #######################################
 
 # Main Zsh installation function
-# Returns: 0 if successful, 1 if failed
-# Requirements: 7.1, 7.2 - Complete component installation
 install_zsh() {
     log_section "Installing Zsh Shell"
     
@@ -381,18 +331,8 @@ install_zsh() {
 }
 
 # Check if user's current shell is zsh and change to bash if needed
-# Returns: 0 if successful, 1 if failed
 restore_bash_shell() {
     log_info "Checking if shell needs to be changed back to bash..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        if [[ "$SHELL" == *"zsh"* ]]; then
-            log_info "[DRY-RUN] Would change default shell from zsh to bash"
-        else
-            log_info "[DRY-RUN] Current shell is not zsh, no change needed"
-        fi
-        return 0
-    fi
     
     # Check if current shell is zsh
     if [[ "$SHELL" != *"zsh"* ]]; then
@@ -432,18 +372,12 @@ restore_bash_shell() {
 
 # Backup current shell information
 # Arguments: $1 - backup session directory
-# Returns: 0 if successful, 1 if failed
 backup_shell_info() {
     local session_dir="$1"
     
     if [[ -z "$session_dir" ]]; then
         log_error "Session directory is required for shell backup"
         return 1
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would backup shell information to: $session_dir/shell_info"
-        return 0
     fi
     
     local shell_backup_file="$session_dir/shell_info"
@@ -468,7 +402,6 @@ EOF
 
 # Restore shell information from backup
 # Arguments: $1 - backup session directory
-# Returns: 0 if successful, 1 if failed
 restore_shell_info() {
     local session_dir="$1"
     
@@ -481,11 +414,6 @@ restore_shell_info() {
     
     if [[ ! -f "$shell_backup_file" ]]; then
         log_debug "No shell information backup found"
-        return 0
-    fi
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would restore shell information from backup"
         return 0
     fi
     
@@ -529,17 +457,8 @@ restore_shell_info() {
 }
 
 # Uninstall Zsh (for testing/cleanup)
-# Returns: 0 if successful, 1 if failed
 uninstall_zsh() {
     log_info "Uninstalling Zsh..."
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would uninstall Zsh packages and remove configurations"
-        if [[ "$SHELL" == *"zsh"* ]]; then
-            log_info "[DRY-RUN] Would change shell back to bash (current shell is zsh)"
-        fi
-        return 0
-    fi
     
     # Check if zsh is the current default shell and change to bash if needed
     if [[ "$SHELL" == *"zsh"* ]]; then
@@ -598,16 +517,5 @@ uninstall_zsh() {
     return 0
 }
 
-# Export functions for use by other modules
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    # Being sourced, export functions
-    export -f install_zsh
-    export -f configure_zsh
-    export -f is_zsh_installed
-    export -f validate_zsh_installation
-    export -f uninstall_zsh
-    export -f set_zsh_as_default
-    export -f restore_bash_shell
-    export -f backup_shell_info
-    export -f restore_shell_info
-fi
+# Export essential functions
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_zsh configure_zsh is_zsh_installed set_zsh_as_default

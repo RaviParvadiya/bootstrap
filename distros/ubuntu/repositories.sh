@@ -30,8 +30,7 @@ ubuntu_setup_repositories() {
     # Setup Hyprland-specific PPAs
     ubuntu_setup_hyprland_ppas
     
-    # Setup flatpak if not already done
-    ubuntu_setup_flatpak
+
     
     # Update package database after repository changes
     ubuntu_update_package_database
@@ -299,35 +298,6 @@ ubuntu_setup_nodejs_repository() {
     log_success "Node.js $node_version repository configured"
 }
 
-# Setup flatpak
-ubuntu_setup_flatpak() {
-    log_info "Setting up Flatpak..."
-    
-    # Check if flatpak is already installed
-    if command -v flatpak >/dev/null 2>&1; then
-        log_info "Flatpak already installed"
-    else
-        log_info "Installing Flatpak..."
-        if [[ "${DRY_RUN:-false}" != "true" ]]; then
-            sudo apt install -y flatpak
-        fi
-    fi
-    
-    # Add Flathub repository
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
-        log_info "[DRY RUN] Would add Flathub repository"
-        return 0
-    fi
-    
-    if ! flatpak remote-list | grep -q "flathub"; then
-        log_info "Adding Flathub repository..."
-        sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-        log_success "Flathub repository added"
-    else
-        log_info "Flathub repository already configured"
-    fi
-}
-
 # Update package database
 ubuntu_update_package_database() {
     log_info "Updating package database..."
@@ -446,7 +416,7 @@ export -f ubuntu_setup_docker_repository
 export -f ubuntu_setup_chrome_repository
 export -f ubuntu_setup_vscode_repository
 export -f ubuntu_setup_nodejs_repository
-export -f ubuntu_setup_flatpak
+
 export -f ubuntu_update_package_database
 export -f ubuntu_list_ppas
 export -f ubuntu_list_external_repositories
