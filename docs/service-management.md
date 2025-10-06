@@ -128,10 +128,10 @@ echo "Docker status: $status"  # Output: available,disabled,stopped
 
 ```bash
 # Enable a service with user confirmation
-enable_service_manual "docker" false
+enable_service "docker" false
 
 # Disable a service
-disable_service_manual "docker" true  # true = also stop the service
+disable_service "docker" true  # true = also stop the service
 ```
 
 ### System Integration
@@ -152,12 +152,6 @@ register_system_integration "user_group" "docker" "User added to docker group" "
 ```bash
 # Show all registered services
 show_service_status
-
-# Show services for specific component
-show_services_by_component "docker"
-
-# Show services by priority
-show_services_by_priority "recommended"
 ```
 
 ## Distribution-Specific Implementation
@@ -312,7 +306,6 @@ Test service management manually:
 source core/service-manager.sh
 
 # Initialize and test
-init_service_registry
 register_service "test-service" "Test service" "optional" "test" "never"
 show_service_status
 ```
