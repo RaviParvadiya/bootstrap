@@ -195,7 +195,7 @@ main() {
     # Parse command line arguments with error handling
     if ! parse_arguments "$@"; then
         handle_error "critical" "Failed to parse command line arguments" "argument_parsing"
-        cleanup_and_exit 1
+        exit 1
     fi
     
     # Set global flags and export for child processes
@@ -207,13 +207,13 @@ main() {
     log_info "Detecting Linux distribution..."
     if ! detect_distro; then
         handle_error "critical" "Failed to detect Linux distribution" "distro_detection"
-        cleanup_and_exit 1
+        exit 1
     fi
     
     DETECTED_DISTRO=$(get_distro)
     if [[ -z "$DETECTED_DISTRO" ]]; then
         handle_error "critical" "Distribution detection returned empty result" "distro_detection"
-        cleanup_and_exit 1
+        exit 1
     fi
     
     log_info "Detected distribution: $DETECTED_DISTRO $(get_distro_version)"
@@ -221,14 +221,14 @@ main() {
     # Validate distribution support
     if ! validate_distro_support; then
         handle_error "critical" "Distribution not supported or validation failed" "distro_validation"
-        cleanup_and_exit 1
+        exit 1
     fi
     
     # Validate system prerequisites
     log_info "Validating system requirements..."
     if ! validate_system; then
         handle_error "critical" "System validation failed" "system_validation"
-        cleanup_and_exit 1
+        exit 1
     fi
     
     # Check and setup dotfiles repository
@@ -269,7 +269,7 @@ main() {
             rm -rf "$SCRIPT_DIR/dotfiles"
             if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
                 handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
-                cleanup_and_exit 1
+                exit 1
             fi
             log_success "Dotfiles repository cloned successfully"
         fi
@@ -277,7 +277,7 @@ main() {
         log_info "Dotfiles directory not found, cloning repository..."
         if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
             handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
-            cleanup_and_exit 1
+            exit 1
         fi
         log_success "Dotfiles repository cloned successfully"
     fi
@@ -557,43 +557,32 @@ offer_recovery_options() {
     echo "The installation encountered errors. What would you like to do?"
     echo
     echo "1. Continue anyway (ignore errors)"
-    echo "2. Retry failed operations"
-    echo "3. Rollback to previous state"
-    echo "4. Generate error report"
-    echo "5. Exit"
+    echo "2. Generate error report and exit"
+    echo "3. Exit"
     echo
     
     local choice
-    read -r -p "Enter your choice (1-5): " choice
+    read -r -p "Enter your choice (1-3): " choice
     
     case "$choice" in
         1)
             log_info "Continuing with errors ignored"
             ;;
         2)
-            log_info "Retrying failed operations..."
-            retry_failed_operations
-            ;;
-        3)
-            log_info "Rolling back to previous state..."
-            if perform_emergency_rollback; then
-                log_success "Rollback completed successfully"
-            else
-                log_error "Rollback failed"
-            fi
-            ;;
-        4)
             log_info "Generating error report..."
             local report_file
             report_file=$(generate_error_report)
             log_info "Error report generated: $report_file"
+            log_info "Please review the report and try again"
+            exit 1
             ;;
-        5)
+        3)
             log_info "Exiting..."
             exit 1
             ;;
         *)
-            log_warn "Invalid choice, continuing anyway"
+            log_warn "Invalid choice, exiting"
+            exit 1
             ;;
     esac
 }

@@ -133,24 +133,6 @@ handle_error() {
 
 push_error_context() { log_debug "Context: $1 - $2"; }
 
-# Error handler stubs
-handle_package_error() { fail "$1" "$2"; }
-handle_config_error() { fail "$1" "$2"; }
-handle_network_error() { fail "$1" "$2"; }
-handle_permission_error() { fail "$1" "$3"; }
-handle_validation_error() { fail "$1" "$2"; }
-cleanup_and_exit() { exit "${1:-1}"; }
-
-# Recovery system stubs (deleted functions)
-init_recovery_system() { return 0; }
-create_checkpoint() { log_debug "Checkpoint: $1 - $2"; }
-set_error_recovery_mode() { return 0; }
-set_rollback_enabled() { return 0; }
-register_rollback_action() { log_debug "Rollback registered: $1"; }
-perform_operation_rollback() { log_debug "Rollback performed: $1"; }
-perform_emergency_rollback() { log_debug "Emergency rollback performed"; }
-show_error_summary() { show_failures; }
-
 cleanup_logger() {
     show_failures
     [[ "$LOG_TO_FILE" == "true" && -n "$LOG_FILE" ]] && log_info "Log saved: $LOG_FILE"
