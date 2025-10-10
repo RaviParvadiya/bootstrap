@@ -43,7 +43,6 @@ IFS=$'\n\t'
 source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
-USE_MINIMAL_PACKAGES=true  # Use minimal package lists by default for post-installation
 SELECTED_COMPONENTS=()
 DETECTED_DISTRO=""
 
@@ -78,8 +77,6 @@ OPTIONS:
     -h, --help          Show this help message
     -c, --components    Comma-separated list of components to install
     -a, --all           Install all available components
-    -m, --minimal       Use minimal package lists (default for post-installation)
-    -f, --full          Use full package lists (for fresh installations)
 
 COMMANDS:
     install             Run interactive installation (default)
@@ -117,14 +114,7 @@ parse_arguments() {
                 fi
                 shift
                 ;;
-            -m|--minimal)
-                USE_MINIMAL_PACKAGES=true
-                shift
-                ;;
-            -f|--full)
-                USE_MINIMAL_PACKAGES=false
-                shift
-                ;;
+
             install|restore|validate|backup|list)
                 COMMAND="$1"
                 shift

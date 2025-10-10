@@ -215,11 +215,6 @@
     }
   },
   "presets": {
-    "minimal": {
-      "name": "Minimal Setup",
-      "description": "Basic terminal and shell environment",
-      "components": ["zsh", "starship", "kitty", "git"]
-    },
     "hyprland_desktop": {
       "name": "Hyprland Desktop Environment",
       "description": "Complete Hyprland desktop with all components",

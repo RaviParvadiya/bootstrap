@@ -139,13 +139,9 @@ arch_install_packages_by_category() {
     local category="$1"
     local conditions="${2:-}"
     local data_dir="${3:-$DATA_DIR}"
-    local use_minimal="${4:-true}"
     
-    local suffix=""
-    [[ "$use_minimal" == "true" ]] && suffix="-minimal"
-    
-    local arch_list="$data_dir/arch-packages${suffix}.lst"
-    local aur_list="$data_dir/aur-packages${suffix}.lst"
+    local arch_list="$data_dir/arch-packages.lst"
+    local aur_list="$data_dir/aur-packages.lst"
     
     log_info "Installing $category packages (conditions: $conditions)"
     
@@ -161,8 +157,8 @@ arch_install_packages_by_category() {
             local base_failed=false
             local aur_failed=false
             
-            arch_install_packages_by_category "base" "$conditions" "$data_dir" "$use_minimal" || base_failed=true
-            arch_install_packages_by_category "aur" "$conditions" "$data_dir" "$use_minimal" || aur_failed=true
+            arch_install_packages_by_category "base" "$conditions" "$data_dir" || base_failed=true
+            arch_install_packages_by_category "aur" "$conditions" "$data_dir" || aur_failed=true
             
             if [[ "$base_failed" == "true" || "$aur_failed" == "true" ]]; then
                 log_warn "Some packages failed to install"
@@ -301,7 +297,6 @@ arch_setup_system() {
 arch_install_packages_auto() {
     local category="$1"
     local user_preferences="${2:-}"
-    local use_minimal="${3:-true}"
     
     local conditions=()
     
@@ -317,7 +312,7 @@ arch_install_packages_auto() {
     local conditions_str="${conditions[*]}"
     log_info "Auto-detected conditions: $conditions_str"
     
-    arch_install_packages_by_category "$category" "$conditions_str" "$DATA_DIR" "$use_minimal"
+    arch_install_packages_by_category "$category" "$conditions_str" "$DATA_DIR"
 }
 
 # Export system functions

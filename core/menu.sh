@@ -580,10 +580,6 @@ select_preset() {
     init_menu_system || return 1
     
     case "$preset" in
-        "minimal")
-            SELECTED_COMPONENTS=("terminal" "shell")
-            log_info "Selected minimal preset: terminal + shell"
-            ;;
         "desktop")
             SELECTED_COMPONENTS=("terminal" "shell" "wm")
             log_info "Selected desktop preset: terminal + shell + window manager"
@@ -598,7 +594,7 @@ select_preset() {
             ;;
         *)
             log_error "Unknown preset: $preset"
-            log_info "Available presets: minimal, desktop, developer, full"
+            log_info "Available presets: desktop, developer, full"
             return 1
             ;;
     esac
@@ -627,8 +623,7 @@ Usage:
     display_selection_summary
 
 Available presets:
-  minimal   - Terminal and shell only
-  desktop   - Minimal + window manager
+  desktop   - Terminal + shell + window manager
   developer - Terminal, shell, editor, dev-tools
   full      - All available components
 
