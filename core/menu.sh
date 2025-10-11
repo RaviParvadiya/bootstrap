@@ -14,7 +14,7 @@ source "$CORE_DIR/logger.sh"
 # NOTE: use -g so these remain global when menu.sh is sourced via install.sh
 declare -gA COMPONENTS=()
 declare -gA COMPONENT_DEPS=()
-declare -gA COMPONENT_CONFLICTS=()
+
 declare -gA COMPONENT_OPTIONS=()
 declare -gA COMPONENT_PACKAGES=()
 declare -ga SELECTED_COMPONENTS=()
@@ -51,8 +51,7 @@ load_component_metadata() {
         # Load dependencies
         COMPONENT_DEPS["$component"]=$(jq -r ".components.\"$component\".dependencies[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
         
-        # Load conflicts
-        COMPONENT_CONFLICTS["$component"]=$(jq -r ".components.\"$component\".conflicts[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
+
         
         # Load options (if any)
         COMPONENT_OPTIONS["$component"]=$(jq -r ".components.\"$component\".options[]? // empty" "$metadata_file" | tr '\n' ' ' | sed 's/ $//')
@@ -156,7 +155,7 @@ select_components() {
         [[ "${selected[$i]}" == "true" ]] && SELECTED_COMPONENTS+=("${options[$i]}")
     done
     
-    check_conflicts && resolve_dependencies && display_selection_summary
+    resolve_dependencies && display_selection_summary
 }
 
 # Show detailed information about a component
@@ -168,8 +167,7 @@ show_component_details() {
     echo "Description: ${COMPONENTS[$component]}"
     echo "Dependencies: ${COMPONENT_DEPS[$component]:-None}"
     
-    local conflicts="${COMPONENT_CONFLICTS[$component]:-}"
-    [[ -n "$conflicts" ]] && echo -e "${RED}Conflicts with: $conflicts${NC}"
+
     
     local options="${COMPONENT_OPTIONS[$component]:-}"
     [[ -n "$options" ]] && echo "Available options: $options"
@@ -309,8 +307,7 @@ list_all_components() {
         local deps="${COMPONENT_DEPS[$component]:-}"
         [[ -n "$deps" ]] && echo "  Dependencies: $deps"
         
-        local conflicts="${COMPONENT_CONFLICTS[$component]:-}"
-        [[ -n "$conflicts" ]] && echo -e "  ${RED}Conflicts: $conflicts${NC}"
+
         
         local options="${COMPONENT_OPTIONS[$component]:-}"
         [[ -n "$options" ]] && echo "  Options: $options"
@@ -447,48 +444,7 @@ run_interactive_menu() {
     return 0
 }
 
-# Check for component conflicts
-check_conflicts() {
-    local conflict_messages=()
-    
-    log_info "Checking for component conflicts..."
-    
-    # Check each selected component for conflicts
-    for component in "${SELECTED_COMPONENTS[@]}"; do
-        local component_conflicts="${COMPONENT_CONFLICTS[$component]:-}"
-        
-        if [[ -n "$component_conflicts" ]]; then
-            # Check if any conflicting components are also selected
-            for conflict in $component_conflicts; do
-                [[ " ${SELECTED_COMPONENTS[*]} " =~ " $conflict " ]] && conflict_messages+=("$component conflicts with $conflict")
-            done
-        fi
-    done
-    
-    # Handle conflicts if found
-    if [[ ${#conflict_messages[@]} -gt 0 ]]; then
-        echo
-        log_error "Component conflicts detected:"
-        
-        for message in "${conflict_messages[@]}"; do
-            echo -e "  ${RED}✗${NC} $message"
-        done
-        
-        echo
-        echo "Please resolve conflicts by deselecting one of the conflicting components."
-        
-        if ask_yes_no "Return to component selection?"; then
-            # Recursive call to re-select components
-            select_components
-            return $?
-        else
-            log_info "Installation cancelled due to conflicts"
-            return 1
-        fi
-    fi
-    
-    return 0
-}
+
 
 # Get selected components (for external use)
 get_selected_components() {
@@ -633,7 +589,7 @@ Functions:
   list_all_components()        - List all available components
   validate_components()        - Validate current selection
   resolve_dependencies()       - Resolve component dependencies
-  check_conflicts()            - Check for component conflicts
+
   display_selection_summary()  - Show installation summary
   export_selection()           - Export selection to file
   import_selection()           - Import selection from file
