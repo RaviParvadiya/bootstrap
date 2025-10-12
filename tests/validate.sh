@@ -475,15 +475,6 @@ validate_editor_component() {
                 record_validation_result "Neovim config" "PASS" "configuration loads successfully"
             fi
             ;;
-        "vscode"|"code")
-            validate_command_available "code"
-            
-            # Check for VS Code settings
-            local vscode_settings="$HOME/.config/Code/User/settings.json"
-            if [[ -f "$vscode_settings" ]]; then
-                validate_config_file "$vscode_settings" "syntax"
-            fi
-            ;;
     esac
 }
 
@@ -797,7 +788,7 @@ validate_component() {
         "shell"|"zsh"|"starship")
             validate_shell_component "$component"
             ;;
-        "editor"|"neovim"|"nvim"|"vscode"|"code")
+        "editor"|"neovim"|"nvim")
             validate_editor_component "$component"
             ;;
         "wm"|"hyprland"|"waybar"|"wofi"|"swaync")
@@ -845,11 +836,7 @@ validate_all_components() {
         fi
     fi
     
-    if command -v code >/dev/null 2>&1; then
-        if ! validate_editor_component "vscode"; then
-            validation_success=false
-        fi
-    fi
+
     
     # Check for window manager components
     for wm in Hyprland waybar wofi swaync; do

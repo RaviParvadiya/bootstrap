@@ -119,18 +119,6 @@
 
       "post_install": ["configure_neovim", "install_nvim_plugins"]
     },
-    "vscode": {
-      "name": "Visual Studio Code",
-      "description": "Feature-rich code editor",
-      "category": "editor",
-      "packages": {
-        "arch": ["code"],
-        "ubuntu": ["code"]
-      },
-      "dependencies": [],
-
-      "post_install": ["configure_vscode", "install_vscode_extensions"]
-    },
     "git": {
       "name": "Git Version Control",
       "description": "Distributed version control system",
