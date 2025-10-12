@@ -13,102 +13,13 @@ readonly WOFI_COMPONENT_NAME="wofi"
 readonly WOFI_CONFIG_SOURCE="$DOTFILES_DIR/wofi/.config/wofi"
 readonly WOFI_CONFIG_TARGET="$HOME/.config/wofi"
 
-# Package definitions per distribution
-declare -A WOFI_PACKAGES=(
-    ["arch"]="wofi"
-    ["ubuntu"]="wofi"
-)
-
-# Dependencies for Wofi functionality
-declare -A WOFI_DEPS=(
-    ["arch"]="gtk3"
-    ["ubuntu"]="libgtk-3-0"
-)
-
-# Optional packages for enhanced Wofi functionality
-declare -A WOFI_OPTIONAL=(
-    ["arch"]="wtype"  # For typing text in Wayland
-    ["ubuntu"]="wtype"
-)
-
 #######################################
 # Wofi Installation Functions
 #######################################
 
 # Check if Wofi is already installed
 is_wofi_installed() {
-    if command -v wofi >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi wofi >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l wofi >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# Install Wofi packages
-install_wofi_packages() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${WOFI_PACKAGES[$distro]}" ]]; then
-        log_error "Wofi packages not defined for distribution: $distro"
-        return 1
-    fi
-    
-    log_info "Installing Wofi packages for $distro..."
-    
-    # Install dependencies first
-    if [[ -n "${WOFI_DEPS[$distro]:-}" ]]; then
-        log_info "Installing Wofi dependencies..."
-        local deps
-        read -ra deps <<< "${WOFI_DEPS[$distro]}"
-        
-        for dep in "${deps[@]}"; do
-            if ! install_package "$dep"; then
-                log_warn "Failed to install dependency: $dep (continuing anyway)"
-            fi
-        done
-    fi
-    
-    # Install main Wofi package
-    local packages
-    read -ra packages <<< "${WOFI_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Wofi package: $package"
-            return 1
-        fi
-    done
-    
-    # Install optional packages for enhanced functionality
-    if [[ -n "${WOFI_OPTIONAL[$distro]:-}" ]]; then
-        log_info "Installing optional Wofi packages..."
-        local optional_packages
-        read -ra optional_packages <<< "${WOFI_OPTIONAL[$distro]}"
-        
-        for opt_package in "${optional_packages[@]}"; do
-            if ! install_package "$opt_package"; then
-                log_warn "Failed to install optional package: $opt_package (continuing anyway)"
-            fi
-        done
-    fi
-    
-    log_success "Wofi packages installed successfully"
-    return 0
+    command -v wofi >/dev/null 2>&1
 }
 
 # Configure Wofi with dotfiles
@@ -342,28 +253,11 @@ validate_wofi_installation() {
 
 # Main Wofi installation function
 install_wofi() {
-    log_section "Installing Wofi Application Launcher"
+    log_section "Configuring Wofi Application Launcher"
     
-    # Check if already installed
-    if is_wofi_installed; then
-        log_info "Wofi is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Wofi?" "n"; then
-            log_info "Skipping Wofi installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${WOFI_PACKAGES[$distro]}" ]]; then
-        log_error "Wofi installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_wofi_packages; then
-        log_error "Failed to install Wofi packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_wofi_installed; then
+        log_error "Wofi not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -384,7 +278,7 @@ install_wofi() {
         return 1
     fi
     
-    log_success "Wofi installation completed successfully"
+    log_success "Wofi configuration completed successfully"
     log_info "Note: Use 'wofi-launcher' command or configure keybindings in Hyprland to launch Wofi"
     return 0
 }

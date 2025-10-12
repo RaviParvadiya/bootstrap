@@ -13,78 +13,13 @@ readonly KITTY_COMPONENT_NAME="kitty"
 readonly KITTY_CONFIG_SOURCE="$DOTFILES_DIR/kitty/.config/kitty"
 readonly KITTY_CONFIG_TARGET="$HOME/.config/kitty"
 
-# Package definitions per distribution
-declare -A KITTY_PACKAGES=(
-    ["arch"]="kitty"
-    ["ubuntu"]="kitty"
-)
-
-# Font dependencies (JetBrains Mono Nerd Font for optimal experience)
-declare -A KITTY_FONT_PACKAGES=(
-    ["arch"]="ttf-jetbrains-mono-nerd ttf-firacode-nerd"
-    ["ubuntu"]="fonts-jetbrains-mono fonts-firacode"
-)
-
-# Theme dependencies
-declare -A KITTY_THEME_PACKAGES=(
-    ["arch"]=""  # Themes are usually included or downloaded separately
-    ["ubuntu"]=""
-)
-
 #######################################
 # Kitty Installation Functions
 #######################################
 
 # Check if Kitty is already installed
 is_kitty_installed() {
-    command -v kitty >/dev/null 2>&1 || {
-        local distro=$(get_distro)
-        case "$distro" in
-            "arch") pacman -Qi kitty >/dev/null 2>&1 ;;
-            "ubuntu") dpkg -l kitty >/dev/null 2>&1 ;;
-            *) return 1 ;;
-        esac
-    }
-}
-
-# Install Kitty packages
-install_kitty_packages() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${KITTY_PACKAGES[$distro]}" ]]; then
-        log_error "Kitty packages not defined for distribution: $distro"
-        return 1
-    fi
-    
-    log_info "Installing Kitty packages for $distro..."
-    
-    # Install main Kitty package
-    local packages
-    read -ra packages <<< "${KITTY_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Kitty package: $package"
-            return 1
-        fi
-    done
-    
-    # Install font packages if available
-    if [[ -n "${KITTY_FONT_PACKAGES[$distro]:-}" ]]; then
-        log_info "Installing Kitty font dependencies..."
-        local font_packages
-        read -ra font_packages <<< "${KITTY_FONT_PACKAGES[$distro]}"
-        
-        for font_package in "${font_packages[@]}"; do
-            if ! install_package "$font_package"; then
-                log_warn "Failed to install font package: $font_package (continuing anyway)"
-            fi
-        done
-    fi
-    
-    log_success "Kitty packages installed successfully"
-    return 0
+    command -v kitty >/dev/null 2>&1
 }
 
 # Download and install Kitty themes
@@ -254,28 +189,11 @@ set_kitty_as_default() {
 
 # Main Kitty installation function
 install_kitty() {
-    log_section "Installing Kitty Terminal Emulator"
+    log_section "Configuring Kitty Terminal Emulator"
     
-    # Check if already installed
-    if is_kitty_installed; then
-        log_info "Kitty is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Kitty?" "n"; then
-            log_info "Skipping Kitty installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${KITTY_PACKAGES[$distro]}" ]]; then
-        log_error "Kitty installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_kitty_packages; then
-        log_error "Failed to install Kitty packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_kitty_installed; then
+        log_error "Kitty not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -296,7 +214,7 @@ install_kitty() {
         set_kitty_as_default
     fi
     
-    log_success "Kitty installation completed successfully"
+    log_success "Kitty configuration completed successfully"
     return 0
 }
 

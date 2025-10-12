@@ -13,102 +13,13 @@ readonly WAYBAR_COMPONENT_NAME="waybar"
 readonly WAYBAR_CONFIG_SOURCE="$DOTFILES_DIR/waybar/.config/waybar"
 readonly WAYBAR_CONFIG_TARGET="$HOME/.config/waybar"
 
-# Package definitions per distribution
-declare -A WAYBAR_PACKAGES=(
-    ["arch"]="waybar"
-    ["ubuntu"]="waybar"
-)
-
-# Dependencies for Waybar functionality
-declare -A WAYBAR_DEPS=(
-    ["arch"]="otf-font-awesome ttf-font-awesome"
-    ["ubuntu"]="fonts-font-awesome"
-)
-
-# Optional packages for enhanced Waybar functionality
-declare -A WAYBAR_OPTIONAL=(
-    ["arch"]="playerctl pavucontrol bluez-utils networkmanager"
-    ["ubuntu"]="playerctl pavucontrol bluez-tools network-manager"
-)
-
 #######################################
 # Waybar Installation Functions
 #######################################
 
 # Check if Waybar is already installed
 is_waybar_installed() {
-    if command -v waybar >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi waybar >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l waybar >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# Install Waybar packages
-install_waybar_packages() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${WAYBAR_PACKAGES[$distro]}" ]]; then
-        log_error "Waybar packages not defined for distribution: $distro"
-        return 1
-    fi
-    
-    log_info "Installing Waybar packages for $distro..."
-    
-    # Install dependencies first
-    if [[ -n "${WAYBAR_DEPS[$distro]:-}" ]]; then
-        log_info "Installing Waybar dependencies..."
-        local deps
-        read -ra deps <<< "${WAYBAR_DEPS[$distro]}"
-        
-        for dep in "${deps[@]}"; do
-            if ! install_package "$dep"; then
-                log_warn "Failed to install dependency: $dep (continuing anyway)"
-            fi
-        done
-    fi
-    
-    # Install main Waybar package
-    local packages
-    read -ra packages <<< "${WAYBAR_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Waybar package: $package"
-            return 1
-        fi
-    done
-    
-    # Install optional packages for enhanced functionality
-    if [[ -n "${WAYBAR_OPTIONAL[$distro]:-}" ]]; then
-        log_info "Installing optional Waybar packages..."
-        local optional_packages
-        read -ra optional_packages <<< "${WAYBAR_OPTIONAL[$distro]}"
-        
-        for opt_package in "${optional_packages[@]}"; do
-            if ! install_package "$opt_package"; then
-                log_warn "Failed to install optional package: $opt_package (continuing anyway)"
-            fi
-        done
-    fi
-    
-    log_success "Waybar packages installed successfully"
-    return 0
+    command -v waybar >/dev/null 2>&1
 }
 
 # Configure Waybar with dotfiles
@@ -303,28 +214,11 @@ validate_waybar_installation() {
 
 # Main Waybar installation function
 install_waybar() {
-    log_section "Installing Waybar Status Bar"
+    log_section "Configuring Waybar Status Bar"
     
-    # Check if already installed
-    if is_waybar_installed; then
-        log_info "Waybar is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Waybar?" "n"; then
-            log_info "Skipping Waybar installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${WAYBAR_PACKAGES[$distro]}" ]]; then
-        log_error "Waybar installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_waybar_packages; then
-        log_error "Failed to install Waybar packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_waybar_installed; then
+        log_error "Waybar not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -353,7 +247,7 @@ install_waybar() {
         return 1
     fi
     
-    log_success "Waybar installation completed successfully"
+    log_success "Waybar configuration completed successfully"
     log_info "Note: Waybar will start automatically with Hyprland if configured in hyprland.conf"
     return 0
 }

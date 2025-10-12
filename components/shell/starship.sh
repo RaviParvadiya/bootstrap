@@ -20,12 +20,6 @@ declare -A STARSHIP_PACKAGES=(
     ["ubuntu"]=""        # Not in Ubuntu repos, use install script
 )
 
-# Font dependencies for proper icon display
-declare -A STARSHIP_FONT_PACKAGES=(
-    ["arch"]="ttf-nerd-fonts-symbols ttf-jetbrains-mono-nerd"
-    ["ubuntu"]="fonts-noto-color-emoji"
-)
-
 #######################################
 # Starship Installation Functions
 #######################################
@@ -102,31 +96,6 @@ install_starship_via_script() {
         export PATH="$local_bin:$PATH"
     fi
     
-    return 0
-}
-
-# Install font dependencies for proper Starship display
-install_starship_fonts() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${STARSHIP_FONT_PACKAGES[$distro]:-}" ]]; then
-        log_info "No specific font packages defined for $distro"
-        return 0
-    fi
-    
-    log_info "Installing Starship font dependencies..."
-    
-    local font_packages
-    read -ra font_packages <<< "${STARSHIP_FONT_PACKAGES[$distro]}"
-    
-    for font_package in "${font_packages[@]}"; do
-        if ! install_package "$font_package"; then
-            log_warn "Failed to install font package: $font_package (continuing anyway)"
-        fi
-    done
-    
-    log_success "Starship font dependencies installed"
     return 0
 }
 
@@ -289,11 +258,6 @@ install_starship() {
     # Validate distribution support
     local distro
     distro=$(get_distro)
-    
-    # Install font dependencies first
-    if ! install_starship_fonts; then
-        log_warn "Failed to install font dependencies (continuing anyway)"
-    fi
     
     # Install Starship binary
     if ! install_starship_binary; then

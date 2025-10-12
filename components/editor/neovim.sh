@@ -13,71 +13,13 @@ readonly NEOVIM_COMPONENT_NAME="neovim"
 readonly NEOVIM_CONFIG_SOURCE="$DOTFILES_DIR/nvim/.config/nvim"
 readonly NEOVIM_CONFIG_TARGET="$HOME/.config/nvim"
 
-# Package definitions per distribution
-declare -A NEOVIM_PACKAGES=(
-    ["arch"]="neovim"
-    ["ubuntu"]="neovim"
-)
-
-# Language server and development tool packages
-declare -A NEOVIM_LSP_PACKAGES=(
-    ["arch"]="nodejs npm python-pip ripgrep fd"
-    ["ubuntu"]="nodejs npm python3-pip ripgrep fd-find"
-)
-
-# Optional packages for enhanced development experience
-declare -A NEOVIM_OPTIONAL_PACKAGES=(
-    ["arch"]="git curl unzip tar gzip"
-    ["ubuntu"]="git curl unzip tar gzip"
-)
-
 #######################################
 # Neovim Installation Functions
 #######################################
 
 # Check if Neovim is already installed
 is_neovim_installed() {
-    command -v nvim >/dev/null 2>&1 || {
-        local distro=$(get_distro)
-        case "$distro" in
-            "arch") pacman -Qi neovim >/dev/null 2>&1 ;;
-            "ubuntu") dpkg -l neovim >/dev/null 2>&1 ;;
-            *) return 1 ;;
-        esac
-    }
-}
-
-# Install Neovim packages
-install_neovim_packages() {
-    local distro=$(get_distro)
-    
-    [[ -z "${NEOVIM_PACKAGES[$distro]}" ]] && { log_error "Neovim packages not defined for distribution: $distro"; return 1; }
-    
-    log_info "Installing Neovim packages for $distro..."
-    
-    # Install main packages
-    local packages; read -ra packages <<< "${NEOVIM_PACKAGES[$distro]}"
-    for package in "${packages[@]}"; do
-        install_package "$package" || { log_error "Failed to install Neovim package: $package"; return 1; }
-    done
-    
-    # Install LSP packages
-    if [[ -n "${NEOVIM_LSP_PACKAGES[$distro]:-}" ]]; then
-        local lsp_packages; read -ra lsp_packages <<< "${NEOVIM_LSP_PACKAGES[$distro]}"
-        for lsp_package in "${lsp_packages[@]}"; do
-            install_package "$lsp_package" || log_warn "Failed to install LSP package: $lsp_package"
-        done
-    fi
-    
-    # Install optional packages
-    if [[ -n "${NEOVIM_OPTIONAL_PACKAGES[$distro]:-}" ]]; then
-        local optional_packages; read -ra optional_packages <<< "${NEOVIM_OPTIONAL_PACKAGES[$distro]}"
-        for opt_package in "${optional_packages[@]}"; do
-            install_package "$opt_package" || log_warn "Failed to install optional package: $opt_package"
-        done
-    fi
-    
-    log_success "Neovim packages installed successfully"
+    command -v nvim >/dev/null 2>&1
 }
 
 # Install language servers via npm and pip
@@ -250,28 +192,11 @@ validate_neovim_installation() {
 
 # Main Neovim installation function
 install_neovim() {
-    log_section "Installing Neovim Editor"
+    log_section "Configuring Neovim Editor"
     
-    # Check if already installed
-    if is_neovim_installed; then
-        log_info "Neovim is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Neovim?" "n"; then
-            log_info "Skipping Neovim installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${NEOVIM_PACKAGES[$distro]}" ]]; then
-        log_error "Neovim installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_neovim_packages; then
-        log_error "Failed to install Neovim packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_neovim_installed; then
+        log_error "Neovim not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -302,7 +227,7 @@ install_neovim() {
         initialize_neovim_plugins
     fi
     
-    log_success "Neovim installation completed successfully"
+    log_success "Neovim configuration completed successfully"
     log_info "Note: Run ':checkhealth' in Neovim to verify all components are working correctly"
     return 0
 }
