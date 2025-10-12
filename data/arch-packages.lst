@@ -62,6 +62,8 @@ hyprland
 xdg-desktop-portal
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
+xorg-server
+xorg-xinit
 brightnessctl
 pamixer
 jq
@@ -109,12 +111,17 @@ lm_sensors
 swaync
 
 # --- Hardware Specific ---
+vulkan-intel|intel
+intel-media-driver|intel
+libva-intel-driver|intel
+dkms|nvidia
 nvidia-dkms|nvidia
 nvidia-utils|nvidia
 nvidia-prime|nvidia
 lib32-nvidia-utils|nvidia
 nvidia-settings|nvidia
 libva-nvidia-driver|nvidia
+egl-wayland|nvidia
 mesa|amd
 lib32-mesa|amd
 

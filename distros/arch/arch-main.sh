@@ -108,14 +108,14 @@ arch_update_system() {
 arch_configure_hardware() {
     log_info "Configuring hardware-specific settings..."
     
-    # Check for NVIDIA GPU and offer installation
+    # Check for NVIDIA GPU and configure if packages are installed
     if detect_nvidia_gpu; then
-        if ask_yes_no "NVIDIA GPU detected. Would you like to install NVIDIA drivers?"; then
-            if ! install_nvidia; then
-                log_warn "NVIDIA installation failed, continuing with other components"
+        if ask_yes_no "NVIDIA GPU detected. Would you like to configure NVIDIA drivers?"; then
+            if ! configure_nvidia; then
+                log_warn "NVIDIA configuration failed, continuing with other components"
             fi
         else
-            log_info "NVIDIA installation skipped by user"
+            log_info "NVIDIA configuration skipped by user"
         fi
     fi
     
