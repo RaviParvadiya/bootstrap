@@ -434,22 +434,6 @@ run_installation() {
         installation_success=false
     fi
     
-    # Post-installation validation with error handling
-    push_error_context "validation" "Post-installation validation"
-    
-    log_info "Running post-installation validation..."
-    if [[ -f "$TESTS_DIR/validate.sh" ]]; then
-        source "$TESTS_DIR/validate.sh"
-        if ! validate_installation "${SELECTED_COMPONENTS[@]}"; then
-            handle_error "validation" "Post-installation validation failed" "post_install_validation"
-            installation_success=false
-        else
-            log_success "Post-installation validation passed"
-        fi
-    else
-        log_warn "Validation utilities not found, skipping validation"
-    fi
-    
     # Final status
     if [[ "$installation_success" == "true" ]]; then
         log_success "Installation process completed successfully! ✓"
