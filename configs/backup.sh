@@ -82,7 +82,7 @@ get_latest_backup_session() {
 # List all backup sessions
 # Arguments: $1 - session name filter (optional)
 list_backup_sessions() {
-    local session_filter="$1"
+    local session_filter="${1:-}"
     local pattern="*"
     
     if [[ -n "$session_filter" ]]; then
@@ -93,8 +93,6 @@ list_backup_sessions() {
         log_info "No backup sessions found (backup directory does not exist)"
         return 0
     fi
-    
-    log_section "Available Backup Sessions"
     
     local sessions_found=0
     while IFS= read -r -d '' session_dir; do
