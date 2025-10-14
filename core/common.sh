@@ -487,7 +487,7 @@ validate_system() {
         return 1
     fi
 
-    local missing_tools=() required_tools=("curl" "wget" "jq" "bc")
+    local missing_tools=() required_tools=("curl" "wget" "jq" "bc" "stow" "unzip" "tar" "gzip")
 
     # Check for required tools
     for tool in "${required_tools[@]}"; do
