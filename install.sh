@@ -60,7 +60,6 @@ source_with_error_check() {
 source_with_error_check "$CORE_DIR/common.sh"
 source_with_error_check "$CORE_DIR/logger.sh"
 source_with_error_check "$CORE_DIR/menu.sh"
-source_with_error_check "$CORE_DIR/recovery-system.sh"
 
 # Source package manager utilities
 source_with_error_check "$CORE_DIR/package-manager.sh"
@@ -291,9 +290,6 @@ main() {
     else
         log_warn "Operation completed with issues (exit code: $exit_code)"
     fi
-    
-    # Clean up old checkpoints
-    cleanup_old_checkpoints 5
     
     exit $exit_code
 }

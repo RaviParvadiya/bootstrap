@@ -54,14 +54,13 @@ fi
 CORE_DIR="$SCRIPT_DIR/core"
 DISTROS_DIR="$SCRIPT_DIR/distros"
 COMPONENTS_DIR="$SCRIPT_DIR/components"
-CONFIGS_DIR="$SCRIPT_DIR/configs"
 DATA_DIR="$SCRIPT_DIR/data"
 TESTS_DIR="$SCRIPT_DIR/tests"
 DOCS_DIR="$SCRIPT_DIR/docs"
 DOTFILES_DIR="$HOME/dotfiles"
 
 # Export all paths for use in child processes
-export SCRIPT_DIR CORE_DIR DISTROS_DIR COMPONENTS_DIR CONFIGS_DIR DATA_DIR TESTS_DIR DOCS_DIR DOTFILES_DIR
+export SCRIPT_DIR CORE_DIR DISTROS_DIR COMPONENTS_DIR DATA_DIR TESTS_DIR DOCS_DIR DOTFILES_DIR
 
 #######################################
 # Path Validation
@@ -69,7 +68,7 @@ export SCRIPT_DIR CORE_DIR DISTROS_DIR COMPONENTS_DIR CONFIGS_DIR DATA_DIR TESTS
 
 # Validate that all required directories exist
 validate_project_paths() {
-    local required_dirs=("$CORE_DIR" "$CONFIGS_DIR" "$DATA_DIR")
+    local required_dirs=("$CORE_DIR" "$DATA_DIR")
     local missing_dirs=()
     
     for dir in "${required_dirs[@]}"; do
