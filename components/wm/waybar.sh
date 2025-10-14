@@ -273,12 +273,10 @@ uninstall_waybar() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$WAYBAR_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/waybar-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$WAYBAR_CONFIG_TARGET" "$backup_dir"
-        log_info "Waybar configuration backed up to: $backup_dir"
+        rm -rf "$WAYBAR_CONFIG_TARGET"
+        log_info "Waybar configuration removed"
     fi
     
     # Remove systemd service

@@ -10,18 +10,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 
-# Helper function to create pacman.conf backup
-_backup_pacman_conf() {
-    local suffix="${1:-$(date +%Y%m%d_%H%M%S)}"
-    local pacman_conf="/etc/pacman.conf"
-    
-    if ! sudo cp "$pacman_conf" "$pacman_conf.backup.$suffix"; then
-        log_error "Failed to backup pacman.conf"
-        return 1
-    fi
-    return 0
-}
-
 # Setup all Arch Linux repositories
 arch_setup_repositories() {
     log_info "Setting up Arch Linux repositories..."
@@ -43,8 +31,6 @@ arch_enable_multilib() {
         log_info "Multilib repository already enabled"
         return 0
     fi
-    
-    _backup_pacman_conf || return 1
     
     if sudo sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/ s/^#//' "$pacman_conf"; then
         log_success "Multilib repository enabled"
@@ -117,9 +103,6 @@ arch_setup_chaotic_aur() {
     # Add chaotic-aur repository to pacman.conf
     log_info "Adding chaotic-aur repository to pacman.conf..."
     
-    # Create backup
-    sudo cp "$pacman_conf" "$pacman_conf.backup.chaotic.$(date +%Y%m%d_%H%M%S)"
-    
     # Add chaotic-aur repository configuration
     echo -e '\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist' | sudo tee -a "$pacman_conf" >/dev/null
     
@@ -164,8 +147,6 @@ arch_add_custom_repository() {
         sudo pacman-key --recv-keys "$repo_key" && sudo pacman-key --lsign-key "$repo_key" || log_warn "GPG key setup failed"
     fi
     
-    _backup_pacman_conf "custom" || return 1
-    
     cat << EOF | sudo tee -a "$pacman_conf" >/dev/null
 
 # Custom repository: $repo_name
@@ -192,23 +173,6 @@ arch_check_repository_status() {
         log_info "Repository $repo_name is configured"
     else
         log_info "Repository $repo_name is not configured"
-        return 1
-    fi
-}
-
-# Restore pacman.conf from backup (optional restore function)
-arch_restore_pacman_conf() {
-    local backup_file="${1:-$(ls -t /etc/pacman.conf.backup.* 2>/dev/null | head -n1)}"
-    
-    [[ -z "$backup_file" || ! -f "$backup_file" ]] && { log_error "No backup file found"; return 1; }
-    
-    log_info "Restoring pacman.conf from: $backup_file"
-    
-    if sudo cp "$backup_file" /etc/pacman.conf; then
-        log_success "pacman.conf restored from backup"
-        arch_update_package_database
-    else
-        log_error "Failed to restore pacman.conf"
         return 1
     fi
 }

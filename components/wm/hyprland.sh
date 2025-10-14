@@ -407,12 +407,10 @@ uninstall_hyprland() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$HYPRLAND_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/hyprland-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$HYPRLAND_CONFIG_TARGET" "$backup_dir"
-        log_info "Hyprland configuration backed up to: $backup_dir"
+        rm -rf "$HYPRLAND_CONFIG_TARGET"
+        log_info "Hyprland configuration removed"
     fi
     
     log_success "Hyprland uninstalled successfully"

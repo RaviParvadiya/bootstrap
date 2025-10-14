@@ -239,8 +239,7 @@ arch_configure_pacman() {
     local pacman_conf="/etc/pacman.conf"
     
     log_info "Configuring pacman"
-    
-    sudo cp "$pacman_conf" "$pacman_conf.backup.$(date +%Y%m%d_%H%M%S)"
+
     sudo sed -i 's/^#Color/Color/; s/^#VerbosePkgLists/VerbosePkgLists/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' "$pacman_conf"
     
     log_success "Pacman configured"
@@ -251,7 +250,6 @@ arch_configure_makepkg() {
     
     log_info "Configuring makepkg"
     
-    sudo cp "$makepkg_conf" "$makepkg_conf.backup.$(date +%Y%m%d_%H%M%S)"
     sudo sed -i 's/COMPRESSZST=(zstd -c -T0 --ultra -20 -)/COMPRESSZST=(zstd -c -T0 --fast -)/' "$makepkg_conf"
     
     log_success "Makepkg configured"

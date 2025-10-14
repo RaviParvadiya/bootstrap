@@ -317,12 +317,10 @@ uninstall_starship() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -f "$STARSHIP_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups"
-        mkdir -p "$backup_dir"
-        mv "$STARSHIP_CONFIG_TARGET" "$backup_dir/starship-$(date +%Y%m%d_%H%M%S).toml"
-        log_info "Starship configuration backed up to: $backup_dir"
+        rm -f "$STARSHIP_CONFIG_TARGET"
+        log_info "Starship configuration removed"
     fi
     
     log_success "Starship uninstalled successfully"

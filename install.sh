@@ -80,9 +80,7 @@ OPTIONS:
 
 COMMANDS:
     install             Run interactive installation (default)
-    restore             Restore from backup
     validate            Validate current installation
-    backup              Create system backup
     list                List available components
 
 EXAMPLES:
@@ -115,7 +113,7 @@ parse_arguments() {
                 shift
                 ;;
 
-            install|restore|validate|backup|list)
+            install|validate|list)
                 COMMAND="$1"
                 shift
                 ;;
@@ -268,18 +266,8 @@ main() {
                 exit_code=1
             fi
             ;;
-        restore)
-            if ! run_restoration; then
-                exit_code=1
-            fi
-            ;;
         validate)
             if ! run_validation; then
-                exit_code=1
-            fi
-            ;;
-        backup)
-            if ! run_backup; then
                 exit_code=1
             fi
             ;;
@@ -333,35 +321,6 @@ run_installation() {
     # Check shell safety before proceeding
     if ! check_shell_safety "${SELECTED_COMPONENTS[@]}"; then
         return 1
-    fi
-    
-    # Create pre-installation backup with error handling
-    if ask_yes_no "Create backup before installation?" "y"; then
-        log_info "Creating pre-installation backup..."
-        
-        if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
-            source "$CONFIGS_DIR/backup.sh"
-            if ! exec_safe "create_system_backup" "Create system backup"; then
-                fail "backup_creation" "Failed to create pre-installation backup"
-                if ask_yes_no "Continue installation without backup?" "n"; then
-                    log_warn "Continuing installation without backup"
-                else
-                    return 1
-                fi
-            else
-                log_success "Pre-installation backup created successfully"
-                
-                # Additional shell backup if zsh is being installed
-                for component in "${SELECTED_COMPONENTS[@]}"; do
-                    if [[ "$component" == "shell" || "$component" == "zsh" ]]; then
-                        log_info "Shell component detected - ensuring shell information is backed up"
-                        break
-                    fi
-                done
-            fi
-        else
-            fail "backup_utilities" "Backup utilities not found"
-        fi
     fi
     
     # Route to distribution-specific handler with error handling
@@ -446,7 +405,7 @@ check_shell_safety() {
         log_warn "Shell component operation detected while zsh is your default shell"
         log_warn "This operation may affect your shell configuration"
         
-        if ! ask_yes_no "Do you want to continue? (Backup recommended)" "y"; then
+        if ! ask_yes_no "Do you want to continue?" "y"; then
             log_info "Operation cancelled by user for shell safety"
             return 1
         fi
@@ -555,52 +514,6 @@ retry_failed_operations() {
     log_info "Retry functionality is simplified in this implementation"
 }
 
-# Run restoration process with error handling
-run_restoration() {
-    log_info "Starting restoration process..."
-    
-    # Source restoration utilities with error handling
-    if [[ -f "$CONFIGS_DIR/restore.sh" ]]; then
-        source "$CONFIGS_DIR/restore.sh"
-    else
-        die "Restoration utilities not found"
-    fi
-    
-    local restore_success=true
-    
-    # Check if specific backup file provided
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        # Treat first component as backup file path
-        local backup_file="${SELECTED_COMPONENTS[0]}"
-        
-        if [[ -f "$backup_file" ]]; then
-            log_info "Restoring from specified backup: $backup_file"
-            if ! exec_safe "restore_from_backup \"$backup_file\"" "Restore from backup"; then
-                fail "backup_restore" "Failed to restore from backup: $backup_file"
-                restore_success=false
-            fi
-        else
-            fail "backup_file" "Backup file not found: $backup_file"
-            restore_success=false
-        fi
-    else
-        # Interactive restoration
-        log_info "Starting interactive restoration..."
-        if ! exec_safe "interactive_restore" "Interactive restoration"; then
-            fail "interactive_restore" "Interactive restoration failed"
-            restore_success=false
-        fi
-    fi
-    
-    if [[ "$restore_success" == "true" ]]; then
-        log_success "Restoration process completed successfully ✓"
-        return 0
-    else
-        log_error "Restoration process completed with errors"
-        return 1
-    fi
-}
-
 # Run validation process with error handling
 run_validation() {
     log_info "Starting validation process..."
@@ -618,46 +531,6 @@ run_validation() {
         return 0
     else
         fail "system_validation" "System validation failed"
-        return 1
-    fi
-}
-
-# Run backup process with error handling
-run_backup() {
-    log_info "Starting backup process..."
-    
-    # Source backup utilities with error handling
-    if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
-        source "$CONFIGS_DIR/backup.sh"
-    else
-        die "Backup utilities not found"
-    fi
-    
-    local backup_success=true
-    
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        # Backup specific components
-        log_info "Creating component-specific backups for: ${SELECTED_COMPONENTS[*]}"
-        for component in "${SELECTED_COMPONENTS[@]}"; do
-            if ! exec_safe "create_config_backup \"$component\"" "Backup component: $component"; then
-                fail "component_backup" "Failed to backup component: $component"
-                backup_success=false
-            fi
-        done
-    else
-        # Create comprehensive system backup
-        log_info "Creating comprehensive system backup..."
-        if ! exec_safe "create_system_backup" "Create system backup"; then
-            fail "system_backup" "Failed to create system backup"
-            backup_success=false
-        fi
-    fi
-    
-    if [[ "$backup_success" == "true" ]]; then
-        log_success "Backup process completed successfully ✓"
-        return 0
-    else
-        log_error "Backup process completed with errors"
         return 1
     fi
 }

@@ -267,21 +267,16 @@ uninstall_tmux() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -f "$TMUX_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/tmux-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$backup_dir"
-        cp "$TMUX_CONFIG_TARGET" "$backup_dir/"
         rm -f "$TMUX_CONFIG_TARGET"
-        log_info "Tmux configuration backed up to: $backup_dir"
+        log_info "Tmux configuration removed"
     fi
     
-    # Remove plugins directory (with backup)
+    # Remove plugins directory
     if [[ -d "$TMUX_PLUGINS_DIR" ]]; then
-        local backup_dir="$HOME/.config/install-backups/tmux-plugins-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$TMUX_PLUGINS_DIR" "$backup_dir"
-        log_info "Tmux plugins backed up to: $backup_dir"
+        rm -rf "$TMUX_PLUGINS_DIR"
+        log_info "Tmux plugins removed"
     fi
     
     log_success "Tmux uninstalled successfully"

@@ -161,12 +161,10 @@ uninstall_alacritty() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$ALACRITTY_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/alacritty-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$ALACRITTY_CONFIG_TARGET" "$backup_dir"
-        log_info "Alacritty configuration backed up to: $backup_dir"
+        rm -rf "$ALACRITTY_CONFIG_TARGET"
+        log_info "Alacritty configuration removed"
     fi
     
     log_success "Alacritty uninstalled successfully"
