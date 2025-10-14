@@ -300,12 +300,10 @@ uninstall_wofi() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$WOFI_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/wofi-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$WOFI_CONFIG_TARGET" "$backup_dir"
-        log_info "Wofi configuration backed up to: $backup_dir"
+        rm -rf "$WOFI_CONFIG_TARGET"
+        log_info "Wofi configuration removed"
     fi
     
     # Remove helper scripts

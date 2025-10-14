@@ -328,11 +328,10 @@ ask_choice() {
 # File and Symlink Management Functions
 #######################################
 
-# Create symlink with automatic backup of existing files
+# Create symlink with automatic removal of existing files
 # Arguments: $1 - source file, $2 - target location
 create_symlink() {
     local source="$1" target="$2"
-    local backup_dir="$HOME/.config/install-backups/$(date +%Y%m%d_%H%M%S)"
 
     [[ -z "$source" || -z "$target" ]] && { log_error "Source and target are required for symlink creation"; return 1; }
     [[ ! -e "$source" ]] && { log_error "Source file does not exist: $source"; return 1; }
@@ -341,18 +340,14 @@ create_symlink() {
     local target_dir=$(dirname "$target")
     [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
 
-    # Backup existing file if it exists and is not already a symlink to our source
+    # Remove existing file if it exists and is not already a symlink to our source
     if [[ -e "$target" ]]; then
         if [[ -L "$target" ]]; then
             local current_target=$(readlink "$target")
             [[ "$current_target" == "$source" ]] && { log_info "Symlink already exists and points to correct target: $target"; return 0; }
         fi
 
-        # Create backup
-        mkdir -p "$backup_dir"
-        local backup_file="$backup_dir/$(basename "$target")"
-        log_info "Backing up existing file: $target -> $backup_file"
-        cp -r "$target" "$backup_file"
+        log_info "Removing existing file: $target"
         rm -rf "$target"
     fi
 
@@ -487,7 +482,7 @@ validate_system() {
         return 1
     fi
 
-    local missing_tools=() required_tools=("curl" "wget" "jq" "bc")
+    local missing_tools=() required_tools=("curl" "wget" "jq" "bc" "stow" "unzip" "tar" "gzip")
 
     # Check for required tools
     for tool in "${required_tools[@]}"; do

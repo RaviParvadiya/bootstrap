@@ -443,12 +443,10 @@ uninstall_swaync() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$SWAYNC_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/swaync-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$SWAYNC_CONFIG_TARGET" "$backup_dir"
-        log_info "SwayNC configuration backed up to: $backup_dir"
+        rm -rf "$SWAYNC_CONFIG_TARGET"
+        log_info "SwayNC configuration removed"
     fi
     
     # Remove systemd service

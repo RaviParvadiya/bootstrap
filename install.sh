@@ -80,9 +80,7 @@ OPTIONS:
 
 COMMANDS:
     install             Run interactive installation (default)
-    restore             Restore from backup
     validate            Validate current installation
-    backup              Create system backup
     list                List available components
 
 EXAMPLES:
@@ -115,7 +113,7 @@ parse_arguments() {
                 shift
                 ;;
 
-            install|restore|validate|backup|list)
+            install|validate|list)
                 COMMAND="$1"
                 shift
                 ;;
@@ -182,54 +180,47 @@ main() {
     
     # Parse command line arguments with error handling
     if ! parse_arguments "$@"; then
-        handle_error "critical" "Failed to parse command line arguments" "argument_parsing"
-        exit 1
+        die "Failed to parse command line arguments"
     fi
     
     # Set global flags and export for child processes
     export COMMAND
     
     # System detection and validation with error handling
-    push_error_context "system_detection" "Detecting and validating system"
-    
     log_info "Detecting Linux distribution..."
     if ! detect_distro; then
-        handle_error "critical" "Failed to detect Linux distribution" "distro_detection"
-        exit 1
+        die "Failed to detect Linux distribution"
     fi
     
     DETECTED_DISTRO=$(get_distro)
     if [[ -z "$DETECTED_DISTRO" ]]; then
-        handle_error "critical" "Distribution detection returned empty result" "distro_detection"
-        exit 1
+        die "Distribution detection returned empty result"
     fi
     
     log_info "Detected distribution: $DETECTED_DISTRO $(get_distro_version)"
     
     # Validate distribution support
     if ! validate_distro_support; then
-        handle_error "critical" "Distribution not supported or validation failed" "distro_validation"
-        exit 1
+        die "Distribution not supported or validation failed"
     fi
     
     # Validate system prerequisites
     log_info "Validating system requirements..."
     if ! validate_system; then
-        handle_error "critical" "System validation failed" "system_validation"
-        exit 1
+        die "System validation failed"
     fi
     
     # Check and setup dotfiles repository
     log_info "Checking dotfiles repository..."
-    if [[ -d "$SCRIPT_DIR/dotfiles" ]]; then
-        if [[ -d "$SCRIPT_DIR/dotfiles/.git" ]]; then
+    if [[ -d "$DOTFILES_DIR" ]]; then
+        if [[ -d "$DOTFILES_DIR/.git" ]]; then
             log_info "Dotfiles repository found and is a valid git repository"
             log_info "Fetching latest changes from remote repository..."
             
             # Change to dotfiles directory and fetch latest changes
-            pushd "$SCRIPT_DIR/dotfiles" > /dev/null
+            pushd "$DOTFILES_DIR" > /dev/null
             if ! git fetch origin; then
-                handle_error "config" "Failed to fetch latest changes from dotfiles repository" "dotfiles_fetch"
+                fail "dotfiles_fetch" "Failed to fetch latest changes from dotfiles repository"
                 log_warn "Continuing with existing dotfiles version"
             else
                 # Pull latest changes if we're on a branch that tracks origin
@@ -238,7 +229,7 @@ main() {
                 if [[ -n "$current_branch" && "$current_branch" != "HEAD" ]]; then
                     if git rev-parse --verify "origin/$current_branch" >/dev/null 2>&1; then
                         if ! git pull origin "$current_branch"; then
-                            handle_error "config" "Failed to pull latest changes from dotfiles repository" "dotfiles_pull"
+                            fail "dotfiles_pull" "Failed to pull latest changes from dotfiles repository"
                             log_warn "Continuing with existing dotfiles version"
                         else
                             log_success "Dotfiles repository updated to latest version"
@@ -254,33 +245,24 @@ main() {
         else
             log_warn "Dotfiles directory exists but is not a git repository"
             log_info "Removing existing dotfiles directory and cloning repository..."
-            rm -rf "$SCRIPT_DIR/dotfiles"
-            if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
-                handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
-                exit 1
+            rm -rf "$DOTFILES_DIR"
+            if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$DOTFILES_DIR"; then
+                die "Failed to clone dotfiles repository"
             fi
             log_success "Dotfiles repository cloned successfully"
         fi
     else
         log_info "Dotfiles directory not found, cloning repository..."
-        if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
-            handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
-            exit 1
+        if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$DOTFILES_DIR"; then
+            die "Failed to clone dotfiles repository"
         fi
         log_success "Dotfiles repository cloned successfully"
     fi
     
     # Execute command with comprehensive error handling
-    push_error_context "command_execution" "Executing command: $COMMAND"
-    
     case "$COMMAND" in
         install)
             if ! run_installation; then
-                exit_code=1
-            fi
-            ;;
-        restore)
-            if ! run_restoration; then
                 exit_code=1
             fi
             ;;
@@ -289,17 +271,11 @@ main() {
                 exit_code=1
             fi
             ;;
-        backup)
-            if ! run_backup; then
-                exit_code=1
-            fi
-            ;;
         list)
             list_components
             ;;
         *)
-            handle_error "critical" "Unknown command: $COMMAND" "command_execution"
-            exit_code=1
+            die "Unknown command: $COMMAND"
             ;;
     esac
     
@@ -324,8 +300,6 @@ main() {
 
 # Run installation process with comprehensive error handling and recovery
 run_installation() {
-    push_error_context "installation" "Main installation process"
-    
     log_info "Starting installation process..."
     local installation_success=true
     
@@ -333,8 +307,7 @@ run_installation() {
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
         log_info "Opening component selection menu..."
         if ! select_components; then
-            handle_error "critical" "Component selection failed" "component_selection"
-            return 1
+            die "Component selection failed"
         fi
     else
         log_info "Using pre-selected components: ${SELECTED_COMPONENTS[*]}"
@@ -342,8 +315,7 @@ run_installation() {
     
     # Validate component selection
     if [[ ${#SELECTED_COMPONENTS[@]} -eq 0 ]]; then
-        handle_error "critical" "No components selected for installation" "component_selection"
-        return 1
+        die "No components selected for installation"
     fi
     
     # Check shell safety before proceeding
@@ -351,51 +323,18 @@ run_installation() {
         return 1
     fi
     
-    # Create pre-installation backup with error handling
-    if ask_yes_no "Create backup before installation?" "y"; then
-        log_info "Creating pre-installation backup..."
-        push_error_context "backup" "Creating pre-installation backup"
-        
-        if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
-            source "$CONFIGS_DIR/backup.sh"
-            if ! exec_safe "create_system_backup" "Create system backup"; then
-                handle_error "config" "Failed to create pre-installation backup" "backup_creation"
-                if ask_yes_no "Continue installation without backup?" "n"; then
-                    log_warn "Continuing installation without backup"
-                else
-                    return 1
-                fi
-            else
-                log_success "Pre-installation backup created successfully"
-                
-                # Additional shell backup if zsh is being installed
-                for component in "${SELECTED_COMPONENTS[@]}"; do
-                    if [[ "$component" == "shell" || "$component" == "zsh" ]]; then
-                        log_info "Shell component detected - ensuring shell information is backed up"
-                        break
-                    fi
-                done
-            fi
-        else
-            handle_error "config" "Backup utilities not found" "backup_utilities"
-        fi
-    fi
-    
     # Route to distribution-specific handler with error handling
-    push_error_context "distro_install" "Distribution-specific installation"
-    
     case "$DETECTED_DISTRO" in
         "arch")
             log_info "Starting Arch Linux installation..."
             if [[ -f "$DISTROS_DIR/arch/arch-main.sh" ]]; then
                 source "$DISTROS_DIR/arch/arch-main.sh"
                 if ! arch_main_install "${SELECTED_COMPONENTS[@]}"; then
-                    handle_error "package" "Arch Linux installation failed" "arch_installation"
+                    fail "arch_installation" "Arch Linux installation failed"
                     installation_success=false
                 fi
             else
-                handle_error "critical" "Arch Linux installer not found" "arch_installer"
-                return 1
+                die "Arch Linux installer not found"
             fi
             ;;
         "ubuntu")
@@ -403,34 +342,30 @@ run_installation() {
             if [[ -f "$DISTROS_DIR/ubuntu/ubuntu-main.sh" ]]; then
                 source "$DISTROS_DIR/ubuntu/ubuntu-main.sh"
                 if ! ubuntu_main_install "${SELECTED_COMPONENTS[@]}"; then
-                    handle_error "package" "Ubuntu installation failed" "ubuntu_installation"
+                    fail "ubuntu_installation" "Ubuntu installation failed"
                     installation_success=false
                 fi
             else
-                handle_error "critical" "Ubuntu installer not found" "ubuntu_installer"
-                return 1
+                die "Ubuntu installer not found"
             fi
             ;;
         *)
-            handle_error "critical" "Unsupported distribution: $DETECTED_DISTRO" "distro_support"
-            return 1
+            die "Unsupported distribution: $DETECTED_DISTRO"
             ;;
     esac
     
     # Apply dotfiles configurations with error handling
-    push_error_context "dotfiles" "Applying dotfiles configurations"
-    
     log_info "Applying dotfiles configurations..."
     if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
         source "$CONFIGS_DIR/dotfiles-manager.sh"
         if ! manage_dotfiles "${SELECTED_COMPONENTS[@]}"; then
-            handle_error "config" "Failed to apply dotfiles configurations" "dotfiles_management"
+            fail "dotfiles_management" "Failed to apply dotfiles configurations"
             installation_success=false
         else
             log_success "Dotfiles configurations applied successfully"
         fi
     else
-        handle_error "config" "Dotfiles manager not found" "dotfiles_manager"
+        fail "dotfiles_manager" "Dotfiles manager not found"
         installation_success=false
     fi
     
@@ -470,7 +405,7 @@ check_shell_safety() {
         log_warn "Shell component operation detected while zsh is your default shell"
         log_warn "This operation may affect your shell configuration"
         
-        if ! ask_yes_no "Do you want to continue? (Backup recommended)" "y"; then
+        if ! ask_yes_no "Do you want to continue?" "y"; then
             log_info "Operation cancelled by user for shell safety"
             return 1
         fi
@@ -579,67 +514,15 @@ retry_failed_operations() {
     log_info "Retry functionality is simplified in this implementation"
 }
 
-# Run restoration process with error handling
-run_restoration() {
-    push_error_context "restoration" "System restoration process"
-    
-    log_info "Starting restoration process..."
-    
-    # Source restoration utilities with error handling
-    if [[ -f "$CONFIGS_DIR/restore.sh" ]]; then
-        source "$CONFIGS_DIR/restore.sh"
-    else
-        handle_error "critical" "Restoration utilities not found" "restore_utilities"
-        return 1
-    fi
-    
-    local restore_success=true
-    
-    # Check if specific backup file provided
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        # Treat first component as backup file path
-        local backup_file="${SELECTED_COMPONENTS[0]}"
-        
-        if [[ -f "$backup_file" ]]; then
-            log_info "Restoring from specified backup: $backup_file"
-            if ! exec_safe "restore_from_backup \"$backup_file\"" "Restore from backup"; then
-                handle_error "config" "Failed to restore from backup: $backup_file" "backup_restore"
-                restore_success=false
-            fi
-        else
-            handle_error "config" "Backup file not found: $backup_file" "backup_file"
-            restore_success=false
-        fi
-    else
-        # Interactive restoration
-        log_info "Starting interactive restoration..."
-        if ! exec_safe "interactive_restore" "Interactive restoration"; then
-            handle_error "config" "Interactive restoration failed" "interactive_restore"
-            restore_success=false
-        fi
-    fi
-    
-    if [[ "$restore_success" == "true" ]]; then
-        log_success "Restoration process completed successfully ✓"
-        return 0
-    else
-        log_error "Restoration process completed with errors"
-        return 1
-    fi
-}
-
 # Run validation process with error handling
 run_validation() {
-    push_error_context "validation" "System validation process"
-    
     log_info "Starting validation process..."
     
     # Source validation utilities with error handling
     if [[ -f "$TESTS_DIR/validate.sh" ]]; then
         source "$TESTS_DIR/validate.sh"
     else
-        handle_error "critical" "Validation utilities not found" "validation_utilities"
-        return 1
+        die "Validation utilities not found"
     fi
     
     # Validate system state
@@ -647,50 +530,7 @@ run_validation() {
         log_success "System validation completed successfully ✓"
         return 0
     else
-        handle_error "validation" "System validation failed" "system_validation"
-        return 1
-    fi
-}
-
-# Run backup process with error handling
-run_backup() {
-    push_error_context "backup" "System backup process"
-    
-    log_info "Starting backup process..."
-    
-    # Source backup utilities with error handling
-    if [[ -f "$CONFIGS_DIR/backup.sh" ]]; then
-        source "$CONFIGS_DIR/backup.sh"
-    else
-        handle_error "critical" "Backup utilities not found" "backup_utilities"
-        return 1
-    fi
-    
-    local backup_success=true
-    
-    if [[ ${#SELECTED_COMPONENTS[@]} -gt 0 ]]; then
-        # Backup specific components
-        log_info "Creating component-specific backups for: ${SELECTED_COMPONENTS[*]}"
-        for component in "${SELECTED_COMPONENTS[@]}"; do
-            if ! exec_safe "create_config_backup \"$component\"" "Backup component: $component"; then
-                handle_error "config" "Failed to backup component: $component" "component_backup"
-                backup_success=false
-            fi
-        done
-    else
-        # Create comprehensive system backup
-        log_info "Creating comprehensive system backup..."
-        if ! exec_safe "create_system_backup" "Create system backup"; then
-            handle_error "config" "Failed to create system backup" "system_backup"
-            backup_success=false
-        fi
-    fi
-    
-    if [[ "$backup_success" == "true" ]]; then
-        log_success "Backup process completed successfully ✓"
-        return 0
-    else
-        log_error "Backup process completed with errors"
+        fail "system_validation" "System validation failed"
         return 1
     fi
 }

@@ -249,21 +249,17 @@ uninstall_neovim() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$NEOVIM_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/neovim-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$NEOVIM_CONFIG_TARGET" "$backup_dir"
-        log_info "Neovim configuration backed up to: $backup_dir"
+        rm -rf "$NEOVIM_CONFIG_TARGET"
+        log_info "Neovim configuration removed"
     fi
     
-    # Remove plugin data (with backup)
+    # Remove plugin data
     local nvim_data_dir="$HOME/.local/share/nvim"
     if [[ -d "$nvim_data_dir" ]]; then
-        local backup_dir="$HOME/.config/install-backups/neovim-data-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$nvim_data_dir" "$backup_dir"
-        log_info "Neovim data backed up to: $backup_dir"
+        rm -rf "$nvim_data_dir"
+        log_info "Neovim data removed"
     fi
     
     log_success "Neovim uninstalled successfully"

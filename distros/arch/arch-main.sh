@@ -47,12 +47,6 @@ arch_main_install() {
         return 1
     fi
     
-    # Install base packages
-    if ! arch_install_base_packages; then
-        log_error "Failed to install base packages"
-        return 1
-    fi
-    
     # Install packages based on user preferences and auto-detected conditions
     local user_preferences=""
     

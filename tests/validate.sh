@@ -866,112 +866,6 @@ validate_all_components() {
 }
 
 #######################################
-# Backup Validation Functions
-#######################################
-
-# Validate backup integrity
-# Arguments: $1 - backup directory path
-validate_backup_integrity() {
-    local backup_dir="$1"
-    
-    log_info "Validating backup integrity: $backup_dir"
-    
-    if [[ ! -d "$backup_dir" ]]; then
-        record_validation_result "Backup directory" "FAIL" "does not exist: $backup_dir"
-        return 1
-    fi
-    
-    # Check if backup directory is not empty
-    if [[ -z "$(ls -A "$backup_dir")" ]]; then
-        record_validation_result "Backup content" "FAIL" "backup directory is empty"
-        return 1
-    fi
-    
-    # Validate backup file permissions
-    local permission_issues=0
-    while IFS= read -r -d '' file; do
-        if [[ ! -r "$file" ]]; then
-            ((permission_issues++))
-        fi
-    done < <(find "$backup_dir" -type f -print0)
-    
-    if [[ $permission_issues -eq 0 ]]; then
-        record_validation_result "Backup permissions" "PASS" "all files readable"
-    else
-        record_validation_result "Backup permissions" "FAIL" "$permission_issues files not readable"
-    fi
-    
-    # Check backup timestamp
-    local backup_age
-    backup_age=$(find "$backup_dir" -type f -printf '%T@\n' | sort -n | tail -1)
-    local current_time
-    current_time=$(date +%s)
-    local age_hours=$(( (current_time - ${backup_age%.*}) / 3600 ))
-    
-    if [[ $age_hours -lt 24 ]]; then
-        record_validation_result "Backup freshness" "PASS" "backup is $age_hours hours old"
-    else
-        record_validation_result "Backup freshness" "FAIL" "backup is $age_hours hours old"
-    fi
-    
-    record_validation_result "Backup integrity" "PASS" "backup validation completed"
-    return 0
-}
-
-# Test backup restoration capability
-# Arguments: $1 - backup directory, $2 - test file (optional)
-test_backup_restoration() {
-    local backup_dir="$1"
-    local test_file="${2:-}"
-    
-    log_info "Testing backup restoration capability..."
-    
-    # Create a temporary test directory
-    local test_dir="/tmp/backup-restore-test-$$"
-    mkdir -p "$test_dir"
-    
-    # If specific test file provided, test its restoration
-    if [[ -n "$test_file" && -f "$backup_dir/$test_file" ]]; then
-        if cp "$backup_dir/$test_file" "$test_dir/"; then
-            record_validation_result "Backup restoration test" "PASS" "successfully restored test file"
-            rm -rf "$test_dir"
-            return 0
-        else
-            record_validation_result "Backup restoration test" "FAIL" "failed to restore test file"
-            rm -rf "$test_dir"
-            return 1
-        fi
-    fi
-    
-    # Test restoration of a few random files
-    local test_files
-    test_files=($(find "$backup_dir" -type f | head -3))
-    
-    local restoration_success=true
-    for file in "${test_files[@]}"; do
-        local relative_path="${file#$backup_dir/}"
-        local target_dir="$test_dir/$(dirname "$relative_path")"
-        
-        mkdir -p "$target_dir"
-        if ! cp "$file" "$target_dir/"; then
-            restoration_success=false
-            break
-        fi
-    done
-    
-    # Cleanup
-    rm -rf "$test_dir"
-    
-    if [[ "$restoration_success" == "true" ]]; then
-        record_validation_result "Backup restoration test" "PASS" "restoration test successful"
-        return 0
-    else
-        record_validation_result "Backup restoration test" "FAIL" "restoration test failed"
-        return 1
-    fi
-}
-
-#######################################
 # Display and Reporting Functions
 #######################################
 
@@ -1117,21 +1011,6 @@ main_validate() {
             validate_security_settings
             finalize_validation
             ;;
-        "backup")
-            if [[ ${#components[@]} -eq 0 ]]; then
-                log_error "Backup directory required for backup validation mode"
-                exit 1
-            fi
-            
-            init_validation
-            
-            for backup_dir in "${components[@]}"; do
-                validate_backup_integrity "$backup_dir"
-                test_backup_restoration "$backup_dir"
-            done
-            
-            finalize_validation
-            ;;
         "report")
             local report_file="${components[0]:-/tmp/validation-report-$(date +%Y%m%d_%H%M%S).log}"
             generate_validation_report "$report_file"
@@ -1143,14 +1022,12 @@ main_validate() {
             echo "  full         - Run complete validation (default)"
             echo "  component    - Validate specific components"
             echo "  system       - Validate system health only"
-            echo "  backup       - Validate backup integrity"
             echo "  report       - Generate validation report"
             echo
             echo "Examples:"
             echo "  $0                           # Full validation"
             echo "  $0 component terminal shell  # Validate specific components"
             echo "  $0 system                    # System health check only"
-            echo "  $0 backup /path/to/backup    # Validate backup directory"
             echo "  $0 report /path/to/report    # Generate report file"
             exit 1
             ;;

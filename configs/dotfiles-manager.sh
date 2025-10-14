@@ -2,7 +2,7 @@
 
 # configs/dotfiles-manager.sh - Dotfiles management module
 # This module handles symlink creation, configuration file discovery,
-# conflict resolution, and backup creation for dotfiles management.
+# and conflict resolution for dotfiles management.
 
 # Prevent multiple sourcing
 if [[ -n "${DOTFILES_MANAGER_SOURCED:-}" ]]; then
@@ -16,11 +16,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../core/init-paths.sh"
 # Source core utilities
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-
-# Global configuration
-DOTFILES_DIR="$DOTFILES_DIR"
-BACKUP_BASE_DIR="$HOME/.config/install-backups"
-CURRENT_BACKUP_DIR=""
 
 #######################################
 # Dotfiles Discovery Functions
@@ -146,139 +141,6 @@ has_configurations() {
 }
 
 #######################################
-# Backup Management Functions
-#######################################
-
-# Initialize backup directory for current session
-init_backup_session() {
-    local timestamp
-    timestamp=$(date +%Y%m%d_%H%M%S)
-    CURRENT_BACKUP_DIR="$BACKUP_BASE_DIR/dotfiles_$timestamp"
-    
-    if ! mkdir -p "$CURRENT_BACKUP_DIR"; then
-        log_error "Failed to create backup directory: $CURRENT_BACKUP_DIR"
-        return 1
-    fi
-    
-    log_info "Initialized backup session: $CURRENT_BACKUP_DIR"
-    return 0
-}
-
-# Create backup of existing file or directory
-# Arguments: $1 - source path to backup
-create_backup() {
-    local source_path="$1"
-    local backup_path
-    
-    if [[ -z "$source_path" ]]; then
-        log_error "Source path is required for backup"
-        return 1
-    fi
-    
-    if [[ ! -e "$source_path" ]]; then
-        log_debug "Source path does not exist, no backup needed: $source_path"
-        return 0
-    fi
-    
-    # Ensure backup session is initialized
-    if [[ -z "$CURRENT_BACKUP_DIR" ]]; then
-        if ! init_backup_session; then
-            return 1
-        fi
-    fi
-    
-    # Create backup path maintaining directory structure
-    if [[ "$source_path" == "$HOME"/* ]]; then
-        # Remove $HOME prefix and create relative path
-        local relative_path="${source_path#$HOME/}"
-        backup_path="$CURRENT_BACKUP_DIR/home/$relative_path"
-    else
-        # For absolute paths, create full path structure
-        backup_path="$CURRENT_BACKUP_DIR/root$source_path"
-    fi
-    
-    # Create backup directory
-    local backup_dir
-    backup_dir=$(dirname "$backup_path")
-    if ! mkdir -p "$backup_dir"; then
-        log_error "Failed to create backup directory: $backup_dir"
-        return 1
-    fi
-    
-    # Copy file or directory to backup location
-    if [[ -d "$source_path" ]]; then
-        if ! cp -r "$source_path" "$backup_path"; then
-            log_error "Failed to backup directory: $source_path"
-            return 1
-        fi
-    else
-        if ! cp "$source_path" "$backup_path"; then
-            log_error "Failed to backup file: $source_path"
-            return 1
-        fi
-    fi
-    
-    log_debug "Created backup: $source_path -> $backup_path"
-    return 0
-}
-
-# List all backup sessions
-list_backup_sessions() {
-    if [[ ! -d "$BACKUP_BASE_DIR" ]]; then
-        log_info "No backup sessions found"
-        return 0
-    fi
-    
-    find "$BACKUP_BASE_DIR" -mindepth 1 -maxdepth 1 -type d -name "dotfiles_*" | sort
-}
-
-# Restore from backup session
-# Arguments: $1 - backup session directory, $2 - specific file (optional)
-restore_from_backup() {
-    local backup_session="$1"
-    local specific_file="$2"
-    
-    if [[ ! -d "$backup_session" ]]; then
-        log_error "Backup session not found: $backup_session"
-        return 1
-    fi
-    
-    log_info "Restoring from backup session: $backup_session"
-    
-    if [[ -n "$specific_file" ]]; then
-        # Restore specific file
-        local backup_file="$backup_session/home/$specific_file"
-        local target_file="$HOME/$specific_file"
-        
-        if [[ ! -e "$backup_file" ]]; then
-            log_error "Backup file not found: $backup_file"
-            return 1
-        fi
-        
-        cp -r "$backup_file" "$target_file"
-        log_success "Restored: $target_file"
-    else
-        # Restore entire session
-        local home_backup="$backup_session/home"
-        
-        if [[ ! -d "$home_backup" ]]; then
-            log_error "Home backup not found in session: $home_backup"
-            return 1
-        fi
-        
-        # Copy all files from backup to home directory
-        if ! cp -r "$home_backup"/* "$HOME/"; then
-            log_error "Failed to restore backup session"
-            return 1
-        fi
-        
-        log_success "Restored entire backup session"
-    fi
-    
-    return 0
-}
-
-#######################################
 # Conflict Resolution Functions
 #######################################
 
@@ -334,27 +196,22 @@ resolve_config_conflicts() {
         echo "Configuration conflicts detected for component: $component"
         echo "How would you like to resolve these conflicts?"
         echo
-        echo "1. Backup existing files and create symlinks (recommended)"
-        echo "2. Skip conflicting files and only link non-conflicting ones"
-        echo "3. Overwrite existing files without backup (dangerous)"
-        echo "4. Cancel installation for this component"
+        echo "1. Skip conflicting files and only link non-conflicting ones"
+        echo "2. Overwrite existing files (dangerous)"
+        echo "3. Cancel installation for this component"
         echo
         
         local choice
         choice=$(ask_choice "Select resolution strategy" \
-            "Backup and replace" \
             "Skip conflicts" \
-            "Overwrite without backup" \
+            "Overwrite" \
             "Cancel")
         
         case "$choice" in
-            "Backup and replace")
-                resolution_strategy="backup"
-                ;;
             "Skip conflicts")
                 resolution_strategy="skip"
                 ;;
-            "Overwrite without backup")
+            "Overwrite")
                 resolution_strategy="overwrite"
                 if ! ask_yes_no "Are you sure? This will permanently delete existing configurations!" "n"; then
                     resolution_strategy="cancel"
@@ -386,7 +243,7 @@ resolve_config_conflicts() {
 create_managed_symlink() {
     local source_file="$1"
     local target_path="$2"
-    local resolution="${3:-backup}"
+    local resolution="${3:-skip}"
     
     if [[ -z "$source_file" || -z "$target_path" ]]; then
         log_error "Source file and target path are required"
@@ -423,13 +280,6 @@ create_managed_symlink() {
         
         # Handle conflict based on resolution strategy
         case "$resolution" in
-            "backup")
-                if ! create_backup "$target_path"; then
-                    log_error "Failed to create backup for: $target_path"
-                    return 1
-                fi
-                log_info "Backed up existing file: $target_path"
-                ;;
             "skip")
                 log_info "Skipping conflicting file: $target_path"
                 return 0
@@ -513,7 +363,7 @@ remove_component_symlinks() {
 # Arguments: $1 - component name
 apply_component_configs() {
     local component="$1"
-    local resolution="${CONFLICT_RESOLUTION:-backup}"
+    local resolution="${CONFLICT_RESOLUTION:-skip}"
     local success_count=0
     local failed_count=0
     
@@ -528,11 +378,6 @@ apply_component_configs() {
     fi
     
     log_section "Applying Configurations: $component"
-    
-    # Initialize backup session if using backup resolution
-    if [[ "$resolution" == "backup" ]]; then
-        init_backup_session
-    fi
     
     # Apply each configuration file
     while IFS='|' read -r source_file target_path; do
@@ -730,7 +575,6 @@ init_dotfiles_manager() {
     
     log_debug "Dotfiles manager initialized"
     log_debug "Dotfiles directory: $DOTFILES_DIR"
-    log_debug "Backup directory: $BACKUP_BASE_DIR"
     
     return 0
 }
@@ -769,18 +613,8 @@ main() {
         "validate")
             validate_dotfiles_structure
             ;;
-        "backup-list")
-            list_backup_sessions
-            ;;
-        "restore")
-            if [[ -z "$1" ]]; then
-                log_error "Backup session required for restore action"
-                exit 1
-            fi
-            restore_from_backup "$1" "$2"
-            ;;
         *)
-            echo "Usage: $0 {list|show|apply|remove|validate|backup-list|restore} [args...]"
+            echo "Usage: $0 {list|show|apply|remove|validate} [args...]"
             echo
             echo "Commands:"
             echo "  list                    - List all available components"
@@ -788,8 +622,6 @@ main() {
             echo "  apply <component>...    - Apply configurations for one or more components"
             echo "  remove <component>      - Remove configurations for a component"
             echo "  validate               - Validate dotfiles structure"
-            echo "  backup-list            - List all backup sessions"
-            echo "  restore <session> [file] - Restore from backup session"
             exit 1
             ;;
     esac

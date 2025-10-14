@@ -235,12 +235,10 @@ uninstall_kitty() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -d "$KITTY_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups/kitty-$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$(dirname "$backup_dir")"
-        mv "$KITTY_CONFIG_TARGET" "$backup_dir"
-        log_info "Kitty configuration backed up to: $backup_dir"
+        rm -rf "$KITTY_CONFIG_TARGET"
+        log_info "Kitty configuration removed"
     fi
     
     log_success "Kitty uninstalled successfully"

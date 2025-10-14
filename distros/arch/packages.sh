@@ -172,14 +172,6 @@ arch_install_packages_by_category() {
     esac
 }
 
-arch_install_base_packages() {
-    local base_packages
-
-    base_packages=("base-devel" "git" "curl" "wget" "unzip" "tar" "gzip" "sudo" "which")
-    
-    arch_install_pacman_packages "${base_packages[@]}"
-}
-
 arch_has_nvidia_gpu() {
     lspci | grep -i nvidia >/dev/null 2>&1
 }
@@ -239,7 +231,7 @@ arch_clean_package_cache() {
 
 # Export core functions
 export -f arch_install_pacman_packages arch_install_aur_packages arch_get_aur_helper
-export -f arch_ensure_aur_helper arch_install_from_package_list arch_install_base_packages
+export -f arch_ensure_aur_helper arch_install_from_package_list
 export -f arch_is_package_installed arch_get_package_version arch_remove_packages
 export -f arch_clean_package_cache
 
@@ -247,8 +239,7 @@ arch_configure_pacman() {
     local pacman_conf="/etc/pacman.conf"
     
     log_info "Configuring pacman"
-    
-    sudo cp "$pacman_conf" "$pacman_conf.backup.$(date +%Y%m%d_%H%M%S)"
+
     sudo sed -i 's/^#Color/Color/; s/^#VerbosePkgLists/VerbosePkgLists/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' "$pacman_conf"
     
     log_success "Pacman configured"
@@ -259,7 +250,6 @@ arch_configure_makepkg() {
     
     log_info "Configuring makepkg"
     
-    sudo cp "$makepkg_conf" "$makepkg_conf.backup.$(date +%Y%m%d_%H%M%S)"
     sudo sed -i 's/COMPRESSZST=(zstd -c -T0 --ultra -20 -)/COMPRESSZST=(zstd -c -T0 --fast -)/' "$makepkg_conf"
     
     log_success "Makepkg configured"

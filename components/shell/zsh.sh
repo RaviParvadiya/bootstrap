@@ -370,91 +370,11 @@ restore_bash_shell() {
     return 0
 }
 
-# Backup current shell information
-# Arguments: $1 - backup session directory
-backup_shell_info() {
-    local session_dir="$1"
-    
-    if [[ -z "$session_dir" ]]; then
-        log_error "Session directory is required for shell backup"
-        return 1
-    fi
-    
-    local shell_backup_file="$session_dir/shell_info"
-    
-    # Create shell info backup
-    cat > "$shell_backup_file" << EOF
-# Shell Information Backup
-ORIGINAL_SHELL=$SHELL
-BACKUP_DATE=$(date -Iseconds 2>/dev/null || date)
-USER_NAME=$USER
-SHELLS_FILE_BACKUP=true
-EOF
-    
-    # Also backup /etc/shells if we can read it
-    if [[ -r /etc/shells ]]; then
-        cp /etc/shells "$session_dir/etc_shells_backup" 2>/dev/null || true
-    fi
-    
-    log_debug "Shell information backed up to: $shell_backup_file"
+
     return 0
 }
 
-# Restore shell information from backup
-# Arguments: $1 - backup session directory
-restore_shell_info() {
-    local session_dir="$1"
-    
-    if [[ -z "$session_dir" ]]; then
-        log_error "Session directory is required for shell restore"
-        return 1
-    fi
-    
-    local shell_backup_file="$session_dir/shell_info"
-    
-    if [[ ! -f "$shell_backup_file" ]]; then
-        log_debug "No shell information backup found"
-        return 0
-    fi
-    
-    # Read original shell from backup
-    local original_shell
-    while IFS='=' read -r key value; do
-        case "$key" in
-            "ORIGINAL_SHELL") original_shell="$value" ;;
-        esac
-    done < "$shell_backup_file"
-    
-    if [[ -z "$original_shell" ]]; then
-        log_warn "No original shell information found in backup"
-        return 1
-    fi
-    
-    # Check if the original shell binary still exists
-    if [[ ! -x "$original_shell" ]]; then
-        log_warn "Original shell binary not found: $original_shell"
-        log_info "Falling back to bash"
-        restore_bash_shell
-        return $?
-    fi
-    
-    # Check if current shell is different from original
-    if [[ "$SHELL" == "$original_shell" ]]; then
-        log_info "Shell is already set to original: $original_shell"
-        return 0
-    fi
-    
-    # Restore original shell
-    log_info "Restoring original shell: $original_shell"
-    if ! chsh -s "$original_shell"; then
-        log_error "Failed to restore original shell: $original_shell"
-        log_info "You can manually change it with: chsh -s $original_shell"
-        return 1
-    fi
-    
-    log_success "Original shell restored: $original_shell"
-    return 0
-}
+
 
 # Uninstall Zsh (for testing/cleanup)
 uninstall_zsh() {
@@ -495,20 +415,16 @@ uninstall_zsh() {
             ;;
     esac
     
-    # Remove configuration (with backup)
+    # Remove configuration
     if [[ -f "$ZSH_CONFIG_TARGET" ]]; then
-        local backup_dir="$HOME/.config/install-backups"
-        mkdir -p "$backup_dir"
-        mv "$ZSH_CONFIG_TARGET" "$backup_dir/zshrc-$(date +%Y%m%d_%H%M%S)"
-        log_info "Zsh configuration backed up to: $backup_dir"
+        rm -f "$ZSH_CONFIG_TARGET"
+        log_info "Zsh configuration removed"
     fi
     
-    # Remove Zinit (with backup)
+    # Remove Zinit
     if [[ -d "$ZINIT_HOME" ]]; then
-        local backup_dir="$HOME/.config/install-backups"
-        mkdir -p "$backup_dir"
-        mv "$ZINIT_HOME" "$backup_dir/zinit-$(date +%Y%m%d_%H%M%S)"
-        log_info "Zinit backed up to: $backup_dir"
+        rm -rf "$ZINIT_HOME"
+        log_info "Zinit removed"
     fi
     
     log_success "Zsh uninstalled successfully"
