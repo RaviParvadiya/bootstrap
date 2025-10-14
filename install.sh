@@ -221,13 +221,13 @@ main() {
     
     # Check and setup dotfiles repository
     log_info "Checking dotfiles repository..."
-    if [[ -d "$SCRIPT_DIR/dotfiles" ]]; then
-        if [[ -d "$SCRIPT_DIR/dotfiles/.git" ]]; then
+    if [[ -d "$DOTFILES_DIR" ]]; then
+        if [[ -d "$DOTFILES_DIR/.git" ]]; then
             log_info "Dotfiles repository found and is a valid git repository"
             log_info "Fetching latest changes from remote repository..."
             
             # Change to dotfiles directory and fetch latest changes
-            pushd "$SCRIPT_DIR/dotfiles" > /dev/null
+            pushd "$DOTFILES_DIR" > /dev/null
             if ! git fetch origin; then
                 handle_error "config" "Failed to fetch latest changes from dotfiles repository" "dotfiles_fetch"
                 log_warn "Continuing with existing dotfiles version"
@@ -254,8 +254,8 @@ main() {
         else
             log_warn "Dotfiles directory exists but is not a git repository"
             log_info "Removing existing dotfiles directory and cloning repository..."
-            rm -rf "$SCRIPT_DIR/dotfiles"
-            if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
+            rm -rf "$DOTFILES_DIR"
+            if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$DOTFILES_DIR"; then
                 handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
                 exit 1
             fi
@@ -263,7 +263,7 @@ main() {
         fi
     else
         log_info "Dotfiles directory not found, cloning repository..."
-        if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$SCRIPT_DIR/dotfiles"; then
+        if ! git clone https://github.com/RaviParvadiya/dotfiles.git "$DOTFILES_DIR"; then
             handle_error "critical" "Failed to clone dotfiles repository" "dotfiles_clone"
             exit 1
         fi

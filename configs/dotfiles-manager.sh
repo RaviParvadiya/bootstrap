@@ -18,7 +18,6 @@ source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 
 # Global configuration
-DOTFILES_DIR="$DOTFILES_DIR"
 BACKUP_BASE_DIR="$HOME/.config/install-backups"
 CURRENT_BACKUP_DIR=""
 
