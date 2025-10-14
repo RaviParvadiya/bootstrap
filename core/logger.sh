@@ -123,15 +123,7 @@ show_failures() {
     echo
 }
 
-# Simple compatibility stubs for the deleted error-handler functions
-handle_error() {
-    case "$1" in
-        "critical") die "$2" ;;
-        *) fail "${3:-unknown}" "$2" ;;
-    esac
-}
 
-push_error_context() { log_debug "Context: $1 - $2"; }
 
 cleanup_logger() {
     show_failures
