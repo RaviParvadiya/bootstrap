@@ -13,83 +13,13 @@ readonly ALACRITTY_COMPONENT_NAME="alacritty"
 readonly ALACRITTY_CONFIG_SOURCE="$DOTFILES_DIR/alacritty/.config/alacritty"
 readonly ALACRITTY_CONFIG_TARGET="$HOME/.config/alacritty"
 
-# Package definitions per distribution
-declare -A ALACRITTY_PACKAGES=(
-    ["arch"]="alacritty"
-    ["ubuntu"]="alacritty"
-)
-
-# Font dependencies (Nerd Fonts for proper terminal experience)
-declare -A ALACRITTY_FONT_PACKAGES=(
-    ["arch"]="ttf-cascadia-code ttf-firacode-nerd"
-    ["ubuntu"]="fonts-cascadia-code fonts-firacode"
-)
-
 #######################################
 # Alacritty Installation Functions
 #######################################
 
 # Check if Alacritty is already installed
 is_alacritty_installed() {
-    if command -v alacritty >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi alacritty >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l alacritty >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# Install Alacritty packages
-install_alacritty_packages() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${ALACRITTY_PACKAGES[$distro]}" ]]; then
-        log_error "Alacritty packages not defined for distribution: $distro"
-        return 1
-    fi
-    
-    log_info "Installing Alacritty packages for $distro..."
-    
-    # Install main Alacritty package
-    local packages
-    read -ra packages <<< "${ALACRITTY_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Alacritty package: $package"
-            return 1
-        fi
-    done
-    
-    # Install font packages if available
-    if [[ -n "${ALACRITTY_FONT_PACKAGES[$distro]:-}" ]]; then
-        log_info "Installing Alacritty font dependencies..."
-        local font_packages
-        read -ra font_packages <<< "${ALACRITTY_FONT_PACKAGES[$distro]}"
-        
-        for font_package in "${font_packages[@]}"; do
-            if ! install_package "$font_package"; then
-                log_warn "Failed to install font package: $font_package (continuing anyway)"
-            fi
-        done
-    fi
-    
-    log_success "Alacritty packages installed successfully"
-    return 0
+    command -v alacritty >/dev/null 2>&1
 }
 
 # Configure Alacritty with dotfiles
@@ -185,28 +115,11 @@ set_alacritty_as_default() {
 
 # Main Alacritty installation function
 install_alacritty() {
-    log_section "Installing Alacritty Terminal Emulator"
+    log_section "Configuring Alacritty Terminal Emulator"
     
-    # Check if already installed
-    if is_alacritty_installed; then
-        log_info "Alacritty is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Alacritty?" "n"; then
-            log_info "Skipping Alacritty installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${ALACRITTY_PACKAGES[$distro]}" ]]; then
-        log_error "Alacritty installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_alacritty_packages; then
-        log_error "Failed to install Alacritty packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_alacritty_installed; then
+        log_error "Alacritty not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -227,7 +140,7 @@ install_alacritty() {
         set_alacritty_as_default
     fi
     
-    log_success "Alacritty installation completed successfully"
+    log_success "Alacritty configuration completed successfully"
     return 0
 }
 

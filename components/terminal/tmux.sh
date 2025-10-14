@@ -15,85 +15,18 @@ readonly TMUX_CONFIG_TARGET="$HOME/.tmux.conf"
 readonly TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
 readonly TPM_REPO="https://github.com/tmux-plugins/tpm"
 
-# Package definitions per distribution
-declare -A TMUX_PACKAGES=(
-    ["arch"]="tmux"
-    ["ubuntu"]="tmux"
-)
-
-# Additional dependencies for tmux functionality
-declare -A TMUX_DEPENDENCIES=(
-    ["arch"]="git curl"
-    ["ubuntu"]="git curl"
-)
-
 #######################################
 # Tmux Installation Functions
 #######################################
 
 # Check if Tmux is already installed
 is_tmux_installed() {
-    if command -v tmux >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi tmux >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l tmux >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v tmux >/dev/null 2>&1
 }
 
 # Check if TPM (Tmux Plugin Manager) is installed
 is_tpm_installed() {
     [[ -d "$TMUX_PLUGINS_DIR/tpm" ]]
-}
-
-# Install Tmux packages
-install_tmux_packages() {
-    local distro
-    distro=$(get_distro)
-    
-    if [[ -z "${TMUX_PACKAGES[$distro]}" ]]; then
-        log_error "Tmux packages not defined for distribution: $distro"
-        return 1
-    fi
-    
-    log_info "Installing Tmux packages for $distro..."
-    
-    # Install dependencies first
-    local dependencies
-    read -ra dependencies <<< "${TMUX_DEPENDENCIES[$distro]}"
-    
-    for dep in "${dependencies[@]}"; do
-        if ! install_package "$dep"; then
-            log_warn "Failed to install dependency: $dep (continuing anyway)"
-        fi
-    done
-    
-    # Install main Tmux package
-    local packages
-    read -ra packages <<< "${TMUX_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Tmux package: $package"
-            return 1
-        fi
-    done
-    
-    log_success "Tmux packages installed successfully"
-    return 0
 }
 
 # Install TPM (Tmux Plugin Manager)
@@ -266,28 +199,11 @@ fi'
 
 # Main Tmux installation function
 install_tmux() {
-    log_section "Installing Tmux Terminal Multiplexer"
+    log_section "Configuring Tmux Terminal Multiplexer"
     
-    # Check if already installed
-    if is_tmux_installed; then
-        log_info "Tmux is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Tmux?" "n"; then
-            log_info "Skipping Tmux installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${TMUX_PACKAGES[$distro]}" ]]; then
-        log_error "Tmux installation not supported on: $distro"
-        return 1
-    fi
-    
-    # Install packages
-    if ! install_tmux_packages; then
-        log_error "Failed to install Tmux packages"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_tmux_installed; then
+        log_error "Tmux not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
@@ -324,7 +240,7 @@ install_tmux() {
         setup_tmux_autostart
     fi
     
-    log_success "Tmux installation completed successfully"
+    log_success "Tmux configuration completed successfully"
     log_info "To reload plugins in tmux, press: Prefix + I (default: Ctrl-s + I)"
     return 0
 }

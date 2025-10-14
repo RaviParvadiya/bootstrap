@@ -7,91 +7,28 @@ yay
 
 # --- Development Tools ---
 visual-studio-code-bin
-github-desktop-bin
-aurutils
-neovim-git
-
-# --- Terminal and Shell ---
-# starship and zoxide are available in official repos
-kitty-git
-alacritty-git
 
 # --- Window Manager ---
-hyprland-git
-waybar-git
-wofi-git
-swaync-git
-hyprpicker-git
-grimblast-git
-wlogout
-swayosd-git
-waypaper
-xwaylandvideobridge-git
+pywal-git
 
 # --- System Utilities ---
-optimus-manager|nvidia
 optimus-manager-qt|nvidia
 asusctl|asus
 supergfxctl|asus
-rog-control-center|asus
-lact-git|amd
 auto-cpufreq
-arch-update
-batsignal|laptop
 
 # --- Fonts ---
 ttf-jetbrains-mono-nerd
 ttf-firacode-nerd
-ttf-meslo-nerd-font-powerlevel10k
+ttf-cascadia-code
+ttf-font-awesome
 # nerd-fonts is too large, use specific fonts instead
 
 # --- Themes and Customization ---
 catppuccin-gtk-theme-mocha
-papirus-icon-theme
-bibata-cursor-theme
-python-pywal16
-matugen-bin
-python-materialyoucolor
-
-# --- Applications ---
-brave-bin
-google-chrome
-firefox-developer-edition-bin
-discord-canary
-telegram-desktop-bin
-spotify
-obsidian-bin
-notion-app-enhanced
 
 # --- Gaming ---
-steam|gaming
-lutris|gaming
 heroic-games-launcher-bin|gaming
-bottles|gaming
 vkbasalt|gaming
 lib32-vkbasalt|gaming
 proton-ge-custom-bin|gaming
-dxvk-bin|gaming
-protontricks|gaming
-goverlay-bin|gaming
-mangohud-git|gaming
-gamemode-git|gaming
-
-# --- Multimedia ---
-obs-studio-git
-davinci-resolve
-vlc-git
-mpv-git
-gimp-git
-
-# --- Productivity ---
-ulauncher
-albert
-rofi-git
-dmenu-git
-
-# --- Development ---
-postman-bin
-insomnia-bin
-docker-desktop
-jetbrains-toolbox

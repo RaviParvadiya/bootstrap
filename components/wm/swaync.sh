@@ -13,19 +13,18 @@ readonly SWAYNC_COMPONENT_NAME="swaync"
 readonly SWAYNC_CONFIG_SOURCE="$DOTFILES_DIR/swaync/.config/swaync"
 readonly SWAYNC_CONFIG_TARGET="$HOME/.config/swaync"
 
-# Package definitions per distribution
-declare -A SWAYNC_PACKAGES=(
-    ["arch"]="swaync"
-    ["ubuntu"]=""  # May need to build from source or use PPA
+# Manual installation packages (not available in all repos or need source build)
+declare -A SWAYNC_MANUAL_PACKAGES=(
+    ["arch"]=""  # Available in Arch repos, handled by main system
+    ["ubuntu"]="swaync"  # Ubuntu builds from source
 )
 
-# Dependencies for SwayNC functionality
-declare -A SWAYNC_DEPS=(
-    ["arch"]="libnotify gtk3 gtk-layer-shell"
+# Dependencies for Ubuntu source build
+declare -A SWAYNC_UBUNTU_DEPS=(
     ["ubuntu"]="libnotify-bin libgtk-3-0 libgtk-layer-shell0"
 )
 
-# Build dependencies for Ubuntu (if building from source)
+# Build dependencies for Ubuntu source build
 declare -A SWAYNC_BUILD_DEPS=(
     ["ubuntu"]="build-essential meson ninja-build pkg-config libgtk-3-dev libglib2.0-dev libjson-glib-dev libgtk-layer-shell-dev libpulse-dev"
 )
@@ -36,56 +35,10 @@ declare -A SWAYNC_BUILD_DEPS=(
 
 # Check if SwayNC is already installed
 is_swaync_installed() {
-    if command -v swaync >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi swaync >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            # For Ubuntu, check if binary exists (might be built from source)
-            [[ -f "/usr/local/bin/swaync" ]] || [[ -f "/usr/bin/swaync" ]]
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v swaync >/dev/null 2>&1
 }
 
-# Install SwayNC packages for Arch Linux
-install_swaync_arch() {
-    log_info "Installing SwayNC packages for Arch Linux..."
-    
-    # Install dependencies first
-    local deps
-    read -ra deps <<< "${SWAYNC_DEPS[arch]}"
-    
-    for dep in "${deps[@]}"; do
-        if ! install_package "$dep"; then
-            log_warn "Failed to install dependency: $dep (continuing anyway)"
-        fi
-    done
-    
-    # Install main SwayNC package
-    local packages
-    read -ra packages <<< "${SWAYNC_PACKAGES[arch]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install SwayNC package: $package"
-            return 1
-        fi
-    done
-    
-    log_success "SwayNC packages installed successfully for Arch Linux"
-    return 0
-}
+
 
 # Build and install SwayNC from source for Ubuntu
 install_swaync_ubuntu() {
@@ -94,7 +47,7 @@ install_swaync_ubuntu() {
     # Install runtime dependencies first
     log_info "Installing SwayNC runtime dependencies..."
     local deps
-    read -ra deps <<< "${SWAYNC_DEPS[ubuntu]}"
+    read -ra deps <<< "${SWAYNC_UBUNTU_DEPS[ubuntu]}"
     
     for dep in "${deps[@]}"; do
         if ! install_package "$dep"; then
@@ -159,21 +112,22 @@ install_swaync_ubuntu() {
     return 0
 }
 
-# Install SwayNC packages based on distribution
-install_swaync_packages() {
+# Install manual SwayNC packages (Ubuntu source build)
+install_swaync_manual_packages() {
     local distro
     distro=$(get_distro)
     
+    if [[ -z "${SWAYNC_MANUAL_PACKAGES[$distro]}" ]]; then
+        log_info "No manual packages needed for $distro"
+        return 0
+    fi
+    
     case "$distro" in
-        "arch")
-            install_swaync_arch
-            ;;
         "ubuntu")
             install_swaync_ubuntu
             ;;
         *)
-            log_error "SwayNC installation not supported on: $distro"
-            return 1
+            log_warn "Manual package installation not implemented for: $distro"
             ;;
     esac
 }
@@ -404,28 +358,29 @@ validate_swaync_installation() {
 
 # Main SwayNC installation function
 install_swaync() {
-    log_section "Installing SwayNC Notification Daemon"
+    log_section "Configuring SwayNC Notification Daemon"
     
-    # Check if already installed
-    if is_swaync_installed; then
-        log_info "SwayNC is already installed"
-        if ! ask_yes_no "Do you want to reconfigure SwayNC?" "n"; then
-            log_info "Skipping SwayNC installation"
-            return 0
+    local distro
+    distro=$(get_distro)
+    
+    # For Arch, check if already installed (packages should be installed by main system)
+    # For Ubuntu, we need to build from source
+    if [[ "$distro" == "arch" ]]; then
+        if ! is_swaync_installed; then
+            log_error "SwayNC not found. Ensure packages are installed by the main system first."
+            return 1
         fi
     fi
     
     # Validate distribution support
-    local distro
-    distro=$(get_distro)
     if [[ "$distro" != "arch" && "$distro" != "ubuntu" ]]; then
         log_error "SwayNC installation not supported on: $distro"
         return 1
     fi
     
-    # Install packages
-    if ! install_swaync_packages; then
-        log_error "Failed to install SwayNC packages"
+    # Install manual packages if needed (Ubuntu source build)
+    if ! install_swaync_manual_packages; then
+        log_error "Failed to install manual SwayNC packages"
         return 1
     fi
     
@@ -460,7 +415,7 @@ install_swaync() {
         return 1
     fi
     
-    log_success "SwayNC installation completed successfully"
+    log_success "SwayNC configuration completed successfully"
     log_info "Note: SwayNC will handle notifications in Hyprland. Use 'swaync-client' for control."
     return 0
 }

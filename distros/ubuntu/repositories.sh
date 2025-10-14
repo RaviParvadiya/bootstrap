@@ -245,17 +245,6 @@ ubuntu_setup_chrome_repository() {
         "stable"
 }
 
-# Setup VS Code repository
-ubuntu_setup_vscode_repository() {
-    log_info "Setting up VS Code repository..."
-    
-    ubuntu_add_external_repository \
-        "vscode" \
-        "https://packages.microsoft.com/repos/code" \
-        "https://packages.microsoft.com/keys/microsoft.asc" \
-        "stable"
-}
-
 # Setup Node.js repository (NodeSource)
 ubuntu_setup_nodejs_repository() {
     local node_version="${1:-18}"  # Default to Node.js 18
@@ -374,7 +363,6 @@ export -f ubuntu_remove_ppa
 export -f ubuntu_add_external_repository
 export -f ubuntu_setup_docker_repository
 export -f ubuntu_setup_chrome_repository
-export -f ubuntu_setup_vscode_repository
 export -f ubuntu_setup_nodejs_repository
 
 export -f ubuntu_update_package_database

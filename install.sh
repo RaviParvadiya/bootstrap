@@ -43,7 +43,6 @@ IFS=$'\n\t'
 source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
-USE_MINIMAL_PACKAGES=true  # Use minimal package lists by default for post-installation
 SELECTED_COMPONENTS=()
 DETECTED_DISTRO=""
 
@@ -78,8 +77,6 @@ OPTIONS:
     -h, --help          Show this help message
     -c, --components    Comma-separated list of components to install
     -a, --all           Install all available components
-    -m, --minimal       Use minimal package lists (default for post-installation)
-    -f, --full          Use full package lists (for fresh installations)
 
 COMMANDS:
     install             Run interactive installation (default)
@@ -117,14 +114,7 @@ parse_arguments() {
                 fi
                 shift
                 ;;
-            -m|--minimal)
-                USE_MINIMAL_PACKAGES=true
-                shift
-                ;;
-            -f|--full)
-                USE_MINIMAL_PACKAGES=false
-                shift
-                ;;
+
             install|restore|validate|backup|list)
                 COMMAND="$1"
                 shift
@@ -442,22 +432,6 @@ run_installation() {
     else
         handle_error "config" "Dotfiles manager not found" "dotfiles_manager"
         installation_success=false
-    fi
-    
-    # Post-installation validation with error handling
-    push_error_context "validation" "Post-installation validation"
-    
-    log_info "Running post-installation validation..."
-    if [[ -f "$TESTS_DIR/validate.sh" ]]; then
-        source "$TESTS_DIR/validate.sh"
-        if ! validate_installation "${SELECTED_COMPONENTS[@]}"; then
-            handle_error "validation" "Post-installation validation failed" "post_install_validation"
-            installation_success=false
-        else
-            log_success "Post-installation validation passed"
-        fi
-    else
-        log_warn "Validation utilities not found, skipping validation"
     fi
     
     # Final status

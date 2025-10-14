@@ -16,21 +16,19 @@ readonly HYPRMOCHA_CONFIG_SOURCE="$DOTFILES_DIR/hyprmocha/.config/hypr"
 readonly HYPRLOCK_CONFIG_SOURCE="$DOTFILES_DIR/hyprlock/.config/hypr"
 readonly HYPRPAPER_CONFIG_SOURCE="$DOTFILES_DIR/hyprpaper/.config/hypr"
 
-# Package definitions per distribution
-declare -A HYPRLAND_PACKAGES=(
-    ["arch"]="hyprland xdg-desktop-portal-hyprland"
-    ["ubuntu"]=""  # Ubuntu builds from source
+# Manual installation packages (not available in all repos or need source build)
+declare -A HYPRLAND_MANUAL_PACKAGES=(
+    ["arch"]=""  # Available in Arch repos, handled by main system
+    ["ubuntu"]="hyprland"  # Ubuntu builds from source
 )
 
-# Dependencies for Hyprland
-declare -A HYPRLAND_DEPS=(
-    ["arch"]="wayland wayland-protocols wlroots qt5-wayland qt6-wayland"
+# Dependencies for Ubuntu source build
+declare -A HYPRLAND_BUILD_DEPS=(
     ["ubuntu"]="wayland-protocols libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgles2-mesa-dev libdrm-dev libxkbcommon-x11-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinput-dev libxcb-image0-dev libxcb-shm0-dev libxcb-util-dev libxcb-keysyms1-dev libpixman-1-dev libcairo2-dev libpango1.0-dev"
 )
 
-# Additional tools for Hyprland ecosystem
-declare -A HYPRLAND_TOOLS=(
-    ["arch"]="hyprpaper hypridle hyprlock grim slurp wl-clipboard"
+# Additional tools for Ubuntu (others handled by main system)
+declare -A HYPRLAND_UBUNTU_TOOLS=(
     ["ubuntu"]="grim slurp wl-clipboard"  # hyprpaper, hypridle, hyprlock built from source
 )
 
@@ -40,66 +38,10 @@ declare -A HYPRLAND_TOOLS=(
 
 # Check if Hyprland is already installed
 is_hyprland_installed() {
-    if command -v Hyprland >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi hyprland >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            # For Ubuntu, check if binary exists (built from source)
-            [[ -f "/usr/local/bin/Hyprland" ]] || [[ -f "/usr/bin/Hyprland" ]]
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v Hyprland >/dev/null 2>&1
 }
 
-# Install Hyprland packages for Arch Linux
-install_hyprland_arch() {
-    log_info "Installing Hyprland packages for Arch Linux..."
-    
-    # Install dependencies first
-    local deps
-    read -ra deps <<< "${HYPRLAND_DEPS[arch]}"
-    
-    for dep in "${deps[@]}"; do
-        if ! install_package "$dep"; then
-            log_warn "Failed to install dependency: $dep (continuing anyway)"
-        fi
-    done
-    
-    # Install main Hyprland packages
-    local packages
-    read -ra packages <<< "${HYPRLAND_PACKAGES[arch]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Hyprland package: $package"
-            return 1
-        fi
-    done
-    
-    # Install additional tools
-    local tools
-    read -ra tools <<< "${HYPRLAND_TOOLS[arch]}"
-    
-    for tool in "${tools[@]}"; do
-        if ! install_package "$tool"; then
-            log_warn "Failed to install Hyprland tool: $tool (continuing anyway)"
-        fi
-    done
-    
-    log_success "Hyprland packages installed successfully for Arch Linux"
-    return 0
-}
+
 
 # Build and install Hyprland from source for Ubuntu
 install_hyprland_ubuntu() {
@@ -108,7 +50,7 @@ install_hyprland_ubuntu() {
     # Install build dependencies
     log_info "Installing build dependencies..."
     local deps
-    read -ra deps <<< "${HYPRLAND_DEPS[ubuntu]}"
+    read -ra deps <<< "${HYPRLAND_BUILD_DEPS[ubuntu]}"
     
     for dep in "${deps[@]}"; do
         if ! install_package "$dep"; then
@@ -164,7 +106,7 @@ install_hyprland_ubuntu() {
     
     # Install additional tools
     local tools
-    read -ra tools <<< "${HYPRLAND_TOOLS[ubuntu]}"
+    read -ra tools <<< "${HYPRLAND_UBUNTU_TOOLS[ubuntu]}"
     
     for tool in "${tools[@]}"; do
         if ! install_package "$tool"; then
@@ -176,21 +118,22 @@ install_hyprland_ubuntu() {
     return 0
 }
 
-# Install Hyprland packages based on distribution
-install_hyprland_packages() {
+# Install manual Hyprland packages (Ubuntu source build)
+install_hyprland_manual_packages() {
     local distro
     distro=$(get_distro)
     
+    if [[ -z "${HYPRLAND_MANUAL_PACKAGES[$distro]}" ]]; then
+        log_info "No manual packages needed for $distro"
+        return 0
+    fi
+    
     case "$distro" in
-        "arch")
-            install_hyprland_arch
-            ;;
         "ubuntu")
             install_hyprland_ubuntu
             ;;
         *)
-            log_error "Hyprland installation not supported on: $distro"
-            return 1
+            log_warn "Manual package installation not implemented for: $distro"
             ;;
     esac
 }
@@ -396,28 +339,29 @@ validate_hyprland_installation() {
 
 # Main Hyprland installation function
 install_hyprland() {
-    log_section "Installing Hyprland Window Manager"
+    log_section "Configuring Hyprland Window Manager"
     
-    # Check if already installed
-    if is_hyprland_installed; then
-        log_info "Hyprland is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Hyprland?" "n"; then
-            log_info "Skipping Hyprland installation"
-            return 0
+    local distro
+    distro=$(get_distro)
+    
+    # For Arch, check if already installed (packages should be installed by main system)
+    # For Ubuntu, we need to build from source
+    if [[ "$distro" == "arch" ]]; then
+        if ! is_hyprland_installed; then
+            log_error "Hyprland not found. Ensure packages are installed by the main system first."
+            return 1
         fi
     fi
     
     # Validate distribution support
-    local distro
-    distro=$(get_distro)
     if [[ "$distro" != "arch" && "$distro" != "ubuntu" ]]; then
         log_error "Hyprland installation not supported on: $distro"
         return 1
     fi
     
-    # Install packages
-    if ! install_hyprland_packages; then
-        log_error "Failed to install Hyprland packages"
+    # Install manual packages if needed (Ubuntu source build)
+    if ! install_hyprland_manual_packages; then
+        log_error "Failed to install manual Hyprland packages"
         return 1
     fi
     
@@ -439,7 +383,7 @@ install_hyprland() {
         return 1
     fi
     
-    log_success "Hyprland installation completed successfully"
+    log_success "Hyprland configuration completed successfully"
     log_info "Note: Log out and select Hyprland from your display manager to use it"
     return 0
 }

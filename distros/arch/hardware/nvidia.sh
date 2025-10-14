@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
 # NVIDIA GPU Configuration Module for Arch Linux
-# Handles NVIDIA driver installation, MUX switch support, and environment configuration
-# Extracted from original install.sh and modularized for the framework
+# Handles NVIDIA environment setup, kernel module configuration, and MUX switch support
 
 # Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../../core/init-paths.sh"
@@ -10,27 +9,6 @@ source "$(dirname "${BASH_SOURCE[0]}")/../../../core/init-paths.sh"
 # Source core utilities
 source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
-
-# NVIDIA-specific configuration variables
-NVIDIA_PACKAGES_RTX=(
-    "nvidia-open-dkms"
-    "nvidia-utils"
-    "lib32-nvidia-utils"
-    "nvidia-settings"
-    "opencl-nvidia"
-    "egl-wayland"
-    "libva-nvidia-driver"
-)
-
-NVIDIA_PACKAGES_NON_RTX=(
-    "nvidia-dkms"
-    "nvidia-utils"
-    "lib32-nvidia-utils"
-    "nvidia-settings"
-    "opencl-nvidia"
-    "egl-wayland"
-    "libva-nvidia-driver"
-)
 
 NVIDIA_SERVICES=(
     "nvidia-suspend.service"
@@ -49,48 +27,17 @@ detect_nvidia_gpu() {
     fi
 }
 
-# Check if RTX GPU is present
-is_rtx_gpu() {
-    # First try automatic detection
-    if lspci | grep -i nvidia | grep -i rtx &> /dev/null; then
-        log_info "RTX GPU detected automatically"
-        return 0
-    fi
+# Verify NVIDIA packages are installed
+verify_nvidia_packages() {
+    log_info "Verifying NVIDIA packages are installed..."
     
-    # If automatic detection fails, ask user (preserving original behavior)
-    log_info "Could not automatically detect RTX GPU"
-    if ask_yes_no "Do you have an RTX GPU?"; then
-        log_info "User confirmed RTX GPU"
-        return 0
-    else
-        log_info "User confirmed non-RTX NVIDIA GPU"
+    # Check for either nvidia-dkms or nvidia-open-dkms
+    if ! pacman -Qi nvidia-dkms &> /dev/null; then
+        log_error "NVIDIA driver packages not found. Please ensure NVIDIA packages are installed first."
         return 1
     fi
-}
-
-# Install NVIDIA drivers based on GPU type
-install_nvidia_drivers() {
-    log_info "Installing NVIDIA GPU drivers..."
     
-    # Determine which driver package to install
-    local packages_to_install
-    if is_rtx_gpu; then
-        log_info "Installing RTX-compatible drivers (nvidia-open-dkms)"
-        packages_to_install=("${NVIDIA_PACKAGES_RTX[@]}")
-    else
-        log_info "Installing standard NVIDIA drivers (nvidia-dkms)"
-        packages_to_install=("${NVIDIA_PACKAGES_NON_RTX[@]}")
-    fi
-    
-    # Install packages
-    for package in "${packages_to_install[@]}"; do
-        log_info "Installing $package..."
-        if ! install_package "$package"; then
-            log_error "Failed to install $package"
-            return 1
-        fi
-    done
-    
+    log_info "NVIDIA packages verified"
     return 0
 }
 
@@ -155,47 +102,6 @@ rebuild_initramfs() {
     return 0
 }
 
-# Configure NVIDIA environment variables for Hyprland
-configure_nvidia_environment() {
-    log_info "Configuring NVIDIA environment variables for Hyprland..."
-    
-    local hypr_config_dir="$HOME/.config/hypr"
-    local env_file="$hypr_config_dir/env_variables.conf"
-    
-    # NVIDIA environment variables for Wayland/Hyprland
-    local nvidia_env_vars="# NVIDIA Environment Variables
-env = LIBVA_DRIVER_NAME,nvidia
-env = GBM_BACKEND,nvidia_drm
-env = __GLX_VENDOR_LIBRARY_NAME,nvidia
-env = NVD_BACKEND,direct
-
-cursor {
-    no_hardware_cursors = true
-}"
-
-    # Create directory if it doesn't exist
-    if ! mkdir -p "$hypr_config_dir"; then
-        log_error "Failed to create directory $hypr_config_dir"
-        return 1
-    fi
-    
-    # Check if NVIDIA variables already exist
-    if [[ -f "$env_file" ]] && grep -q "LIBVA_DRIVER_NAME,nvidia" "$env_file"; then
-        log_warn "NVIDIA environment variables already present in $env_file"
-    else
-        log_info "Adding NVIDIA environment variables to $env_file..."
-        
-        if echo "$nvidia_env_vars" >> "$env_file"; then
-            log_success "NVIDIA environment variables added to $env_file"
-        else
-            log_error "Failed to write to $env_file"
-            return 1
-        fi
-    fi
-    
-    return 0
-}
-
 # Enable NVIDIA services (but don't start them automatically)
 configure_nvidia_services() {
     log_info "Configuring NVIDIA services..."
@@ -244,8 +150,8 @@ configure_nvidia_kernel_params() {
     return 0
 }
 
-# Main NVIDIA installation function
-install_nvidia() {
+# Main NVIDIA configuration function
+configure_nvidia() {
     log_info "Starting NVIDIA GPU configuration..."
     
     # Check if NVIDIA GPU is present
@@ -254,9 +160,9 @@ install_nvidia() {
         return 0
     fi
     
-    # Install NVIDIA drivers
-    if ! install_nvidia_drivers; then
-        log_error "Failed to install NVIDIA drivers"
+    # Verify NVIDIA packages are installed
+    if ! verify_nvidia_packages; then
+        log_error "NVIDIA packages not installed"
         return 1
     fi
     
@@ -275,12 +181,6 @@ install_nvidia() {
     # Rebuild initramfs
     if ! rebuild_initramfs; then
         log_error "Failed to rebuild initramfs"
-        return 1
-    fi
-    
-    # Configure environment variables
-    if ! configure_nvidia_environment; then
-        log_error "Failed to configure NVIDIA environment variables"
         return 1
     fi
     
@@ -324,41 +224,7 @@ is_nvidia_configured() {
     return 0
 }
 
-# Function to validate NVIDIA installation
-validate_nvidia_installation() {
-    log_info "Validating NVIDIA installation..."
-    
-    # Check if NVIDIA drivers are loaded
-    if lsmod | grep -q nvidia; then
-        log_success "NVIDIA kernel modules are loaded"
-    else
-        log_warn "NVIDIA kernel modules are not loaded (may require reboot)"
-    fi
-    
-    # Check if nvidia-smi works
-    if command -v nvidia-smi &> /dev/null; then
-        if nvidia-smi &> /dev/null; then
-            log_success "nvidia-smi is working correctly"
-        else
-            log_warn "nvidia-smi is installed but not working (may require reboot)"
-        fi
-    else
-        log_warn "nvidia-smi not found"
-    fi
-    
-    # Check environment variables
-    local env_file="$HOME/.config/hypr/env_variables.conf"
-    if [[ -f "$env_file" ]] && grep -q "LIBVA_DRIVER_NAME,nvidia" "$env_file"; then
-        log_success "NVIDIA environment variables are configured"
-    else
-        log_warn "NVIDIA environment variables not found"
-    fi
-    
-    return 0
-}
-
 # Export functions for use by other modules
-export -f install_nvidia
+export -f configure_nvidia
 export -f detect_nvidia_gpu
 export -f is_nvidia_configured
-export -f validate_nvidia_installation

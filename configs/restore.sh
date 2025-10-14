@@ -470,7 +470,7 @@ restore_system_configs() {
 restore_full_session() {
     local session_dir="$1"
     local restore_mode="${2:-replace}"
-    local filter="$3"
+    local filter="${3:-}"
     
     if [[ -z "$session_dir" ]]; then
         log_error "Backup session directory is required"
@@ -595,9 +595,9 @@ restore_full_session() {
 #######################################
 
 # Interactive restore with user prompts
-# Arguments: $1 - backup session directory
+# Arguments: $1 - backup session directory (optional)
 interactive_restore() {
-    local session_dir="$1"
+    local session_dir="${1:-}"
     
     if [[ -z "$session_dir" ]]; then
         # Let user select from available sessions

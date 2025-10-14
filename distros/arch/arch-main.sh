@@ -21,7 +21,6 @@ source "$DISTROS_DIR/arch/hardware/nvidia.sh"
 # Main Arch Linux installation orchestrator
 arch_main_install() {
     local selected_components=("$@")
-    local use_minimal="${USE_MINIMAL_PACKAGES:-true}"
     
     log_info "Starting Arch Linux installation process..."
     
@@ -63,13 +62,9 @@ arch_main_install() {
     fi
     
     # Install main package set with auto-detection
-    if [[ "$use_minimal" == "true" ]]; then
-        log_info "Installing minimal package set for post-installation setup..."
-    else
-        log_info "Installing full package set for fresh installation..."
-    fi
+    log_info "Installing package set..."
     
-    if ! arch_install_packages_auto "all" "$user_preferences" "$use_minimal"; then
+    if ! arch_install_packages_auto "all" "$user_preferences"; then
         log_warn "Some packages failed to install, continuing..."
         # Don't return error here, continue with installation
     fi
@@ -113,14 +108,14 @@ arch_update_system() {
 arch_configure_hardware() {
     log_info "Configuring hardware-specific settings..."
     
-    # Check for NVIDIA GPU and offer installation
+    # Check for NVIDIA GPU and configure if packages are installed
     if detect_nvidia_gpu; then
-        if ask_yes_no "NVIDIA GPU detected. Would you like to install NVIDIA drivers?"; then
-            if ! install_nvidia; then
-                log_warn "NVIDIA installation failed, continuing with other components"
+        if ask_yes_no "NVIDIA GPU detected. Would you like to configure NVIDIA drivers?"; then
+            if ! configure_nvidia; then
+                log_warn "NVIDIA configuration failed, continuing with other components"
             fi
         else
-            log_info "NVIDIA installation skipped by user"
+            log_info "NVIDIA configuration skipped by user"
         fi
     fi
     

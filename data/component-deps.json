@@ -10,7 +10,7 @@
       },
       "dependencies": [],
       "optional_dependencies": ["waybar", "wofi", "swaync"],
-      "conflicts": ["gnome", "kde", "xfce"],
+
       "post_install": ["configure_hyprland_session", "setup_wayland_env"],
       "hardware_requirements": ["gpu_acceleration"]
     },
@@ -23,7 +23,7 @@
         "ubuntu": ["waybar"]
       },
       "dependencies": ["hyprland"],
-      "conflicts": ["polybar", "i3status"],
+
       "post_install": ["configure_waybar"]
     },
     "wofi": {
@@ -35,7 +35,7 @@
         "ubuntu": ["wofi"]
       },
       "dependencies": ["hyprland"],
-      "conflicts": ["rofi", "dmenu"],
+
       "post_install": ["configure_wofi"]
     },
     "swaync": {
@@ -47,7 +47,7 @@
         "ubuntu": ["swaync"]
       },
       "dependencies": ["hyprland"],
-      "conflicts": ["dunst", "mako"],
+
       "post_install": ["configure_swaync"]
     },
     "alacritty": {
@@ -59,7 +59,7 @@
         "ubuntu": ["alacritty"]
       },
       "dependencies": [],
-      "conflicts": ["kitty"],
+
       "post_install": ["configure_alacritty"]
     },
     "kitty": {
@@ -71,7 +71,7 @@
         "ubuntu": ["kitty"]
       },
       "dependencies": [],
-      "conflicts": ["alacritty"],
+
       "post_install": ["configure_kitty"]
     },
     "tmux": {
@@ -83,7 +83,6 @@
         "ubuntu": ["tmux"]
       },
       "dependencies": [],
-      "conflicts": [],
       "post_install": ["configure_tmux", "install_tmux_plugins"]
     },
     "zsh": {
@@ -95,7 +94,6 @@
         "ubuntu": ["zsh", "zsh-syntax-highlighting", "zsh-autosuggestions"]
       },
       "dependencies": [],
-      "conflicts": [],
       "post_install": ["configure_zsh", "set_default_shell"]
     },
     "starship": {
@@ -107,7 +105,6 @@
         "ubuntu": ["starship"]
       },
       "dependencies": ["zsh"],
-      "conflicts": [],
       "post_install": ["configure_starship"]
     },
     "neovim": {
@@ -119,20 +116,8 @@
         "ubuntu": ["neovim", "python3-neovim", "nodejs", "npm", "ripgrep", "fd-find"]
       },
       "dependencies": [],
-      "conflicts": ["vscode"],
+
       "post_install": ["configure_neovim", "install_nvim_plugins"]
-    },
-    "vscode": {
-      "name": "Visual Studio Code",
-      "description": "Feature-rich code editor",
-      "category": "editor",
-      "packages": {
-        "arch": ["code"],
-        "ubuntu": ["code"]
-      },
-      "dependencies": [],
-      "conflicts": ["neovim"],
-      "post_install": ["configure_vscode", "install_vscode_extensions"]
     },
     "git": {
       "name": "Git Version Control",
@@ -143,7 +128,6 @@
         "ubuntu": ["git", "git-lfs"]
       },
       "dependencies": [],
-      "conflicts": [],
       "post_install": ["configure_git"]
     },
     "docker": {
@@ -155,7 +139,7 @@
         "ubuntu": ["docker.io", "docker-compose"]
       },
       "dependencies": [],
-      "conflicts": ["podman"],
+
       "post_install": ["configure_docker", "add_user_to_docker_group"],
       "services": ["docker"]
     },
@@ -168,58 +152,44 @@
         "ubuntu": ["python3", "python3-pip", "nodejs", "npm", "rustc", "golang-go"]
       },
       "dependencies": [],
-      "conflicts": [],
       "post_install": ["configure_language_tools"]
     }
   },
   "categories": {
     "window_manager": {
       "name": "Window Managers",
-      "description": "Desktop environment and window management",
-      "mutually_exclusive": true
+      "description": "Desktop environment and window management"
     },
     "terminal": {
       "name": "Terminal Emulators",
-      "description": "Terminal applications",
-      "mutually_exclusive": true
+      "description": "Terminal applications"
     },
     "shell": {
       "name": "Shell Environments",
-      "description": "Command line shells",
-      "mutually_exclusive": false
+      "description": "Command line shells"
     },
     "editor": {
       "name": "Text Editors",
-      "description": "Code and text editing applications",
-      "mutually_exclusive": true
+      "description": "Code and text editing applications"
     },
     "dev_tools": {
       "name": "Development Tools",
-      "description": "Programming and development utilities",
-      "mutually_exclusive": false
+      "description": "Programming and development utilities"
     },
     "status_bar": {
       "name": "Status Bars",
-      "description": "Desktop status and information bars",
-      "mutually_exclusive": true
+      "description": "Desktop status and information bars"
     },
     "launcher": {
       "name": "Application Launchers",
-      "description": "Application menu and launcher systems",
-      "mutually_exclusive": true
+      "description": "Application menu and launcher systems"
     },
     "notifications": {
       "name": "Notification Systems",
-      "description": "Desktop notification management",
-      "mutually_exclusive": true
+      "description": "Desktop notification management"
     }
   },
   "presets": {
-    "minimal": {
-      "name": "Minimal Setup",
-      "description": "Basic terminal and shell environment",
-      "components": ["zsh", "starship", "kitty", "git"]
-    },
     "hyprland_desktop": {
       "name": "Hyprland Desktop Environment",
       "description": "Complete Hyprland desktop with all components",

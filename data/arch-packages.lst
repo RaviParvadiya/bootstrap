@@ -9,52 +9,44 @@ wget
 vim
 nano
 htop
+btop
 tree
 unzip
 zip
-os-prober
 pacman-contrib
 reflector
-man-db
 bc
 inetutils
 cpio
 meson
-cmake
-pkgconf
 fzf
 bat
 fd
 ripgrep
-eza
 zoxide
-starship
-base
-base-devel
-linux
-linux-headers
-linux-firmware
-sudo
-which
-less
-gzip
 tar
+yazi
+eza
+tcpdump
 
 # --- Development Tools ---
-gcc
-make
-cmake
 nodejs
 npm
 python
 python-pip
-rust
+python-flake8
+shellcheck
 go
-python-pipx
-git
 gdb
 strace
-valgrind
+docker
+docker-compose
+shfmt
+lua-language-server
+emacs
+neovim
+lazygit
+binutils
 
 # --- Terminal and Shell ---
 zsh
@@ -67,51 +59,27 @@ xclip
 
 # --- Window Manager (Wayland) ---
 hyprland
-qt5-graphicaleffects
-qt5-quickcontrols2
-qt5-svg
-qt5-wayland
-qt6-wayland
+xdg-desktop-portal
 xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
+xorg-server
+xorg-xinit
 brightnessctl
 pamixer
-playerctl
-xdg-user-dirs
-sound-theme-freedesktop
-yad
 jq
-socat
-slurp
 waybar
+wofi
+swayosd
 nwg-look
-qt5ct
-qt6ct
-papirus-icon-theme
 kvantum
-kvantum-qt5
-sddm
 hyprlock
 hypridle
-swww
-wlr-randr
-nwg-displays
-wl-clip-persist
+xorg-xwayland
+hyprshot
 
 # --- Graphics and Multimedia ---
 vlc
-gwenview
-tumbler
-ffmpegthumbnailer
-grim
 imagemagick
-gstreamer
-gst-plugins-bad
-gst-plugins-base
-gst-plugins-good
-gst-plugins-ugly
-gst-plugin-pipewire
-kooha
 
 # --- Audio ---
 pipewire
@@ -120,51 +88,42 @@ pipewire-alsa
 pipewire-audio
 pipewire-jack
 pipewire-pulse
-networkmanager
 network-manager-applet
 pavucontrol
 
 # --- System Utilities ---
 polkit-gnome
-udiskie
 firewalld
 bluez
 bluez-utils
 blueman
-gnome-keyring
-gnome-disk-utility
-pcmanfm-qt
-ark
 7zip
 unrar
-evince
-gnome-clocks
-
-# --- Fonts ---
-noto-fonts
-noto-fonts-cjk
-noto-fonts-emoji
-ttf-meslo-nerd
+earlyoom
+plocate
+gnome-tweaks
+ufw
+aria2
+powertop
+lm_sensors
 
 # --- Applications ---
-firefox
-libreoffice-fresh
 swaync
 
 # --- Hardware Specific ---
+vulkan-intel|intel
+intel-media-driver|intel
+libva-intel-driver|intel
+dkms|nvidia
 nvidia-dkms|nvidia
 nvidia-utils|nvidia
+nvidia-prime|nvidia
 lib32-nvidia-utils|nvidia
 nvidia-settings|nvidia
-opencl-nvidia|nvidia
-egl-wayland|nvidia
 libva-nvidia-driver|nvidia
+egl-wayland|nvidia
 mesa|amd
 lib32-mesa|amd
-vulkan-radeon|amd
-lib32-vulkan-radeon|amd
-vulkan-icd-loader|amd
-lib32-vulkan-icd-loader|amd
 
 # --- Gaming ---
 steam|gaming
@@ -205,8 +164,8 @@ libxinerama|gaming
 lib32-libxinerama|gaming
 ncurses|gaming
 lib32-ncurses|gaming
-opencl-icd-loader|gaming
-lib32-opencl-icd-loader|gaming
+ocl-icd|gaming
+lib32-ocl-icd|gaming
 libxslt|gaming
 lib32-libxslt|gaming
 libva|gaming

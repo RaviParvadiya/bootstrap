@@ -14,16 +14,10 @@ readonly ZSH_CONFIG_SOURCE="$DOTFILES_DIR/zshrc/.zshrc"
 readonly ZSH_CONFIG_TARGET="$HOME/.zshrc"
 readonly ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
-# Package definitions per distribution
-declare -A ZSH_PACKAGES=(
-    ["arch"]="zsh zsh-completions"
-    ["ubuntu"]="zsh"
-)
-
-# Additional tools that enhance Zsh experience
-declare -A ZSH_OPTIONAL_PACKAGES=(
-    ["arch"]="fzf exa zoxide"
-    ["ubuntu"]="fzf exa zoxide"
+# Manual installation packages (not available in all repos)
+declare -A ZSH_MANUAL_PACKAGES=(
+    ["arch"]=""  # zsh-completions available in Arch repos
+    ["ubuntu"]="zsh-completions"  # Not in Ubuntu repos, install manually
 )
 
 #######################################
@@ -32,25 +26,7 @@ declare -A ZSH_OPTIONAL_PACKAGES=(
 
 # Check if Zsh is already installed
 is_zsh_installed() {
-    if command -v zsh >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    # Also check if package is installed via package manager
-    local distro
-    distro=$(get_distro)
-    
-    case "$distro" in
-        "arch")
-            pacman -Qi zsh >/dev/null 2>&1
-            ;;
-        "ubuntu")
-            dpkg -l zsh >/dev/null 2>&1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    command -v zsh >/dev/null 2>&1
 }
 
 # Check if Zsh is the current user's default shell
@@ -58,43 +34,79 @@ is_zsh_default_shell() {
     [[ "$SHELL" == *"zsh"* ]]
 }
 
-# Install Zsh packages
-install_zsh_packages() {
+# Install manual Zsh packages (like zsh-completions for Ubuntu)
+install_zsh_manual_packages() {
     local distro
     distro=$(get_distro)
     
-    if [[ -z "${ZSH_PACKAGES[$distro]}" ]]; then
-        log_error "Zsh packages not defined for distribution: $distro"
+    if [[ -z "${ZSH_MANUAL_PACKAGES[$distro]}" ]]; then
+        return 0
+    fi
+    
+    log_info "Installing manual Zsh packages for $distro..."
+    
+    case "$distro" in
+        "ubuntu")
+            # Install zsh-completions manually for Ubuntu
+            install_zsh_completions_ubuntu
+            ;;
+        *)
+            log_warn "Manual package installation not implemented for: $distro"
+            ;;
+    esac
+    
+    return 0
+}
+
+# Install zsh-completions manually for Ubuntu
+install_zsh_completions_ubuntu() {
+    log_info "Installing zsh-completions manually for Ubuntu..."
+    
+    local completions_dir="/usr/share/zsh/vendor-completions"
+    local temp_dir="/tmp/zsh-completions-install"
+    
+    # Check if already installed
+    if [[ -d "$completions_dir" ]] && [[ -n "$(ls -A "$completions_dir" 2>/dev/null)" ]]; then
+        log_info "zsh-completions appears to already be installed"
+        return 0
+    fi
+    
+    # Check internet connectivity
+    if ! check_internet; then
+        log_error "Internet connection required for zsh-completions installation"
         return 1
     fi
     
-    log_info "Installing Zsh packages for $distro..."
+    # Create temp directory
+    rm -rf "$temp_dir"
+    mkdir -p "$temp_dir"
     
-    # Install main Zsh packages
-    local packages
-    read -ra packages <<< "${ZSH_PACKAGES[$distro]}"
-    
-    for package in "${packages[@]}"; do
-        if ! install_package "$package"; then
-            log_error "Failed to install Zsh package: $package"
-            return 1
-        fi
-    done
-    
-    # Install optional packages for enhanced experience
-    if [[ -n "${ZSH_OPTIONAL_PACKAGES[$distro]:-}" ]]; then
-        log_info "Installing optional Zsh enhancement packages..."
-        local optional_packages
-        read -ra optional_packages <<< "${ZSH_OPTIONAL_PACKAGES[$distro]}"
-        
-        for opt_package in "${optional_packages[@]}"; do
-            if ! install_package "$opt_package"; then
-                log_warn "Failed to install optional package: $opt_package (continuing anyway)"
-            fi
-        done
+    # Clone zsh-completions repository
+    log_info "Downloading zsh-completions from GitHub..."
+    if ! git clone --depth 1 https://github.com/zsh-users/zsh-completions.git "$temp_dir"; then
+        log_error "Failed to clone zsh-completions repository"
+        rm -rf "$temp_dir"
+        return 1
     fi
     
-    log_success "Zsh packages installed successfully"
+    # Install completions
+    log_info "Installing zsh-completions to system directory..."
+    if ! sudo mkdir -p "$completions_dir"; then
+        log_error "Failed to create completions directory: $completions_dir"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+    
+    if ! sudo cp "$temp_dir/src/"_* "$completions_dir/" 2>/dev/null; then
+        log_error "Failed to copy completion files"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+    
+    # Clean up
+    rm -rf "$temp_dir"
+    
+    log_success "zsh-completions installed successfully"
     return 0
 }
 
@@ -278,29 +290,17 @@ validate_zsh_installation() {
 
 # Main Zsh installation function
 install_zsh() {
-    log_section "Installing Zsh Shell"
+    log_section "Configuring Zsh Shell"
     
-    # Check if already installed
-    if is_zsh_installed; then
-        log_info "Zsh is already installed"
-        if ! ask_yes_no "Do you want to reconfigure Zsh?" "n"; then
-            log_info "Skipping Zsh installation"
-            return 0
-        fi
-    fi
-    
-    # Validate distribution support
-    local distro
-    distro=$(get_distro)
-    if [[ -z "${ZSH_PACKAGES[$distro]}" ]]; then
-        log_error "Zsh installation not supported on: $distro"
+    # Check if already installed (packages should be installed by main system)
+    if ! is_zsh_installed; then
+        log_error "Zsh not found. Ensure packages are installed by the main system first."
         return 1
     fi
     
-    # Install packages
-    if ! install_zsh_packages; then
-        log_error "Failed to install Zsh packages"
-        return 1
+    # Install manual packages if needed
+    if ! install_zsh_manual_packages; then
+        log_warn "Failed to install manual packages (continuing anyway)"
     fi
     
     # Configure Zsh
@@ -325,7 +325,7 @@ install_zsh() {
         initialize_zsh_plugins
     fi
     
-    log_success "Zsh installation completed successfully"
+    log_success "Zsh configuration completed successfully"
     log_info "Note: If you changed your default shell, please log out and back in for changes to take effect"
     return 0
 }
@@ -477,16 +477,21 @@ uninstall_zsh() {
         fi
     fi
     
+    # Remove manual installations
     local distro
     distro=$(get_distro)
     
-    # Remove packages
     case "$distro" in
         "arch")
             sudo pacman -Rns --noconfirm zsh zsh-completions 2>/dev/null || true
             ;;
         "ubuntu")
-            sudo apt-get remove --purge -y zsh 2>/dev/null || true
+            # Remove manually installed zsh-completions
+            if [[ -d "/usr/share/zsh/vendor-completions" ]]; then
+                sudo apt-get remove --purge -y zsh 2>/dev/null || true
+                log_info "Removing manually installed zsh-completions..."
+                sudo rm -rf "/usr/share/zsh/vendor-completions" 2>/dev/null || true
+            fi
             ;;
     esac
     

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Package Manager and Dependency Resolution System
-# Handles component dependencies, conflicts, and hardware requirements
+# Handles component dependencies and hardware requirements
 
 # Source required modules
 [[ -z "${PATHS_SOURCED:-}" ]] && source "$(dirname "${BASH_SOURCE[0]}")/init-paths.sh"
@@ -13,7 +13,6 @@ COMPONENT_DEPS_FILE="data/component-deps.json"
 HARDWARE_PROFILES_FILE="data/hardware-profiles.json"
 SELECTED_COMPONENTS=()
 RESOLVED_DEPENDENCIES=()
-DETECTED_CONFLICTS=()
 HARDWARE_PROFILE=""
 
 # Hardware detection cache
@@ -142,10 +141,7 @@ get_component_dependencies() {
     get_json_field ".components.\"$1\".dependencies[]?" "$COMPONENT_DEPS_FILE"
 }
 
-# Get component conflicts
-get_component_conflicts() {
-    get_json_field ".components.\"$1\".conflicts[]?" "$COMPONENT_DEPS_FILE"
-}
+
 
 # Resolve dependencies for a list of components
 resolve_dependencies() {
@@ -157,7 +153,6 @@ resolve_dependencies() {
     
     # Clear previous results
     RESOLVED_DEPENDENCIES=()
-    DETECTED_CONFLICTS=()
     
     # Process each component
     for component in "${components[@]}"; do
@@ -235,76 +230,9 @@ component_exists() {
     [[ "$(get_json_field ".components | has(\"$1\")" "$COMPONENT_DEPS_FILE")" == "true" ]]
 }
 
-# Detect conflicts between selected components
-detect_conflicts() {
-    local components=("$@")
-    local conflicts=()
-    
-    log_info "Detecting conflicts between components..."
-    
-    # Clear previous conflicts
-    DETECTED_CONFLICTS=()
-    
-    # Check each component against all others
-    for component in "${components[@]}"; do
-        local component_conflicts
-        mapfile -t component_conflicts < <(get_component_conflicts "$component")
-        
-        for conflict in "${component_conflicts[@]}"; do
-            if [[ -n "$conflict" ]] && [[ " ${components[*]} " =~ " $conflict " ]]; then
-                # Avoid duplicate conflict entries
-                local conflict_pair="$component <-> $conflict"
-                local reverse_pair="$conflict <-> $component"
-                if [[ ! " ${conflicts[*]} " =~ " $conflict_pair " ]] && [[ ! " ${conflicts[*]} " =~ " $reverse_pair " ]]; then
-                    conflicts+=("$conflict_pair")
-                    log_warn "Conflict detected: $component conflicts with $conflict"
-                fi
-            fi
-        done
-        
-        # Check category-based conflicts
-        local category
-        category=$(get_component_info "$component" "category")
-        if [[ -n "$category" ]]; then
-            check_category_conflicts "$component" "$category" "${components[@]}"
-        fi
-    done
-    
-    DETECTED_CONFLICTS=("${conflicts[@]}")
-    
-    if [[ ${#DETECTED_CONFLICTS[@]} -gt 0 ]]; then
-        log_warn "Found ${#DETECTED_CONFLICTS[@]} conflict(s)"
-        return 1
-    else
-        log_success "No conflicts detected"
-        return 0
-    fi
-}
 
-# Check for category-based conflicts (mutually exclusive categories)
-check_category_conflicts() {
-    local component="$1" category="$2"
-    shift 2
-    local all_components=("$@")
-    
-    # Check if category is mutually exclusive
-    local is_exclusive
-    is_exclusive=$(get_json_field ".categories.\"$category\".mutually_exclusive // false" "$COMPONENT_DEPS_FILE")
-    
-    if [[ "$is_exclusive" == "true" ]]; then
-        # Find other components in the same category
-        for other_component in "${all_components[@]}"; do
-            if [[ "$other_component" != "$component" ]]; then
-                local other_category
-                other_category=$(get_component_info "$other_component" "category")
-                if [[ "$other_category" == "$category" ]]; then
-                    DETECTED_CONFLICTS+=("$component <-> $other_component (category: $category)")
-                    log_warn "Category conflict: $component and $other_component are both in mutually exclusive category '$category'"
-                fi
-            fi
-        done
-    fi
-}
+
+
 
 # Get hardware profile packages for current distribution
 get_hardware_packages() {
@@ -401,12 +329,7 @@ show_dependency_summary() {
         log_info "  - $component${name:+ ($name)}$is_selected"
     done
     
-    if [[ ${#DETECTED_CONFLICTS[@]} -gt 0 ]]; then
-        log_warn "Detected conflicts:"
-        for conflict in "${DETECTED_CONFLICTS[@]}"; do
-            log_warn "  - $conflict"
-        done
-    fi
+
     
     if [[ -n "$HARDWARE_PROFILE" ]]; then
         local profile_name
@@ -454,19 +377,7 @@ validate_component_structure() {
             fi
         done
         
-        # Check conflicts exist (optional - conflicts might be external)
-        local conflicts
-        mapfile -t conflicts < <(get_component_conflicts "$component")
-        for conflict in "${conflicts[@]}"; do
-            if [[ -n "$conflict" ]] && component_exists "$conflict"; then
-                # Check if the conflict is mutual
-                local reverse_conflicts
-                mapfile -t reverse_conflicts < <(get_component_conflicts "$conflict")
-                if [[ ! " ${reverse_conflicts[*]} " =~ " $component " ]]; then
-                    log_warn "Component '$component' conflicts with '$conflict', but '$conflict' doesn't list '$component' as a conflict"
-                fi
-            fi
-        done
+
     done
     
     if [[ $validation_errors -eq 0 ]]; then
