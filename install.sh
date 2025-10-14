@@ -354,21 +354,6 @@ run_installation() {
             ;;
     esac
     
-    # Apply dotfiles configurations with error handling
-    log_info "Applying dotfiles configurations..."
-    if [[ -f "$CONFIGS_DIR/dotfiles-manager.sh" ]]; then
-        source "$CONFIGS_DIR/dotfiles-manager.sh"
-        if ! manage_dotfiles "${SELECTED_COMPONENTS[@]}"; then
-            fail "dotfiles_management" "Failed to apply dotfiles configurations"
-            installation_success=false
-        else
-            log_success "Dotfiles configurations applied successfully"
-        fi
-    else
-        fail "dotfiles_manager" "Dotfiles manager not found"
-        installation_success=false
-    fi
-    
     # Final status
     if [[ "$installation_success" == "true" ]]; then
         log_success "Installation process completed successfully! ✓"
