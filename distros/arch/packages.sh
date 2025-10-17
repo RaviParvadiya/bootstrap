@@ -97,7 +97,7 @@ arch_install_from_package_list() {
     log_info "Installing from $package_list_file ($package_type)"
     
     local packages=()
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${line// }" ]] && continue
         

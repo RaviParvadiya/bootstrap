@@ -40,7 +40,7 @@ ubuntu_install_from_package_list() {
     # Separate packages by type
     local apt_packages=()
     
-    while IFS= read -r line; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
         # Skip comments and empty lines
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${line// }" ]] && continue

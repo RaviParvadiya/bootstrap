@@ -218,6 +218,12 @@ install_package() {
         esac
     fi
 
+    # Short-circuit if already installed
+    if is_package_installed "$package" "$pm"; then
+        log_debug "Package already installed: $package"
+        return 0
+    fi
+    
     case "$pm" in
         "pacman") sudo pacman -S --noconfirm "$package" ;;
         "yay") yay -S --noconfirm "$package" ;;
@@ -259,6 +265,7 @@ is_package_installed() {
         case "$distro" in
             "arch") pm="pacman" ;;
             "ubuntu") pm="apt" ;;
+            *) return 1 ;;
         esac
     fi
 
@@ -482,7 +489,7 @@ validate_system() {
         return 1
     fi
 
-    local missing_tools=() required_tools=("curl" "wget" "jq" "bc" "stow" "unzip" "tar" "gzip")
+    local missing_tools=() required_tools=("curl" "wget" "jq" "bc" "stow" "unzip" "tar" "gzip" "zip")
 
     # Check for required tools
     for tool in "${required_tools[@]}"; do

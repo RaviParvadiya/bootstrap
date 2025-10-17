@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-
-# components/wm/wofi.sh - Wofi application launcher installation and configuration
-# This module handles the installation and configuration of Wofi application launcher
-# with proper dotfiles integration, theme support, and cross-distribution compatibility.
+#
+# components/wm/wofi.sh - Wofi installer
+# Handles installation, dotfiles, helper scripts, and validation.
 
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
@@ -12,30 +11,49 @@ source "$CORE_DIR/common.sh"
 readonly WOFI_COMPONENT_NAME="wofi"
 readonly WOFI_CONFIG_SOURCE="$DOTFILES_DIR/wofi/.config/wofi"
 readonly WOFI_CONFIG_TARGET="$HOME/.config/wofi"
+readonly WOFI_BIN_DIR="$HOME/.local/bin"
+
+# Package definitions per distribution
+declare -A WOFI_PACKAGES=(
+    ["arch"]="wofi"
+    ["ubuntu"]="wofi"
+)
+
+# Dependencies for Wofi functionality
+declare -A WOFI_DEPS=(
+    ["arch"]="gtk3"
+    ["ubuntu"]="libgtk-3-0"
+)
+
+# Optional packages for enhanced Wofi functionality
+declare -A WOFI_OPTIONAL=(
+    ["arch"]="wtype"  # For typing text in Wayland
+    ["ubuntu"]="wtype"
+)
 
 #######################################
 # Wofi Installation Functions
 #######################################
 
-# Check if Wofi is already installed
-is_wofi_installed() {
-    command -v wofi >/dev/null 2>&1
+# Install Wofi packages
+install_wofi_packages() {
+    local distro
+    distro=$(get_distro)
+    
+    log_info "Installing Wofi packages for $distro..."
+    
+    install_packages ${WOFI_DEPS[$distro]} ${WOFI_PACKAGES[$distro]} ${WOFI_OPTIONAL[$distro]}
+    
+    log_success "Wofi packages installed"
 }
 
 # Configure Wofi with dotfiles
 configure_wofi() {
     log_info "Configuring Wofi application launcher..."
     
-    if [[ ! -d "$WOFI_CONFIG_SOURCE" ]]; then
-        log_error "Wofi configuration source not found: $WOFI_CONFIG_SOURCE"
-        return 1
-    fi
-    
-    # Create configuration directory
-    if ! mkdir -p "$WOFI_CONFIG_TARGET"; then
-        log_error "Failed to create Wofi config directory: $WOFI_CONFIG_TARGET"
-        return 1
-    fi
+    [[ ! -d "$WOFI_CONFIG_SOURCE" ]] && { log_error "Missing config: $WOFI_CONFIG_SOURCE"; return 1; }
+  
+    mkdir -p "$WOFI_CONFIG_TARGET"
     
     # Copy configuration files using symlinks for easy updates
     log_info "Creating symlinks for Wofi configuration files..."
@@ -103,7 +121,7 @@ gtk_dark=true"
 
 # Setup Wofi keybindings helper script
 setup_wofi_scripts() {
-    log_info "Setting up Wofi helper scripts..."
+    log_info "Creating Wofi helper scripts..."
     
     local scripts_dir="$HOME/.local/bin"
     mkdir -p "$scripts_dir"
@@ -176,75 +194,21 @@ fi
 
 # Test Wofi configuration
 test_wofi_config() {
-    log_info "Testing Wofi configuration..."
-    
-    # Test if wofi can start and exit cleanly
-    if timeout 5 wofi --help >/dev/null 2>&1; then
-        log_success "Wofi basic functionality test passed"
-    else
-        log_warn "Wofi basic functionality test failed"
-        return 1
-    fi
-    
-    # Check if config file is readable
-    if [[ -f "$WOFI_CONFIG_TARGET/config" ]]; then
-        if [[ -r "$WOFI_CONFIG_TARGET/config" ]]; then
-            log_debug "Wofi config file is readable"
-        else
-            log_warn "Wofi config file is not readable"
-        fi
-    fi
-    
-    # Check if style file exists and is readable
-    if [[ -f "$WOFI_CONFIG_TARGET/style.css" ]]; then
-        if [[ -r "$WOFI_CONFIG_TARGET/style.css" ]]; then
-            log_debug "Wofi style file is readable"
-        else
-            log_warn "Wofi style file is not readable"
-        fi
-    fi
-    
-    return 0
+    timeout 5 wofi --help &>/dev/null && log_debug "Wofi basic functionality OK" || log_warn "Wofi test failed"
+    [[ -r "$WOFI_CONFIG_TARGET/config" ]] && log_debug "Config readable"
+    [[ -r "$WOFI_CONFIG_TARGET/style.css" ]] && log_debug "Style readable"
 }
 
 # Validate Wofi installation
+
 validate_wofi_installation() {
-    log_info "Validating Wofi installation..."
-    
-    # Check if binary is available
-    if ! command -v wofi >/dev/null 2>&1; then
-        log_error "Wofi binary not found in PATH"
-        return 1
-    fi
-    
-    # Check if configuration directory exists
-    if [[ ! -d "$WOFI_CONFIG_TARGET" ]]; then
-        log_warn "Wofi configuration directory not found: $WOFI_CONFIG_TARGET"
-    fi
-    
-    # Test Wofi version (basic functionality test)
-    if ! wofi --version >/dev/null 2>&1; then
-        log_error "Wofi version check failed"
-        return 1
-    fi
-    
-    # Test configuration
-    if ! test_wofi_config; then
-        log_warn "Wofi configuration test failed"
-    fi
-    
-    # Check if helper scripts exist
-    local scripts=("wofi-launcher" "wofi-run" "wofi-window")
-    for script in "${scripts[@]}"; do
-        if [[ -x "$HOME/.local/bin/$script" ]]; then
-            log_debug "Found Wofi helper script: $script"
-        else
-            log_warn "Wofi helper script not found: $script"
-        fi
+    command -v wofi >/dev/null || { log_error "wofi not found"; return 1; }
+    [[ -d "$WOFI_CONFIG_TARGET" ]] || log_warn "Config dir missing"
+    test_wofi_config
+    for s in wofi-launcher wofi-run wofi-window; do
+        [[ -x "$WOFI_BIN_DIR/$s" ]] && log_debug "Found script: $s" || log_warn "Missing script: $s"
     done
-    
-    log_success "Wofi installation validation passed"
-    return 0
+    log_success "Wofi validation passed"
 }
 
 #######################################
@@ -253,34 +217,16 @@ validate_wofi_installation() {
 
 # Main Wofi installation function
 install_wofi() {
-    log_section "Configuring Wofi Application Launcher"
+    log_section "Installing Wofi Application Launcher"
     
-    # Check if already installed (packages should be installed by main system)
-    if ! is_wofi_installed; then
-        log_error "Wofi not found. Ensure packages are installed by the main system first."
-        return 1
-    fi
+    install_wofi_packages || return 1
+    configure_wofi || return 1
     
-    # Configure Wofi
-    if ! configure_wofi; then
-        log_error "Failed to configure Wofi"
-        return 1
-    fi
+    ask_yes_no "Create Wofi helper scripts?" "y" && setup_wofi_scripts
+
+    validate_wofi_installation
     
-    # Setup helper scripts
-    if ask_yes_no "Create Wofi helper scripts?" "y"; then
-        setup_wofi_scripts
-    fi
-    
-    # Validate installation
-    if ! validate_wofi_installation; then
-        log_error "Wofi installation validation failed"
-        return 1
-    fi
-    
-    log_success "Wofi configuration completed successfully"
-    log_info "Note: Use 'wofi-launcher' command or configure keybindings in Hyprland to launch Wofi"
-    return 0
+    log_success "Wofi installation complete. Use 'wofi-launcher' or configure keybindings."
 }
 
 # Uninstall Wofi (for testing/cleanup)
@@ -315,9 +261,8 @@ uninstall_wofi() {
         fi
     done
     
-    log_success "Wofi uninstalled successfully"
-    return 0
+    log_success "Wofi uninstalled"
 }
 
 # Export essential functions
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_wofi configure_wofi is_wofi_installed
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_wofi

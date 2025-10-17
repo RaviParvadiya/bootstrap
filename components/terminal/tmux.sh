@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-
+#
 # components/terminal/tmux.sh - Tmux terminal multiplexer installation and configuration
-# This module handles the installation and configuration of Tmux terminal multiplexer
-# with plugin management (TPM), theme support, and proper dotfiles integration.
+# Handles installation, TPM setup, plugin management, and dotfiles integration.
 
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
@@ -15,18 +14,30 @@ readonly TMUX_CONFIG_TARGET="$HOME/.tmux.conf"
 readonly TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
 readonly TPM_REPO="https://github.com/tmux-plugins/tpm"
 
+# Package definitions per distribution
+declare -A TMUX_PACKAGES=(
+    ["arch"]="tmux"
+    ["ubuntu"]="tmux"
+)
+
 #######################################
 # Tmux Installation Functions
 #######################################
 
-# Check if Tmux is already installed
-is_tmux_installed() {
-    command -v tmux >/dev/null 2>&1
-}
-
 # Check if TPM (Tmux Plugin Manager) is installed
 is_tpm_installed() {
     [[ -d "$TMUX_PLUGINS_DIR/tpm" ]]
+}
+
+# Install Tmux packages
+install_tmux_packages() {
+    local distro
+    distro=$(get_distro)
+    
+    log_info "Installing Tmux packages for $distro..."
+    install_packages ${TMUX_PACKAGES[$distro]} || return 1
+    
+    log_success "Tmux packages installed successfully"
 }
 
 # Install TPM (Tmux Plugin Manager)
@@ -34,37 +45,28 @@ install_tpm() {
     log_info "Installing TPM (Tmux Plugin Manager)..."
     
     # Create plugins directory
-    if ! mkdir -p "$TMUX_PLUGINS_DIR"; then
-        log_error "Failed to create tmux plugins directory: $TMUX_PLUGINS_DIR"
-        return 1
-    fi
+    mkdir -p "$TMUX_PLUGINS_DIR"
     
     # Clone TPM repository
     if [[ -d "$TMUX_PLUGINS_DIR/tpm" ]]; then
         log_info "TPM already exists, updating..."
-        if ! git -C "$TMUX_PLUGINS_DIR/tpm" pull; then
-            log_warn "Failed to update TPM, continuing with existing version"
-        fi
+        git -C "$TMUX_PLUGINS_DIR/tpm" pull >/dev/null 2>&1 || log_warn "TPM update failed"
     else
         log_info "Cloning TPM repository..."
-        if ! git clone "$TPM_REPO" "$TMUX_PLUGINS_DIR/tpm"; then
+        git clone "$TPM_REPO" "$TMUX_PLUGINS_DIR/tpm" >/dev/null 2>&1 || {
             log_error "Failed to clone TPM repository"
             return 1
-        fi
+        }
     fi
     
     log_success "TPM installed successfully"
-    return 0
 }
 
 # Configure Tmux with dotfiles
 configure_tmux() {
     log_info "Configuring Tmux terminal multiplexer..."
     
-    if [[ ! -f "$TMUX_CONFIG_SOURCE" ]]; then
-        log_error "Tmux configuration source not found: $TMUX_CONFIG_SOURCE"
-        return 1
-    fi
+    [[ ! -f "$TMUX_CONFIG_SOURCE" ]] && { log_error "Missing config: $TMUX_CONFIG_SOURCE"; return 1; }
     
     # Create symlink for tmux configuration
     if ! create_symlink "$TMUX_CONFIG_SOURCE" "$TMUX_CONFIG_TARGET"; then
@@ -73,7 +75,6 @@ configure_tmux() {
     fi
     
     log_success "Tmux configuration completed"
-    return 0
 }
 
 # Install Tmux plugins using TPM
@@ -89,40 +90,19 @@ install_tmux_plugins() {
     # Install plugins using TPM
     local tpm_install_script="$TMUX_PLUGINS_DIR/tpm/scripts/install_plugins.sh"
     
-    if [[ -f "$tpm_install_script" ]]; then
-        log_info "Running TPM plugin installation..."
-        if bash "$tpm_install_script"; then
-            log_success "Tmux plugins installed successfully"
-        else
-            log_warn "Plugin installation completed with warnings"
-        fi
-    else
-        log_warn "TPM install script not found, plugins may need manual installation"
-    fi
-    
-    return 0
+    [[ -f "$tpm_install_script" ]] && bash "$tpm_install_script" >/dev/null 2>&1 \
+        && log_success "Tmux plugins installed" \
+        || log_warn "Plugin install script not found or failed"
 }
 
 # Validate Tmux installation
 validate_tmux_installation() {
     log_info "Validating Tmux installation..."
     
-    # Check if binary is available
-    if ! command -v tmux >/dev/null 2>&1; then
-        log_error "Tmux binary not found in PATH"
-        return 1
-    fi
+    command -v tmux >/dev/null || { log_error "Tmux not found in PATH"; return 1; }
+    tmux -V >/dev/null 2>&1 || { log_error "Tmux version check failed"; return 1; }
     
-    # Check if configuration exists
-    if [[ ! -f "$TMUX_CONFIG_TARGET" ]]; then
-        log_warn "Tmux configuration file not found: $TMUX_CONFIG_TARGET"
-    fi
-    
-    # Test Tmux version (basic functionality test)
-    if ! tmux -V >/dev/null 2>&1; then
-        log_error "Tmux version check failed"
-        return 1
-    fi
+    [[ -f "$TMUX_CONFIG_TARGET" ]] || log_warn "Config missing: $TMUX_CONFIG_TARGET"
     
     # Check if TPM is installed
     if is_tpm_installed; then
@@ -131,35 +111,18 @@ validate_tmux_installation() {
         log_warn "TPM not found, plugins may not work"
     fi
     
-    # Check if plugins directory exists
-    if [[ -d "$TMUX_PLUGINS_DIR" ]]; then
-        local plugin_count
-        plugin_count=$(find "$TMUX_PLUGINS_DIR" -maxdepth 1 -type d | wc -l)
-        log_debug "Found $((plugin_count - 1)) tmux plugins"
-    fi
-    
-    log_success "Tmux installation validation passed"
-    return 0
+    log_success "Tmux validation passed"
 }
 
 # Create a test tmux session to verify functionality
 test_tmux_functionality() {
     log_info "Testing Tmux functionality..."
-    
-    # Create a test session and immediately detach
-    if tmux new-session -d -s "install-test" -c "$HOME" 'echo "Tmux test session"; sleep 1'; then
-        log_debug "Test session created successfully"
-        
-        # Kill the test session
-        if tmux kill-session -t "install-test" 2>/dev/null; then
-            log_debug "Test session cleaned up"
-        fi
-        
-        log_success "Tmux functionality test passed"
-        return 0
+
+    if tmux new-session -d -s "install-test" -c "$HOME" 'echo "Tmux test"; sleep 1'; then
+        tmux kill-session -t "install-test" 2>/dev/null
+        log_success "Tmux test passed"
     else
-        log_error "Failed to create tmux test session"
-        return 1
+        log_warn "Tmux test session failed"
     fi
 }
 
@@ -199,50 +162,20 @@ fi'
 
 # Main Tmux installation function
 install_tmux() {
-    log_section "Configuring Tmux Terminal Multiplexer"
+    log_section "Installing Tmux Terminal Multiplexer"
+
+    install_tmux_binary || return 1
+    install_tpm || return 1
+    configure_tmux || return 1
     
-    # Check if already installed (packages should be installed by main system)
-    if ! is_tmux_installed; then
-        log_error "Tmux not found. Ensure packages are installed by the main system first."
-        return 1
-    fi
+    install_tmux_plugins
+    validate_tmux_installation
+
+    ask_yes_no "Run Tmux test?" "y" && test_tmux_functionality
+    ask_yes_no "Enable Tmux autostart?" "n" && setup_tmux_autostart
     
-    # Install TPM (Tmux Plugin Manager)
-    if ! install_tpm; then
-        log_error "Failed to install TPM"
-        return 1
-    fi
-    
-    # Configure Tmux
-    if ! configure_tmux; then
-        log_error "Failed to configure Tmux"
-        return 1
-    fi
-    
-    # Install plugins
-    if ! install_tmux_plugins; then
-        log_warn "Plugin installation failed, but continuing"
-    fi
-    
-    # Validate installation
-    if ! validate_tmux_installation; then
-        log_error "Tmux installation validation failed"
-        return 1
-    fi
-    
-    # Test functionality
-    if ! test_tmux_functionality; then
-        log_warn "Tmux functionality test failed, but installation appears complete"
-    fi
-    
-    # Ask if user wants autostart
-    if ask_yes_no "Enable Tmux autostart in terminal sessions?" "n"; then
-        setup_tmux_autostart
-    fi
-    
-    log_success "Tmux configuration completed successfully"
-    log_info "To reload plugins in tmux, press: Prefix + I (default: Ctrl-s + I)"
-    return 0
+    log_success "Tmux installation and configuration complete"
+    log_info "Use Prefix + I to reload plugins inside tmux"
 }
 
 # Uninstall Tmux (for testing/cleanup)
@@ -279,9 +212,9 @@ uninstall_tmux() {
         log_info "Tmux plugins removed"
     fi
     
-    log_success "Tmux uninstalled successfully"
+    log_success "Tmux uninstalled"
     return 0
 }
 
 # Export essential functions
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_tmux configure_tmux is_tmux_installed install_tpm
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_tmux

@@ -17,17 +17,13 @@ apt-transport-https
 ca-certificates
 gnupg
 lsb-release
-build-essential
 hostname
 
 # --- Development Tools ---
 gcc
 make
 cmake
-nodejs
-npm
 python3
-python3-pip
 python3-venv
 rustc
 golang-go
@@ -35,55 +31,12 @@ gdb
 strace
 valgrind
 
-# --- Terminal and Shell ---
-zsh
-fish
-tmux
-alacritty
-kitty-terminfo
-
-# --- Wayland and Graphics ---
-wayland-protocols
-libwayland-dev
-libwayland-client0
-libwayland-cursor0
-libwayland-server0
-libxkbcommon-dev
-libinput-dev
-libdrm-dev
-libegl1-mesa-dev
-libgles2-mesa-dev
-
-# --- Hyprland Build Dependencies ---
-meson
-cmake
-libwayland-dev
-libxkbcommon-dev
-libinput-dev
-libdrm-dev
-libegl1-mesa-dev
-libgles2-mesa-dev
-libpixman-1-dev
-libseat-dev
-libxcb-dri3-dev
-libxcb-present-dev
-libxcb-composite0-dev
-libxcb-ewmh-dev
-libxcb-icccm4-dev
-libxcb-res0-dev
-libxcb-xinput-dev
-libtomlplusplus-dev
-libzip-dev
-librsvg2-dev
-libmagic-dev
-
 # --- Audio ---
 pipewire
 wireplumber
 pipewire-alsa
 pipewire-pulse
 pipewire-jack
-pavucontrol
 alsa-utils
 
 # --- Multimedia ---
@@ -108,13 +61,8 @@ gnome-keyring
 
 # --- Fonts ---
 fonts-noto
-fonts-noto-color-emoji
 fonts-liberation
 fonts-dejavu-core
-fonts-cascadia-code
-fonts-firacode
-fonts-jetbrains-mono
-fonts-font-awesome
 
 # --- Applications ---
 firefox
