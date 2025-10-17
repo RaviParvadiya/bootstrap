@@ -8,12 +8,7 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly HYPRLAND_COMPONENT_NAME="hyprland"
-readonly HYPRLAND_CONFIG_SOURCE="$DOTFILES_DIR/hyprland/.config/hypr"
 readonly HYPRLAND_CONFIG_TARGET="$HOME/.config/hypr"
-readonly HYPRMOCHA_CONFIG_SOURCE="$DOTFILES_DIR/hyprmocha/.config/hypr"
-readonly HYPRLOCK_CONFIG_SOURCE="$DOTFILES_DIR/hyprlock/.config/hypr"
-readonly HYPRPAPER_CONFIG_SOURCE="$DOTFILES_DIR/hyprpaper/.config/hypr"
 
 # Package definitions per distribution
 declare -A HYPRLAND_PACKAGES=(
@@ -23,13 +18,13 @@ declare -A HYPRLAND_PACKAGES=(
 
 # Dependencies for Hyprland
 declare -A HYPRLAND_DEPS=(
-    ["arch"]="wayland wayland-protocols wlroots"
+    ["arch"]="wayland wlroots"
     ["ubuntu"]="wayland-protocols libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgles2-mesa-dev libdrm-dev libxkbcommon-x11-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinput-dev libxcb-image0-dev libxcb-shm0-dev libxcb-util-dev libxcb-keysyms1-dev libpixman-1-dev libcairo2-dev libpango1.0-dev"
 )
 
 # Additional tools for Hyprland ecosystem
 declare -A HYPRLAND_TOOLS=(
-    ["arch"]="hyprpaper hypridle hyprlock grim slurp wl-clipboard"
+    ["arch"]="hyprpaper hypridle hyprlock wl-clipboard"
     ["ubuntu"]="grim slurp wl-clipboard"  # hyprpaper, hypridle, hyprlock built from source
 )
 
@@ -79,133 +74,30 @@ build_hyprland_from_source() {
 
 # Configure Hyprland with dotfiles
 configure_hyprland() {
-    log_info "Configuring Hyprland window manager..."
-    
-    if [[ ! -d "$HYPRLAND_CONFIG_SOURCE" ]]; then
-        log_error "Hyprland configuration source not found: $HYPRLAND_CONFIG_SOURCE"
-        return 1
-    fi
-    
-    # Create configuration directory
-    if ! mkdir -p "$HYPRLAND_CONFIG_TARGET"; then
-        log_error "Failed to create Hyprland config directory: $HYPRLAND_CONFIG_TARGET"
-        return 1
-    fi
-    
-    # Copy main Hyprland configuration files
-    log_info "Creating symlinks for Hyprland configuration files..."
-    
-    # Main Hyprland configs
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$HYPRLAND_CONFIG_SOURCE/}"
-        local target_file="$HYPRLAND_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$HYPRLAND_CONFIG_SOURCE" -type f -print0)
-    
-    # Copy Hyprmocha theme configuration
-    if [[ -d "$HYPRMOCHA_CONFIG_SOURCE" ]]; then
-        log_info "Installing Hyprmocha theme configuration..."
-        while IFS= read -r -d '' config_file; do
-            local relative_path="${config_file#$HYPRMOCHA_CONFIG_SOURCE/}"
-            local target_file="$HYPRLAND_CONFIG_TARGET/$relative_path"
-            local target_dir
-            target_dir=$(dirname "$target_file")
-            
-            # Create target directory if needed
-            if [[ ! -d "$target_dir" ]]; then
-                mkdir -p "$target_dir"
-            fi
-            
-            # Create symlink
-            if ! create_symlink "$config_file" "$target_file"; then
-                log_warn "Failed to create symlink for Hyprmocha: $relative_path"
-            else
-                log_debug "Created Hyprmocha symlink: $target_file -> $config_file"
-            fi
-        done < <(find "$HYPRMOCHA_CONFIG_SOURCE" -type f -print0)
-    fi
-    
-    # Copy Hyprlock configuration
-    if [[ -d "$HYPRLOCK_CONFIG_SOURCE" ]]; then
-        log_info "Installing Hyprlock configuration..."
-        while IFS= read -r -d '' config_file; do
-            local relative_path="${config_file#$HYPRLOCK_CONFIG_SOURCE/}"
-            local target_file="$HYPRLAND_CONFIG_TARGET/$relative_path"
-            local target_dir
-            target_dir=$(dirname "$target_file")
-            
-            # Create target directory if needed
-            if [[ ! -d "$target_dir" ]]; then
-                mkdir -p "$target_dir"
-            fi
-            
-            # Create symlink
-            if ! create_symlink "$config_file" "$target_file"; then
-                log_warn "Failed to create symlink for Hyprlock: $relative_path"
-            else
-                log_debug "Created Hyprlock symlink: $target_file -> $config_file"
-            fi
-        done < <(find "$HYPRLOCK_CONFIG_SOURCE" -type f -print0)
-    fi
-    
-    # Copy Hyprpaper configuration
-    if [[ -d "$HYPRPAPER_CONFIG_SOURCE" ]]; then
-        log_info "Installing Hyprpaper configuration..."
-        while IFS= read -r -d '' config_file; do
-            local relative_path="${config_file#$HYPRPAPER_CONFIG_SOURCE/}"
-            local target_file="$HYPRLAND_CONFIG_TARGET/$relative_path"
-            local target_dir
-            target_dir=$(dirname "$target_file")
-            
-            # Create target directory if needed
-            if [[ ! -d "$target_dir" ]]; then
-                mkdir -p "$target_dir"
-            fi
-            
-            # Create symlink
-            if ! create_symlink "$config_file" "$target_file"; then
-                log_warn "Failed to create symlink for Hyprpaper: $relative_path"
-            else
-                log_debug "Created Hyprpaper symlink: $target_file -> $config_file"
-            fi
-        done < <(find "$HYPRPAPER_CONFIG_SOURCE" -type f -print0)
-    fi
-    
-    # Setup wallpapers directory
-    setup_hyprland_wallpapers
-    
-    log_success "Hyprland configuration completed"
-}
-
-# Setup wallpapers for Hyprland
-setup_hyprland_wallpapers() {
-    local wallpapers_source="$DOTFILES_DIR/backgrounds/.config/backgrounds"
-    local wallpapers_target="$HOME/.config/backgrounds"
-    
-    if [[ -d "$wallpapers_source" ]]; then
-        log_info "Setting up wallpapers directory..."
-        if ! create_symlink "$wallpapers_source" "$wallpapers_target"; then
-            log_warn "Failed to create wallpapers symlink"
-        else
-            log_debug "Created wallpapers symlink: $wallpapers_target -> $wallpapers_source"
+    # Stow main Hyprland configuration
+    if [[ -d "$DOTFILES_DIR/hyprland" ]]; then
+        log_info "Applying Hyprland configuration..."
+        if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" hyprland); then
+            log_error "Failed to stow Hyprland configuration"
+            return 1
         fi
     else
-        log_warn "Wallpapers source directory not found: $wallpapers_source"
+        log_error "Missing hyprland dotfiles directory: $DOTFILES_DIR/hyprland"
+        return 1
     fi
+    
+    # Stow additional Hyprland components if they exist
+    for component in hyprmocha hyprlock hyprpaper backgrounds; do
+        if [[ -d "$DOTFILES_DIR/$component" ]]; then
+            log_info "Applying $component configuration with stow..."
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" "$component") || log_warn "Failed to stow $component configuration"
+        fi
+    done
+    
+    log_success "Hyprland configuration applied"
 }
+
+
 
 # Setup Hyprland session files
 setup_hyprland_session() {

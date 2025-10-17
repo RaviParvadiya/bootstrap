@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly WAYBAR_COMPONENT_NAME="waybar"
-readonly WAYBAR_CONFIG_SOURCE="$DOTFILES_DIR/waybar/.config/waybar"
 readonly WAYBAR_CONFIG_TARGET="$HOME/.config/waybar"
 readonly WAYBAR_SERVICE_FILE="$HOME/.config/systemd/user/waybar.service"
 
@@ -49,39 +47,19 @@ install_waybar_packages() {
 
 # Configure Waybar with dotfiles
 configure_waybar() {
-    log_info "Configuring Waybar..."
-
-    [[ ! -d "$WAYBAR_CONFIG_SOURCE" ]] && { log_error "Missing config: $WAYBAR_CONFIG_SOURCE"; return 1; }
+    [[ ! -d "$DOTFILES_DIR/waybar" ]] && { log_error "Missing waybar dotfiles directory: $DOTFILES_DIR/waybar"; return 1; }
     
-    mkdir -p "$WAYBAR_CONFIG_TARGET"
-    
-    # Copy configuration files using symlinks for easy updates
-    log_info "Creating symlinks for Waybar configuration files..."
-    
-    # Find all configuration files in the source directory
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$WAYBAR_CONFIG_SOURCE/}"
-        local target_file="$WAYBAR_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$WAYBAR_CONFIG_SOURCE" -type f -print0)
+    # Stow Waybar configuration
+    log_info "Applying Waybar configuration..."
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" waybar); then
+        log_error "Failed to stow Waybar configuration"
+        return 1
+    fi
     
     # Validate configuration files
     validate_waybar_config
     
-    log_success "Waybar configuration completed"
+    log_success "Waybar configuration applied"
 }
 
 # Validate Waybar configuration files
@@ -168,9 +146,26 @@ install_waybar() {
 uninstall_waybar() {
     log_info "Uninstalling Waybar..."
     
+    # Safety check: stop waybar processes before unstowing
+    if pgrep -x waybar >/dev/null; then
+        log_warn "Waybar is currently running"
+        if ask_yes_no "Kill waybar processes before uninstalling?" "y"; then
+            pkill waybar 2>/dev/null || true
+        else
+            log_error "Cannot safely uninstall while waybar is running"
+            return 1
+        fi
+    fi
+    
     # Stop and disable service first
     systemctl --user stop waybar.service 2>/dev/null || true
     systemctl --user disable waybar.service 2>/dev/null || true
+    
+    # Unstow configuration
+    if [[ -d "$DOTFILES_DIR/waybar" ]]; then
+        log_info "Removing Waybar configuration with stow..."
+        (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete waybar) || log_warn "Failed to unstow waybar configuration"
+    fi
     
     local distro
     distro=$(get_distro)

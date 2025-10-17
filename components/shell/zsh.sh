@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly ZSH_COMPONENT_NAME="zsh"
-readonly ZSH_CONFIG_SOURCE="$DOTFILES_DIR/zshrc/.zshrc"
 readonly ZSH_CONFIG_TARGET="$HOME/.zshrc"
 readonly ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
@@ -112,18 +110,16 @@ install_zinit() {
 
 # Configure Zsh with dotfiles
 configure_zsh() {
-    log_info "Configuring Zsh..."
-    
-    [[ ! -f "$ZSH_CONFIG_SOURCE" ]] && { log_error "Missing $ZSH_CONFIG_SOURCE"; return 1; }
+    [[ ! -d "$DOTFILES_DIR/zsh" ]] && { log_error "Missing zsh dotfiles: $DOTFILES_DIR/zsh"; return 1; }
     
     install_zinit || return 1
     
-    # Create symlink for .zshrc
-    log_info "Creating symlink for Zsh configuration..."
-    if ! create_symlink "$ZSH_CONFIG_SOURCE" "$ZSH_CONFIG_TARGET"; then
-        log_error "Failed to create Zsh configuration symlink"
+    # Stow Zsh configuration
+    log_info "Applying Zsh configuration..."
+    (cd "$DOTFILES_DIR" && stow --target="$HOME" zsh) || {
+        log_error "Failed to apply Zsh configuration"
         return 1
-    fi
+    }
     
     # Create history file directory if needed
     local histfile_dir="$HOME"
@@ -143,7 +139,7 @@ configure_zsh() {
         mkdir -p "$local_bin"
     fi
     
-    log_success "Zsh configuration completed"
+    log_success "Zsh configuration applied"
 }
 
 # Set Zsh as default shell
@@ -239,10 +235,19 @@ install_zsh() {
 uninstall_zsh() {
     log_info "Uninstalling Zsh..."
 
+    # Safety check: prevent unstowing while zsh is active shell
     if [[ "$SHELL" == *"zsh"* ]]; then
-        log_warn "Zsh is your default shell"
-        ask_yes_no "Switch to Bash before uninstall?" "y" && chsh -s "$(command -v bash)"
+        log_warn "Currently using zsh as default shell"
+        if ask_yes_no "Switch to bash before uninstalling?" "y"; then
+            chsh -s /bin/bash
+        else
+            log_error "Cannot safely uninstall while zsh is active shell"
+            return 1
+        fi
     fi
+    
+    # Unstow configuration
+    [[ -d "$DOTFILES_DIR/zsh" ]] && (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete zsh)
     
     # Remove manual installations
     local distro
@@ -262,25 +267,13 @@ uninstall_zsh() {
             ;;
     esac
     
-    # Remove configuration
-    if [[ -f "$ZSH_CONFIG_TARGET" ]]; then
-        rm -f "$ZSH_CONFIG_TARGET"
-        log_info "Zsh configuration removed"
-    fi
-    
     # Remove Zinit
-    if [[ -d "$ZINIT_HOME" ]]; then
-        rm -rf "$ZINIT_HOME"
-        log_info "Zinit removed"
-    fi
+    [[ -d "$ZINIT_HOME" ]] && rm -rf "$ZINIT_HOME" && log_info "Zinit removed"
     
     log_success "Zsh uninstalled"
     
     # Final reminder about shell change
-    if [[ "$SHELL" == *"zsh"* ]]; then
-        log_warn "IMPORTANT: Your default shell is still set to zsh"
-        log_warn "Please log out and back in, or run: chsh -s /bin/bash"
-    fi
+    [[ "$SHELL" == *"zsh"* ]] && log_warn "Your default shell is still zsh. Log out or run: chsh -s /bin/bash"
 }
 
 # Export essential functions

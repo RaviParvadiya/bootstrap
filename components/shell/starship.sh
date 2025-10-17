@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly STARSHIP_COMPONENT_NAME="starship"
-readonly STARSHIP_CONFIG_SOURCE="$DOTFILES_DIR/starship/.config/starship.toml"
 readonly STARSHIP_CONFIG_TARGET="$HOME/.config/starship.toml"
 readonly STARSHIP_INSTALL_URL="https://starship.rs/install.sh"
 
@@ -72,18 +70,15 @@ install_starship_via_script() {
 
 # Configure Starship with dotfiles
 configure_starship() {
-    log_info "Configuring Starship..."
-    
-    [[ ! -f "$STARSHIP_CONFIG_SOURCE" ]] && { log_error "Missing $STARSHIP_CONFIG_SOURCE"; return 1; }
-    
-    # Create configuration directory
-    mkdir -p "$(dirname "$STARSHIP_CONFIG_TARGET")"
-    
-    # Create symlink for starship.toml
-    log_info "Creating symlink for Starship configuration..."
-    create_symlink "$STARSHIP_CONFIG_SOURCE" "$STARSHIP_CONFIG_TARGET"
-    
-    log_success "Starship configuration completed"
+    [[ ! -d "$DOTFILES_DIR/starship" ]] && { log_error "Missing Starship dotfiles: $DOTFILES_DIR/starship"; return 1; }
+
+    log_info "Applying Starship configuration..."
+    (cd "$DOTFILES_DIR" && stow --target="$HOME" starship) || {
+        log_error "Failed to apply Starship configuration"
+        return 1
+    }
+
+    log_success "Starship configuration applied"
 }
 
 # Validate Starship installation
@@ -153,11 +148,8 @@ uninstall_starship() {
             ;;
     esac
     
-    # Remove configuration
-    if [[ -f "$STARSHIP_CONFIG_TARGET" ]]; then
-        rm -f "$STARSHIP_CONFIG_TARGET"
-        log_info "Starship configuration removed"
-    fi
+    # Unstow configuration
+    [[ -d "$DOTFILES_DIR/starship" ]] && (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete starship)
     
     log_success "Starship uninstalled"
     log_info "Remove any Starship lines from your shell configs if needed"

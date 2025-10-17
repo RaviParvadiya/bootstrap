@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly SWAYNC_COMPONENT_NAME="swaync"
-readonly SWAYNC_CONFIG_SOURCE="$DOTFILES_DIR/swaync/.config/swaync"
 readonly SWAYNC_CONFIG_TARGET="$HOME/.config/swaync"
 readonly SWAYNC_BUILD_DIR="$HOME/.local/src/swaync-build"
 readonly SWAYNC_REPO="https://github.com/ErikReider/SwayNotificationCenter.git"
@@ -66,35 +64,16 @@ install_swaync_packages() {
 
 # Configure SwayNC with dotfiles
 configure_swaync() {
-    log_info "Configuring SwayNC notification daemon..."
+    [[ ! -d "$DOTFILES_DIR/swaync" ]] && { log_error "Missing swaync dotfiles directory: $DOTFILES_DIR/swaync"; return 1; }
     
-    [[ ! -d "$SWAYNC_CONFIG_SOURCE" ]] && { log_error "Missing config: $SWAYNC_CONFIG_SOURCE"; return 1; }
-    mkdir -p "$SWAYNC_CONFIG_TARGET"
+    # Stow SwayNC configuration
+    log_info "Applying SwayNC configuration..."
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" swaync); then
+        log_error "Failed to stow SwayNC configuration"
+        return 1
+    fi
     
-    # Copy configuration files using symlinks for easy updates
-    log_info "Creating symlinks for SwayNC configuration files..."
-    
-    # Find all configuration files in the source directory
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$SWAYNC_CONFIG_SOURCE/}"
-        local target_file="$SWAYNC_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$SWAYNC_CONFIG_SOURCE" -type f -print0)
-    
-    log_success "SwayNC configuration completed"
+    log_success "SwayNC configuration applied"
 }
 
 # Setup SwayNC systemd service

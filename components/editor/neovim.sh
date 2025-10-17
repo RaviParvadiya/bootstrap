@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly NEOVIM_COMPONENT_NAME="neovim"
-readonly NEOVIM_CONFIG_SOURCE="$DOTFILES_DIR/nvim/.config/nvim"
 readonly NEOVIM_CONFIG_TARGET="$HOME/.config/nvim"
 
 # Packages per distro
@@ -58,7 +56,7 @@ install_language_servers() {
     
     # Install Python language servers via pip
     if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
-        local pip_cmd=$(command -v pip3 >/dev/null 2>&1 && echo pip3 || echo pip)i
+        local pip_cmd=$(command -v pip3 >/dev/null 2>&1 && echo pip3 || echo pip)
         
         local python_servers=(
             "python-lsp-server"
@@ -79,23 +77,13 @@ install_language_servers() {
 
 # Configure Neovim with dotfiles
 configure_neovim() {
-    log_info "Configuring Neovim..."
+    [[ ! -d "$DOTFILES_DIR/neovim" ]] && { log_error "Missing neovim dotfiles directory: $DOTFILES_DIR/neovim"; return 1; }
     
-    [[ ! -d "$NEOVIM_CONFIG_SOURCE" ]] && { log_error "Neovim configuration source not found: $NEOVIM_CONFIG_SOURCE"; return 1; }
+    # Stow Neovim configuration
+    log_info "Applying Neovim configuration..."
+    (cd "$DOTFILES_DIR" && stow --target="$HOME" neovim) || log_error "Failed to stow Neovim configuration"
     
-    mkdir -p "$NEOVIM_CONFIG_TARGET" || { log_error "Failed to create Neovim config directory: $NEOVIM_CONFIG_TARGET"; return 1; }
-    
-    log_info "Creating symlinks for Neovim configuration files..."
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$NEOVIM_CONFIG_SOURCE/}"
-        local target_file="$NEOVIM_CONFIG_TARGET/$relative_path"
-        local target_dir=$(dirname "$target_file")
-        
-        [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
-        create_symlink "$config_file" "$target_file" || log_warn "Failed to create symlink for: $relative_path"
-    done < <(find "$NEOVIM_CONFIG_SOURCE" -type f -print0)
-    
-    log_success "Neovim configuration completed"
+    log_success "Neovim configuration applied"
 }
 
 # Initialize Neovim plugins (run nvim to trigger lazy.nvim plugin installation)
@@ -173,6 +161,9 @@ uninstall_neovim() {
     local distro
     distro=$(get_distro)
     
+    # Unstow configuration
+    [[ -d "$DOTFILES_DIR/neovim" ]] && (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete neovim)
+    
     # Remove packages
     case "$distro" in
         "arch")
@@ -182,12 +173,6 @@ uninstall_neovim() {
             sudo apt-get remove --purge -y neovim 2>/dev/null || true
             ;;
     esac
-    
-    # Remove configuration
-    if [[ -d "$NEOVIM_CONFIG_TARGET" ]]; then
-        rm -rf "$NEOVIM_CONFIG_TARGET"
-        log_info "Neovim configuration removed"
-    fi
     
     # Remove plugin data
     local nvim_data_dir="$HOME/.local/share/nvim"
