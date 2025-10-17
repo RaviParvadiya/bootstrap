@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-
+#
 # components/shell/zsh.sh - Zsh shell installation and configuration
-# This module handles the installation and configuration of Zsh shell with
-# plugin management via Zinit, proper dotfiles integration, and cross-distribution support.
+# Handles Zsh install, Zinit plugin manager, dotfiles, and shell setup.
 
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
 source "$CORE_DIR/logger.sh"
@@ -15,47 +14,35 @@ readonly ZSH_CONFIG_TARGET="$HOME/.zshrc"
 readonly ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
 # Manual installation packages (not available in all repos)
-declare -A ZSH_MANUAL_PACKAGES=(
-    ["arch"]=""  # zsh-completions available in Arch repos
-    ["ubuntu"]="zsh-completions"  # Not in Ubuntu repos, install manually
+declare -A ZSH_PACKAGES=(
+    ["arch"]="zsh zsh-completions fzf eza exa zoxide"
+    ["ubuntu"]="zsh fzf exa zoxide"  # Not in Ubuntu repos, install manually
 )
 
 #######################################
 # Zsh Installation Functions
 #######################################
 
-# Check if Zsh is already installed
-is_zsh_installed() {
-    command -v zsh >/dev/null 2>&1
-}
-
 # Check if Zsh is the current user's default shell
 is_zsh_default_shell() {
     [[ "$SHELL" == *"zsh"* ]]
 }
 
-# Install manual Zsh packages (like zsh-completions for Ubuntu)
-install_zsh_manual_packages() {
+# Install Zsh packages
+install_zsh_packages() {
     local distro
     distro=$(get_distro)
     
-    if [[ -z "${ZSH_MANUAL_PACKAGES[$distro]}" ]]; then
-        return 0
+    log_info "Installing Zsh for $distro..."
+
+    install_packages ${ZSH_PACKAGES[$distro]} || log_warn "Zsh install incomplete"
+
+    # Handle Ubuntu separately for zsh-completions
+    if [[ "$distro" == "ubuntu" ]]; then
+        install_zsh_completions_ubuntu || log_warn "Manual zsh-completions install failed"
     fi
-    
-    log_info "Installing manual Zsh packages for $distro..."
-    
-    case "$distro" in
-        "ubuntu")
-            # Install zsh-completions manually for Ubuntu
-            install_zsh_completions_ubuntu
-            ;;
-        *)
-            log_warn "Manual package installation not implemented for: $distro"
-            ;;
-    esac
-    
-    return 0
+
+    log_success "Zsh packages installed for $distro"
 }
 
 # Install zsh-completions manually for Ubuntu
@@ -69,12 +56,6 @@ install_zsh_completions_ubuntu() {
     if [[ -d "$completions_dir" ]] && [[ -n "$(ls -A "$completions_dir" 2>/dev/null)" ]]; then
         log_info "zsh-completions appears to already be installed"
         return 0
-    fi
-    
-    # Check internet connectivity
-    if ! check_internet; then
-        log_error "Internet connection required for zsh-completions installation"
-        return 1
     fi
     
     # Create temp directory
@@ -106,56 +87,36 @@ install_zsh_completions_ubuntu() {
     # Clean up
     rm -rf "$temp_dir"
     
-    log_success "zsh-completions installed successfully"
+    log_success "zsh-completions installed"
     return 0
 }
 
 # Install Zinit plugin manager
 install_zinit() {
-    log_info "Installing Zinit plugin manager..."
-        
     # Check if Zinit is already installed
     if [[ -d "$ZINIT_HOME" ]]; then
-        log_info "Zinit already installed, updating..."
-        if ! git -C "$ZINIT_HOME" pull --quiet; then
-            log_warn "Failed to update Zinit, continuing with existing installation"
-        fi
+        log_info "Updating existing Zinit..."
+        git -C "$ZINIT_HOME" pull --quiet || log_warn "Zinit update failed"
         return 0
     fi
     
-    # Create directory and clone Zinit
-    local zinit_dir
-    zinit_dir=$(dirname "$ZINIT_HOME")
+    log_info "Installing Zinit plugin manager..."
     
-    if ! mkdir -p "$zinit_dir"; then
-        log_error "Failed to create Zinit directory: $zinit_dir"
-        return 1
-    fi
+    mkdir -p "$(dirname "$ZINIT_HOME")"
     
-    log_info "Cloning Zinit plugin manager..."
-    if ! git clone --quiet https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"; then
-        log_error "Failed to clone Zinit repository"
-        return 1
-    fi
+    git clone --quiet https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME" ||
+        { log_error "Failed to clone Zinit"; return 1; }
     
-    log_success "Zinit plugin manager installed successfully"
-    return 0
+    log_success "Zinit installed"
 }
 
 # Configure Zsh with dotfiles
 configure_zsh() {
-    log_info "Configuring Zsh shell..."
+    log_info "Configuring Zsh..."
     
-    if [[ ! -f "$ZSH_CONFIG_SOURCE" ]]; then
-        log_error "Zsh configuration source not found: $ZSH_CONFIG_SOURCE"
-        return 1
-    fi
+    [[ ! -f "$ZSH_CONFIG_SOURCE" ]] && { log_error "Missing $ZSH_CONFIG_SOURCE"; return 1; }
     
-    # Install Zinit first
-    if ! install_zinit; then
-        log_error "Failed to install Zinit plugin manager"
-        return 1
-    fi
+    install_zinit || return 1
     
     # Create symlink for .zshrc
     log_info "Creating symlink for Zsh configuration..."
@@ -183,7 +144,6 @@ configure_zsh() {
     fi
     
     log_success "Zsh configuration completed"
-    return 0
 }
 
 # Set Zsh as default shell
@@ -223,15 +183,11 @@ set_zsh_as_default() {
     fi
     
     log_success "Zsh set as default shell (will take effect on next login)"
-    return 0
 }
 
 # Initialize Zsh plugins (run Zsh once to trigger plugin installation)
 initialize_zsh_plugins() {
     log_info "Initializing Zsh plugins..."
-    
-    # Run Zsh with a simple command to trigger plugin installation
-    log_info "Running Zsh to initialize plugins (this may take a moment)..."
     
     # Use a timeout to prevent hanging
     if ! timeout 60 zsh -c "
@@ -241,10 +197,8 @@ initialize_zsh_plugins() {
     " >/dev/null 2>&1; then
         log_warn "Zsh plugin initialization timed out or failed (plugins will install on first use)"
     else
-        log_success "Zsh plugins initialized successfully"
+        log_success "Plugin initialization done"
     fi
-    
-    return 0
 }
 
 # Validate Zsh installation
@@ -252,36 +206,15 @@ validate_zsh_installation() {
     log_info "Validating Zsh installation..."
     
     # Check if binary is available
-    if ! command -v zsh >/dev/null 2>&1; then
-        log_error "Zsh binary not found in PATH"
-        return 1
-    fi
+    command -v zsh >/dev/null || { log_error "Zsh not found"; return 1; }
     
     # Check if configuration exists
-    if [[ ! -f "$ZSH_CONFIG_TARGET" ]]; then
-        log_error "Zsh configuration file not found: $ZSH_CONFIG_TARGET"
-        return 1
-    fi
+    [[ -f "$ZSH_CONFIG_TARGET" ]] || log_error "Zsh configuration file not found: $ZSH_CONFIG_TARGET"
     
     # Check if Zinit is installed
-    if [[ ! -d "$ZINIT_HOME" ]]; then
-        log_warn "Zinit plugin manager not found: $ZINIT_HOME"
-    fi
+    [[ -d "$ZINIT_HOME" ]] || log_warn "Zinit not found"
     
-    # Test Zsh version (basic functionality test)
-    if ! zsh --version >/dev/null 2>&1; then
-        log_error "Zsh version check failed"
-        return 1
-    fi
-    
-    # Check if configuration is syntactically valid
-    if ! zsh -n "$ZSH_CONFIG_TARGET" 2>/dev/null; then
-        log_error "Zsh configuration has syntax errors"
-        return 1
-    fi
-    
-    log_success "Zsh installation validation passed"
-    return 0
+    log_success "Zsh validation complete"
 }
 
 #######################################
@@ -290,111 +223,25 @@ validate_zsh_installation() {
 
 # Main Zsh installation function
 install_zsh() {
-    log_section "Configuring Zsh Shell"
+    log_section "Installing and Configuring Zsh Shell"
     
-    # Check if already installed (packages should be installed by main system)
-    if ! is_zsh_installed; then
-        log_error "Zsh not found. Ensure packages are installed by the main system first."
-        return 1
-    fi
+    install_zsh_packages || return 1
+    configure_zsh || return 1
+    validate_zsh_installation
+
+    ask_yes_no "Set Zsh as default shell?" "y" && set_zsh_as_default
+    ask_yes_no "Initialize Zsh plugins now?" "y" && initialize_zsh_plugins
     
-    # Install manual packages if needed
-    if ! install_zsh_manual_packages; then
-        log_warn "Failed to install manual packages (continuing anyway)"
-    fi
-    
-    # Configure Zsh
-    if ! configure_zsh; then
-        log_error "Failed to configure Zsh"
-        return 1
-    fi
-    
-    # Validate installation
-    if ! validate_zsh_installation; then
-        log_error "Zsh installation validation failed"
-        return 1
-    fi
-    
-    # Ask if user wants to set as default shell
-    if ask_yes_no "Set Zsh as default shell?" "y"; then
-        set_zsh_as_default
-    fi
-    
-    # Initialize plugins
-    if ask_yes_no "Initialize Zsh plugins now?" "y"; then
-        initialize_zsh_plugins
-    fi
-    
-    log_success "Zsh configuration completed successfully"
-    log_info "Note: If you changed your default shell, please log out and back in for changes to take effect"
-    return 0
+    log_success "Zsh setup complete — restart shell to apply"
 }
-
-# Check if user's current shell is zsh and change to bash if needed
-restore_bash_shell() {
-    log_info "Checking if shell needs to be changed back to bash..."
-    
-    # Check if current shell is zsh
-    if [[ "$SHELL" != *"zsh"* ]]; then
-        log_info "Current shell is not zsh, no change needed"
-        return 0
-    fi
-    
-    # Find bash path
-    local bash_path
-    bash_path=$(which bash 2>/dev/null)
-    
-    if [[ -z "$bash_path" ]]; then
-        log_error "Bash binary not found in PATH"
-        return 1
-    fi
-    
-    # Check if bash is in /etc/shells
-    if ! grep -q "$bash_path" /etc/shells 2>/dev/null; then
-        log_info "Adding bash to /etc/shells..."
-        if ! echo "$bash_path" | sudo tee -a /etc/shells >/dev/null; then
-            log_error "Failed to add bash to /etc/shells"
-            return 1
-        fi
-    fi
-    
-    # Change default shell back to bash
-    log_info "Changing default shell from zsh to bash..."
-    if ! chsh -s "$bash_path"; then
-        log_error "Failed to change default shell to bash"
-        log_info "You can manually change it later with: chsh -s $bash_path"
-        return 1
-    fi
-    
-    log_success "Default shell changed to bash (will take effect on next login)"
-    return 0
-}
-
-
-    return 0
-}
-
-
 
 # Uninstall Zsh (for testing/cleanup)
 uninstall_zsh() {
     log_info "Uninstalling Zsh..."
-    
-    # Check if zsh is the current default shell and change to bash if needed
+
     if [[ "$SHELL" == *"zsh"* ]]; then
-        log_warn "Zsh is currently your default shell"
-        if ask_yes_no "Change default shell to bash before uninstalling zsh?" "y"; then
-            if ! restore_bash_shell; then
-                log_error "Failed to change shell to bash"
-                if ! ask_yes_no "Continue with zsh uninstall anyway? (This may cause login issues)" "n"; then
-                    log_info "Zsh uninstall cancelled by user"
-                    return 1
-                fi
-            fi
-        else
-            log_warn "Keeping zsh as default shell - you may experience login issues after uninstall"
-            log_warn "You can manually change your shell later with: chsh -s /bin/bash"
-        fi
+        log_warn "Zsh is your default shell"
+        ask_yes_no "Switch to Bash before uninstall?" "y" && chsh -s "$(command -v bash)"
     fi
     
     # Remove manual installations
@@ -427,16 +274,14 @@ uninstall_zsh() {
         log_info "Zinit removed"
     fi
     
-    log_success "Zsh uninstalled successfully"
+    log_success "Zsh uninstalled"
     
     # Final reminder about shell change
     if [[ "$SHELL" == *"zsh"* ]]; then
         log_warn "IMPORTANT: Your default shell is still set to zsh"
         log_warn "Please log out and back in, or run: chsh -s /bin/bash"
     fi
-    
-    return 0
 }
 
 # Export essential functions
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_zsh configure_zsh is_zsh_installed set_zsh_as_default
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_zsh

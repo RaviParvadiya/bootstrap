@@ -3,37 +3,21 @@
 # Comments start with #
 
 # --- Base System ---
-git
-curl
-wget
 vim
 nano
 htop
 btop
 tree
-unzip
-zip
 pacman-contrib
 reflector
-bc
 inetutils
 cpio
-meson
-fzf
 bat
-fd
-ripgrep
-zoxide
-tar
 yazi
-eza
 tcpdump
 
 # --- Development Tools ---
-nodejs
-npm
 python
-python-pip
 python-flake8
 shellcheck
 go
@@ -44,31 +28,19 @@ docker-compose
 shfmt
 lua-language-server
 emacs
-neovim
 lazygit
 binutils
 
 # --- Terminal and Shell ---
-zsh
-kitty
-alacritty
-tmux
-starship
-wl-clipboard
 xclip
 
 # --- Window Manager (Wayland) ---
-hyprland
 xdg-desktop-portal
-xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 xorg-server
 xorg-xinit
 brightnessctl
 pamixer
-jq
-waybar
-wofi
 swayosd
 nwg-look
 kvantum
@@ -89,7 +61,6 @@ pipewire-audio
 pipewire-jack
 pipewire-pulse
 network-manager-applet
-pavucontrol
 
 # --- System Utilities ---
 polkit-gnome
@@ -108,7 +79,6 @@ powertop
 lm_sensors
 
 # --- Applications ---
-swaync
 
 # --- Hardware Specific ---
 vulkan-intel|intel

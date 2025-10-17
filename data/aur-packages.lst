@@ -18,10 +18,6 @@ supergfxctl|asus
 auto-cpufreq
 
 # --- Fonts ---
-ttf-jetbrains-mono-nerd
-ttf-firacode-nerd
-ttf-cascadia-code
-ttf-font-awesome
 # nerd-fonts is too large, use specific fonts instead
 
 # --- Themes and Customization ---
