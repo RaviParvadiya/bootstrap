@@ -332,58 +332,6 @@ ask_choice() {
 }
 
 #######################################
-# File and Symlink Management Functions
-#######################################
-
-# Create symlink with automatic removal of existing files
-# Arguments: $1 - source file, $2 - target location
-create_symlink() {
-    local source="$1" target="$2"
-
-    [[ -z "$source" || -z "$target" ]] && { log_error "Source and target are required for symlink creation"; return 1; }
-    [[ ! -e "$source" ]] && { log_error "Source file does not exist: $source"; return 1; }
-
-    # Create target directory if it doesn't exist
-    local target_dir=$(dirname "$target")
-    [[ ! -d "$target_dir" ]] && mkdir -p "$target_dir"
-
-    # Remove existing file if it exists and is not already a symlink to our source
-    if [[ -e "$target" ]]; then
-        if [[ -L "$target" ]]; then
-            local current_target=$(readlink "$target")
-            [[ "$current_target" == "$source" ]] && { log_info "Symlink already exists and points to correct target: $target"; return 0; }
-        fi
-
-        log_info "Removing existing file: $target"
-        rm -rf "$target"
-    fi
-
-    # Create the symlink
-    ln -s "$source" "$target"
-    log_success "Created symlink: $target -> $source"
-    return 0
-}
-
-# Create multiple symlinks from a directory
-# Arguments: $1 - source directory, $2 - target directory
-create_symlinks_from_dir() {
-    local source_dir="$1" target_dir="$2" failed_count=0
-
-    [[ ! -d "$source_dir" ]] && { log_error "Source directory does not exist: $source_dir"; return 1; }
-
-    # Find all files in source directory (excluding directories)
-    while IFS= read -r -d '' file; do
-        local relative_path="${file#$source_dir/}"
-        local target_file="$target_dir/$relative_path"
-        
-        create_symlink "$file" "$target_file" || ((failed_count++))
-    done < <(find "$source_dir" -type f -print0)
-
-    [[ $failed_count -gt 0 ]] && { log_warn "Failed to create $failed_count symlinks"; return 1; }
-    return 0
-}
-
-#######################################
 # System Validation Functions
 #######################################
 

@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly ALACRITTY_COMPONENT_NAME="alacritty"
-readonly ALACRITTY_CONFIG_SOURCE="$DOTFILES_DIR/alacritty/.config/alacritty"
 readonly ALACRITTY_CONFIG_TARGET="$HOME/.config/alacritty"
 
 # Package definitions per distribution
@@ -39,40 +37,20 @@ install_alacritty_packages() {
 
 # Configure Alacritty with dotfiles
 configure_alacritty() {
-    log_info "Configuring Alacritty..."
-    
-    [[ ! -d "$ALACRITTY_CONFIG_SOURCE" ]] && {
-        log_error "Missing config source: $ALACRITTY_CONFIG_SOURCE"
+    [[ ! -d "$DOTFILES_DIR/alacritty" ]] && {
+        log_error "Missing alacritty dotfiles directory: $DOTFILES_DIR/alacritty"
         return 1
     }
+
+    # Stow Alacritty configuration
+    log_info "Applying Alacritty configuration..."
+
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" alacritty); then
+        log_error "Failed to stow Alacritty configuration"
+        return 1
+    fi
     
-    # Create configuration directory
-    mkdir -p "$ALACRITTY_CONFIG_TARGET"
-    
-    # Copy configuration files using symlinks for easy updates
-    log_info "Creating symlinks for Alacritty configuration files..."
-    
-    # Find all configuration files in the source directory
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$ALACRITTY_CONFIG_SOURCE/}"
-        local target_file="$ALACRITTY_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$ALACRITTY_CONFIG_SOURCE" -type f -print0)
-    
-    log_success "Alacritty configuration completed"
+    log_success "Alacritty configuration applied"
 }
 
 # Validate Alacritty installation
@@ -144,13 +122,13 @@ uninstall_alacritty() {
             ;;
     esac
     
-    # Remove configuration
-    if [[ -d "$ALACRITTY_CONFIG_TARGET" ]]; then
-        rm -rf "$ALACRITTY_CONFIG_TARGET"
-        log_info "Alacritty configuration removed"
+    # Unstow configuration
+    if [[ -d "$DOTFILES_DIR/alacritty" ]]; then
+        log_info "Removing Alacritty configuration with stow..."
+        (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete alacritty) || log_warn "Failed to unstow alacritty configuration"
     fi
     
-    log_success "Alacritty uninstalled successfully"
+    log_success "Alacritty uninstalled"
 }
 
 # Export essential functions

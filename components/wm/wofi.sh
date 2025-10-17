@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly WOFI_COMPONENT_NAME="wofi"
-readonly WOFI_CONFIG_SOURCE="$DOTFILES_DIR/wofi/.config/wofi"
 readonly WOFI_CONFIG_TARGET="$HOME/.config/wofi"
 readonly WOFI_BIN_DIR="$HOME/.local/bin"
 
@@ -49,73 +47,16 @@ install_wofi_packages() {
 
 # Configure Wofi with dotfiles
 configure_wofi() {
-    log_info "Configuring Wofi application launcher..."
-    
-    [[ ! -d "$WOFI_CONFIG_SOURCE" ]] && { log_error "Missing config: $WOFI_CONFIG_SOURCE"; return 1; }
+    [[ ! -d "$DOTFILES_DIR/wofi" ]] && { log_error "Missing wofi dotfiles directory: $DOTFILES_DIR/wofi"; return 1; }
   
-    mkdir -p "$WOFI_CONFIG_TARGET"
-    
-    # Copy configuration files using symlinks for easy updates
-    log_info "Creating symlinks for Wofi configuration files..."
-    
-    # Find all configuration files in the source directory
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$WOFI_CONFIG_SOURCE/}"
-        local target_file="$WOFI_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$WOFI_CONFIG_SOURCE" -type f -print0)
-    
-    # Create default config if none exists
-    create_default_wofi_config
-    
-    log_success "Wofi configuration completed"
-    return 0
-}
-
-# Create default Wofi configuration if none exists
-create_default_wofi_config() {
-    local config_file="$WOFI_CONFIG_TARGET/config"
-    
-    # Only create if no config exists and no style.css exists
-    if [[ ! -f "$config_file" && ! -f "$WOFI_CONFIG_TARGET/style.css" ]]; then
-        log_info "Creating default Wofi configuration..."
-        
-        local default_config="width=600
-height=400
-location=center
-show=drun
-prompt=Search...
-filter_rate=100
-allow_markup=true
-no_actions=true
-halign=fill
-orientation=vertical
-content_halign=fill
-insensitive=true
-allow_images=true
-image_size=40
-gtk_dark=true"
-        
-        if echo "$default_config" > "$config_file"; then
-            log_debug "Created default Wofi config"
-        else
-            log_warn "Failed to create default Wofi config"
-        fi
+    # Stow Wofi configuration
+    log_info "Applying Wofi configuration..."
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" wofi); then
+        log_error "Failed to stow Wofi configuration"
+        return 1
     fi
     
+    log_success "Wofi configuration applied"
     return 0
 }
 

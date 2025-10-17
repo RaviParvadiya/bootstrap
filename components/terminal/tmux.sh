@@ -8,8 +8,6 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly TMUX_COMPONENT_NAME="tmux"
-readonly TMUX_CONFIG_SOURCE="$DOTFILES_DIR/tmux/.tmux.conf"
 readonly TMUX_CONFIG_TARGET="$HOME/.tmux.conf"
 readonly TMUX_PLUGINS_DIR="$HOME/.tmux/plugins"
 readonly TPM_REPO="https://github.com/tmux-plugins/tpm"
@@ -64,17 +62,16 @@ install_tpm() {
 
 # Configure Tmux with dotfiles
 configure_tmux() {
-    log_info "Configuring Tmux terminal multiplexer..."
+    [[ ! -d "$DOTFILES_DIR/tmux" ]] && { log_error "Missing tmux dotfiles directory: $DOTFILES_DIR/tmux"; return 1; }
     
-    [[ ! -f "$TMUX_CONFIG_SOURCE" ]] && { log_error "Missing config: $TMUX_CONFIG_SOURCE"; return 1; }
-    
-    # Create symlink for tmux configuration
-    if ! create_symlink "$TMUX_CONFIG_SOURCE" "$TMUX_CONFIG_TARGET"; then
-        log_error "Failed to create symlink for tmux configuration"
+    # Stow Tmux configuration
+    log_info "Applying Tmux configuration..."
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" tmux); then
+        log_error "Failed to stow Tmux configuration"
         return 1
     fi
     
-    log_success "Tmux configuration completed"
+    log_success "Tmux configuration applied"
 }
 
 # Install Tmux plugins using TPM
@@ -153,7 +150,6 @@ fi'
     fi
     
     log_success "Tmux autostart configured"
-    return 0
 }
 
 #######################################
@@ -185,9 +181,23 @@ uninstall_tmux() {
     local distro
     distro=$(get_distro)
     
-    # Kill all tmux sessions
+    # Safety check: kill all tmux sessions before unstowing
     if command -v tmux >/dev/null 2>&1; then
-        tmux kill-server 2>/dev/null || true
+        if tmux list-sessions >/dev/null 2>&1; then
+            log_warn "Active tmux sessions detected"
+            if ask_yes_no "Kill all tmux sessions before uninstalling?" "y"; then
+                tmux kill-server 2>/dev/null || true
+            else
+                log_error "Cannot safely uninstall with active tmux sessions"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Unstow configuration
+    if [[ -d "$DOTFILES_DIR/tmux" ]]; then
+        log_info "Removing Tmux configuration with stow..."
+        (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete tmux) || log_warn "Failed to unstow tmux configuration"
     fi
     
     # Remove packages
@@ -200,12 +210,6 @@ uninstall_tmux() {
             ;;
     esac
     
-    # Remove configuration
-    if [[ -f "$TMUX_CONFIG_TARGET" ]]; then
-        rm -f "$TMUX_CONFIG_TARGET"
-        log_info "Tmux configuration removed"
-    fi
-    
     # Remove plugins directory
     if [[ -d "$TMUX_PLUGINS_DIR" ]]; then
         rm -rf "$TMUX_PLUGINS_DIR"
@@ -213,7 +217,6 @@ uninstall_tmux() {
     fi
     
     log_success "Tmux uninstalled"
-    return 0
 }
 
 # Export essential functions

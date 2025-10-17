@@ -8,11 +8,7 @@ source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/common.sh"
 
 # Component metadata
-readonly KITTY_COMPONENT_NAME="kitty"
-readonly KITTY_CONFIG_SOURCE="$DOTFILES_DIR/kitty/.config/kitty"
 readonly KITTY_CONFIG_TARGET="$HOME/.config/kitty"
-readonly CATPPUCCIN_URL="https://raw.githubusercontent.com/catppuccin/kitty/main/themes/mocha.conf"
-readonly CATPPUCCIN_THEME="catppuccin-mocha.conf"
 
 # Package definitions per distribution
 
@@ -40,96 +36,24 @@ install_kitty_packages() {
     log_success "Kitty packages installed"
 }
 
-# Download and install Kitty themes
-install_kitty_themes() {
-    log_info "Installing Catppuccin Mocha theme..."
-    
-    local themes_dir="$KITTY_CONFIG_TARGET/themes"
-    
-    # Create themes directory
-    mkdir -p "$themes_dir"
-    
-    local CATPPUCCIN_URL="https://raw.githubusercontent.com/catppuccin/kitty/main/themes/mocha.conf"
-    local catppuccin_file="$themes_dir/$CATPPUCCIN_THEME"
-
-    if check_internet; then
-        if ! curl -fsSL "$CATPPUCCIN_URL" -o "$theme_file" 2>/dev/null && ! wget -q "$CATPPUCCIN_URL" -O "$theme_file" 2>/dev/null; then
-            log_warn "Failed to download Catppuccin theme"
-            return 0
-        fi
-        log_success "Downloaded Catppuccin Mocha theme"
-    else
-        log_warn "No internet; skipping theme download"
-    fi
-
-    return 0
-}
-
 # Configure Kitty with dotfiles
 configure_kitty() {
-    log_info "Configuring Kitty terminal emulator..."
-    
-    if [[ ! -d "$KITTY_CONFIG_SOURCE" ]]; then
-        log_error "Kitty configuration source not found: $KITTY_CONFIG_SOURCE"
+    if [[ ! -d "$DOTFILES_DIR/kitty" ]]; then
+        log_error "Missing kitty dotfiles directory: $DOTFILES_DIR/kitty"
         return 1
     fi
     
-    # Create configuration directory
-    if ! mkdir -p "$KITTY_CONFIG_TARGET"; then
-        log_error "Failed to create Kitty config directory: $KITTY_CONFIG_TARGET"
+    # Stow Kitty configuration
+    log_info "Applying Kitty configuration..."
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" kitty); then
+        log_error "Failed to stow Kitty configuration"
         return 1
     fi
     
-    # Install themes first
-    install_kitty_themes
-    
-    # Copy configuration files using symlinks for easy updates
-    log_info "Creating symlinks for Kitty configuration files..."
-    
-    # Find all configuration files in the source directory
-    while IFS= read -r -d '' config_file; do
-        local relative_path="${config_file#$KITTY_CONFIG_SOURCE/}"
-        local target_file="$KITTY_CONFIG_TARGET/$relative_path"
-        local target_dir
-        target_dir=$(dirname "$target_file")
-        
-        # Create target directory if needed
-        if [[ ! -d "$target_dir" ]]; then
-            mkdir -p "$target_dir"
-        fi
-        
-        # Create symlink
-        if ! create_symlink "$config_file" "$target_file"; then
-            log_warn "Failed to create symlink for: $relative_path"
-        else
-            log_debug "Created symlink: $target_file -> $config_file"
-        fi
-    done < <(find "$KITTY_CONFIG_SOURCE" -type f -print0)
-    
-    # Handle the current-theme.conf reference
-    setup_kitty_theme_link
-    
-    log_success "Kitty configuration completed"
-    return 0
+    log_success "Kitty configuration applied"
 }
 
-# Setup theme symlink for current-theme.conf
-setup_kitty_theme_link() {
-    local current_theme_file="$KITTY_CONFIG_TARGET/current-theme.conf"
-    local catppuccin_theme="$KITTY_CONFIG_TARGET/themes/$CATPPUCCIN_THEME"
-    
-    # If Catppuccin theme exists, link to it
-    if [[ -f "$catppuccin_theme" ]]; then
-        log_info "Linking current theme to Catppuccin Mocha..."
-        if ! create_symlink "$catppuccin_theme" "$current_theme_file"; then
-            log_warn "Failed to create theme symlink, theme may not work correctly"
-        fi
-    else
-        log_warn "Catppuccin theme not found, current-theme.conf may not work"
-    fi
-    
-    return 0
-}
+
 
 # Validate Kitty installation
 validate_kitty_installation() {
@@ -141,11 +65,7 @@ validate_kitty_installation() {
     # Check if configuration exists
     [[ -f "$KITTY_CONFIG_TARGET/kitty.conf" ]] || log_warn "kitty.conf missing"
     
-    # Check if theme configuration exists
-    [[ -f "$KITTY_CONFIG_TARGET/current-theme.conf" ]] || log_warn "Theme not linked"
-    
     log_success "Kitty validation passed"
-    return 0
 }
 
 # Set Kitty as default terminal (optional)
@@ -210,10 +130,10 @@ uninstall_kitty() {
             ;;
     esac
     
-    # Remove configuration
-    if [[ -d "$KITTY_CONFIG_TARGET" ]]; then
-        rm -rf "$KITTY_CONFIG_TARGET"
-        log_info "Kitty configuration removed"
+    # Unstow configuration
+    if [[ -d "$DOTFILES_DIR/kitty" ]]; then
+        log_info "Removing Kitty configuration with stow..."
+        (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete kitty) || log_warn "Failed to unstow kitty configuration"
     fi
     
     log_success "Kitty uninstalled"
