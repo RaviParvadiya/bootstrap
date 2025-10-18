@@ -61,7 +61,7 @@ _log() {
 log_error() { _log $LOG_ERROR "$RED" "ERROR" "$1"; }
 log_warn() { _log $LOG_WARN "$YELLOW" "WARN" "$1"; }
 log_info() { _log $LOG_INFO "$BLUE" "INFO" "$1"; }
-log_success() { _log $LOG_SUCCESS "$GREEN" "SUCCESS" "$1"; }
+log_success() { _log $LOG_SUCCESS "$GREEN" "OK" "$1"; }
 log_debug() { _log $LOG_DEBUG "$PURPLE" "DEBUG" "$1"; }
 
 # Progress indicator for long-running operations

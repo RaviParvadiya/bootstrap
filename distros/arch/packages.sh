@@ -11,14 +11,7 @@ arch_install_pacman_packages() {
     
     [[ ${#packages[@]} -eq 0 ]] && { log_warn "No packages specified"; return 0; }
     
-    log_info "Installing pacman packages: ${packages[*]}"
-    
-    if ! sudo pacman -S --needed --noconfirm "${packages[@]}"; then
-        log_error "Failed to install pacman packages"
-        return 1
-    fi
-    
-    log_success "Pacman packages installed"
+    install_packages "${packages[@]}" "pacman"
 }
 
 arch_install_aur_packages() {
@@ -30,23 +23,7 @@ arch_install_aur_packages() {
     aur_helper=$(arch_get_aur_helper)
     [[ -z "$aur_helper" ]] && { log_error "No AUR helper available"; return 1; }
     
-    log_info "Installing AUR packages with $aur_helper: ${packages[*]}"
-    
-    local failed_packages=()
-    
-    for package in "${packages[@]}"; do
-        if ! $aur_helper -S --needed --noconfirm "$package"; then
-            failed_packages+=("$package")
-            log_warn "Failed to install: $package"
-        fi
-    done
-    
-    if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        log_error "Failed AUR packages: ${failed_packages[*]}"
-        return 1
-    fi
-    
-    log_success "AUR packages installed"
+    install_packages "${packages[@]}" "$aur_helper"
 }
 
 arch_get_aur_helper() {
@@ -204,43 +181,21 @@ arch_is_package_installed() {
     pacman -Qi "$1" >/dev/null 2>&1
 }
 
-arch_get_package_version() {
-    pacman -Qi "$1" 2>/dev/null | awk '/Version/ {print $3}'
-}
-
-arch_remove_packages() {
-    local packages=("$@")
-    
-    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No packages specified for removal"; return 0; }
-    
-    log_info "Removing packages: ${packages[*]}"
-    
-    if ! sudo pacman -Rs --noconfirm "${packages[@]}"; then
-        log_error "Failed to remove packages"
-        return 1
-    fi
-    
-    log_success "Packages removed"
-}
-
-arch_clean_package_cache() {
-    log_info "Cleaning package cache"
-    
-    sudo pacman -Sc --noconfirm || log_warn "Failed to clean package cache"
-}
-
 # Export core functions
-export -f arch_install_pacman_packages arch_install_aur_packages arch_get_aur_helper
-export -f arch_ensure_aur_helper arch_install_from_package_list
-export -f arch_is_package_installed arch_get_package_version arch_remove_packages
-export -f arch_clean_package_cache
+export -f arch_ensure_aur_helper
 
 arch_configure_pacman() {
     local pacman_conf="/etc/pacman.conf"
     
     log_info "Configuring pacman"
 
-    sudo sed -i 's/^#Color/Color/; s/^#VerbosePkgLists/VerbosePkgLists/; s/^#ParallelDownloads = 5/ParallelDownloads = 5/' "$pacman_conf"
+    # Enable color output
+    sudo sed -i 's/^#Color/Color/' "$pacman_conf"
+
+    # Add ILoveCandy after DisableSandbox (only if not already there)
+    if ! grep -q '^ILoveCandy' "$pacman_conf"; then
+        sudo sed -i '/^DisableSandbox/a ILoveCandy' "$pacman_conf"
+    fi
     
     log_success "Pacman configured"
 }
@@ -250,7 +205,7 @@ arch_configure_makepkg() {
     
     log_info "Configuring makepkg"
     
-    sudo sed -i 's/COMPRESSZST=(zstd -c -T0 --ultra -20 -)/COMPRESSZST=(zstd -c -T0 --fast -)/' "$makepkg_conf"
+    sudo sed -i '/^COMPRESSZST=/c\COMPRESSZST=(zstd -c -T0 --fast -)' "$makepkg_conf"
     
     log_success "Makepkg configured"
 }
@@ -306,7 +261,4 @@ arch_install_packages_auto() {
 }
 
 # Export system functions
-export -f arch_configure_pacman arch_configure_makepkg arch_setup_reflector arch_enable_trim
-export -f arch_setup_system arch_install_packages_auto arch_install_packages_by_category
-export -f arch_has_nvidia_gpu arch_has_intel_gpu arch_has_amd_gpu arch_should_include_condition
-export -f arch_is_laptop arch_is_vm arch_is_asus_hardware
+export -f arch_setup_system arch_install_packages_auto

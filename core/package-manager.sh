@@ -11,8 +11,6 @@ source "$CORE_DIR/common.sh"
 # Global variables
 COMPONENT_DEPS_FILE="data/component-deps.json"
 HARDWARE_PROFILES_FILE="data/hardware-profiles.json"
-SELECTED_COMPONENTS=()
-RESOLVED_DEPENDENCIES=()
 HARDWARE_PROFILE=""
 
 # Hardware detection cache
@@ -126,122 +124,14 @@ get_json_field() {
     jq -r "$path // empty" "$file" 2>/dev/null
 }
 
-# Get component information from JSON
-get_component_info() {
-    get_json_field ".components.\"$1\".\"$2\"" "$COMPONENT_DEPS_FILE"
-}
-
-# Get component packages for current distribution
-get_component_packages() {
-    get_json_field ".components.\"$1\".packages.\"$2\"[]?" "$COMPONENT_DEPS_FILE"
-}
-
 # Get component dependencies
 get_component_dependencies() {
     get_json_field ".components.\"$1\".dependencies[]?" "$COMPONENT_DEPS_FILE"
 }
 
-
-
-# Resolve dependencies for a list of components
-resolve_dependencies() {
-    local components=("$@")
-    local resolved=()
-    local processing=()
-    
-    log_info "Resolving dependencies for components: ${components[*]}"
-    
-    # Clear previous results
-    RESOLVED_DEPENDENCIES=()
-    
-    # Process each component
-    for component in "${components[@]}"; do
-        if ! resolve_component_dependencies "$component" resolved processing; then
-            log_error "Failed to resolve dependencies for component: $component"
-            return 1
-        fi
-    done
-    
-    # Remove duplicates and store final result
-    RESOLVED_DEPENDENCIES=($(printf '%s\n' "${resolved[@]}" | sort -u))
-    
-    log_success "Dependency resolution complete. Final component list: ${RESOLVED_DEPENDENCIES[*]}"
-    return 0
-}
-
-# Recursively resolve dependencies for a single component
-resolve_component_dependencies() {
-    local component="$1"
-    local resolved_var="$2"
-    local processing_var="$3"
-    local -n resolved_ref=$resolved_var
-    local -n processing_ref=$processing_var
-    
-    # Check if component exists
-    if ! component_exists "$component"; then
-        log_error "Component '$component' not found in dependencies file"
-        return 1
-    fi
-    
-    # Check for circular dependencies
-    if [[ " ${processing_ref[*]} " =~ " $component " ]]; then
-        log_error "Circular dependency detected: $component"
-        return 1
-    fi
-    
-    # Skip if already resolved
-    if [[ " ${resolved_ref[*]} " =~ " $component " ]]; then
-        return 0
-    fi
-    
-    # Add to processing list
-    processing_ref+=("$component")
-    
-    # Get dependencies for this component
-    local deps
-    mapfile -t deps < <(get_component_dependencies "$component")
-    
-    # Resolve each dependency first
-    for dep in "${deps[@]}"; do
-        if [[ -n "$dep" ]]; then
-            if ! resolve_component_dependencies "$dep" "$resolved_var" "$processing_var"; then
-                return 1
-            fi
-        fi
-    done
-    
-    # Add current component to resolved list
-    resolved_ref+=("$component")
-    
-    # Remove from processing list
-    local temp_processing=()
-    for item in "${processing_ref[@]}"; do
-        if [[ "$item" != "$component" ]]; then
-            temp_processing+=("$item")
-        fi
-    done
-    processing_ref=("${temp_processing[@]}")
-    
-    return 0
-}
-
 # Check if component exists in the dependencies file
 component_exists() {
     [[ "$(get_json_field ".components | has(\"$1\")" "$COMPONENT_DEPS_FILE")" == "true" ]]
-}
-
-
-
-
-
-# Get hardware profile packages for current distribution
-get_hardware_packages() {
-    get_json_field ".profiles.\"$1\".packages.\"$2\"[]?" "$HARDWARE_PROFILES_FILE"
-}
-
-# Get hardware profile environment variables
-get_hardware_env_vars() {
-    get_json_field ".profiles.\"$1\".environment_vars // {} | to_entries[] | \"\(.key)=\(.value)\"" "$HARDWARE_PROFILES_FILE"
 }
 
 # Check hardware requirements for components
@@ -301,58 +191,6 @@ check_hardware_requirement() {
             return 0
             ;;
     esac
-}
-
-# Display dependency resolution summary
-show_dependency_summary() {
-    local selected=("$@")
-    
-    log_info "=== Dependency Resolution Summary ==="
-    
-    log_info "Selected components:"
-    for component in "${selected[@]}"; do
-        local name
-        name=$(get_component_info "$component" "name")
-        log_info "  - $component${name:+ ($name)}"
-    done
-    
-    log_info "Resolved dependencies (final install list):"
-    for component in "${RESOLVED_DEPENDENCIES[@]}"; do
-        local name
-        name=$(get_component_info "$component" "name")
-        local is_selected=""
-        if [[ " ${selected[*]} " =~ " $component " ]]; then
-            is_selected=" [SELECTED]"
-        else
-            is_selected=" [DEPENDENCY]"
-        fi
-        log_info "  - $component${name:+ ($name)}$is_selected"
-    done
-    
-
-    
-    if [[ -n "$HARDWARE_PROFILE" ]]; then
-        local profile_name
-        profile_name=$(get_json_field ".profiles.\"$HARDWARE_PROFILE\".name // \"$HARDWARE_PROFILE\"" "$HARDWARE_PROFILES_FILE")
-        log_info "Hardware profile: $HARDWARE_PROFILE ($profile_name)"
-    fi
-}
-
-# Get preset components
-get_preset_components() {
-    get_json_field ".presets.\"$1\".components[]?" "$COMPONENT_DEPS_FILE"
-}
-
-# List available presets
-list_presets() {
-    log_info "Available presets:"
-    get_json_field '.presets | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE"
-}
-
-# List available components
-list_components() {
-    log_info "Available components:"
-    get_json_field '.components | to_entries[] | "  - \(.key): \(.value.name) - \(.value.description)"' "$COMPONENT_DEPS_FILE"
 }
 
 # Validate component dependency structure
@@ -417,27 +255,5 @@ init_package_manager() {
     
     log_success "Package manager system initialized successfully"
     return 0
-}
-
-# Safe command execution with error handling
-exec_safe() {
-    local command="$1"
-    local description="${2:-$command}"
-    
-    if [[ -z "$command" ]]; then
-        log_error "Command is required"
-        return 1
-    fi
-    
-    log_info "Executing: $description"
-    
-    if eval "$command"; then
-        log_success "Command executed successfully: $description"
-        return 0
-    else
-        local exit_code=$?
-        log_error "Command failed: $description (exit code: $exit_code)"
-        return $exit_code
-    fi
 }
 

@@ -8,7 +8,7 @@ A comprehensive, modular installation framework for automating Linux development
 - **Modular Architecture**: Install only what you need
 - **Interactive Component Selection**: Choose components through an intuitive menu
 - **Hardware Detection**: Automatic NVIDIA GPU and ASUS TUF laptop support
-- **Safety Features**: backups, and VM testing
+- **Safety Features**: VM testing
 - **Comprehensive Logging**: Detailed operation logs and progress tracking
 - **Service Management**: No auto-start policy - you control what runs
 
@@ -59,9 +59,7 @@ chmod +x install.sh
 ### Available Commands
 
 - `install` - Run interactive installation (default)
-- `restore` - Restore from backup
 - `validate` - Validate current installation
-- `backup` - Create system backup
 - `list` - List available components
 
 ### Component Selection
@@ -112,13 +110,6 @@ Dependencies are automatically resolved during selection.
 
 ## Safety Features
 
-### Backup System
-
-Automatic backup creation before making changes:
-- Configuration files backed up with timestamps
-- Rollback capability for critical failures
-- Selective backup and restore
-
 ### VM Testing
 
 - VM-optimized package selection
@@ -131,7 +122,6 @@ The framework integrates with your existing dotfiles repository:
 - Preserves existing dotfiles structure
 - Creates symlinks to maintain consistency
 - Handles configuration conflicts gracefully
-- Supports backup and restore operations
 
 ## Service Management
 
@@ -239,16 +229,13 @@ cd modular-install-framework
 ./install.sh validate
 ```
 
-### Example 6: Development Environment Restoration
+### Example 6: Development Environment Setup
 
 ```bash
-# 1. Restore from existing backup
-./install.sh restore --backup-path ~/backups/config-20240101
-
-# 2. Or create fresh installation with specific components
+# 1. Create fresh installation with specific components
 ./install.sh --components terminal,shell,editor,dev-tools
 
-# 3. Validate everything is working
+# 2. Validate everything is working
 ./install.sh validate
 ```
 
@@ -256,22 +243,14 @@ cd modular-install-framework
 
 ### Custom Component Selection
 
-Create a custom component configuration file:
+Use command line options for custom selection:
 
 ```bash
-# Create ~/.config/modular-install/components.conf
-cat > ~/.config/modular-install/components.conf << EOF
-# Custom component selection
-terminal=kitty
-shell=zsh
-editor=neovim
-wm=hyprland
-dev-tools=git,docker
-hardware=nvidia
-EOF
+# Install specific components
+./install.sh --components terminal,shell,editor,dev-tools
 
-# Use custom configuration
-./install.sh --config ~/.config/modular-install/components.conf
+# Install all available components
+./install.sh --all
 ```
 
 ### Environment Variables
@@ -417,8 +396,8 @@ ls -la ~/.config/
 # Manually create missing symlinks
 ln -sf ~/dotfiles/kitty/.config/kitty ~/.config/kitty
 
-# Restore from backup if needed
-./install.sh restore
+# Reinstall if needed
+./install.sh --components wm
 ```
 
 #### 7. Services Not Working
@@ -521,9 +500,8 @@ sudo arch-chroot /mnt  # Arch
 # or
 sudo chroot /mnt  # Ubuntu
 
-# 3. Restore from backup
-cp -r /path/to/backup/.config/* ~/.config/
-cp -r /path/to/backup/.local/* ~/.local/
+# 3. Reinstall components if needed
+./install.sh --components wm,terminal
 
 # 4. Fix bootloader if needed
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -532,13 +510,13 @@ grub-mkconfig -o /boot/grub/grub.cfg
 #### Partial Recovery
 
 ```bash
-# Restore specific configurations
-./install.sh restore --component terminal
-./install.sh restore --component shell
+# Reinstall specific components
+./install.sh --components terminal
+./install.sh --components shell
 
 # Reset to defaults
 rm -rf ~/.config/hypr
-./install.sh --components wm --force
+./install.sh --components wm
 ```
 
 ## Documentation

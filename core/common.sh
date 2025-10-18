@@ -232,27 +232,102 @@ install_package() {
     esac
 }
 
-# Install multiple packages
-# Arguments: Array of package names
+# Install multiple packages efficiently in batch
+# Arguments: Array of package names, optional package manager
 install_packages() {
-    local packages=("$@") failed_packages=() success_count=0
+    local packages=("$@") pm="auto"
+    
+    # Check if last argument is a package manager
+    if [[ "${packages[-1]}" =~ ^(pacman|yay|apt)$ ]]; then
+        pm="${packages[-1]}"
+        unset 'packages[-1]'  # Remove package manager from packages array
+    fi
 
+    [[ ${#packages[@]} -eq 0 ]] && { log_error "No packages specified"; return 1; }
+
+    local distro=$(get_distro)
+    
+    if [[ "$pm" == "auto" ]]; then
+        case "$distro" in
+            "arch") pm="pacman" ;;
+            "ubuntu") pm="apt" ;;
+            *) log_error "Unsupported distribution for auto package manager detection"; return 1 ;;
+        esac
+    fi
+
+    # Filter out already installed packages
+    local packages_to_install=() already_installed=()
+    
     for package in "${packages[@]}"; do
-        if install_package "$package"; then
-            ((success_count++))
+        if is_package_installed "$package" "$pm"; then
+            already_installed+=("$package")
+            log_debug "Package already installed: $package"
+        else
+            packages_to_install+=("$package")
+        fi
+    done
+
+    # Exit early if nothing to install
+    if [[ ${#packages_to_install[@]} -eq 0 ]]; then
+        log_success "All ${#packages[@]} packages are already installed"
+        return 0
+    fi
+
+    log_info "Installing ${#packages_to_install[@]} packages: ${packages_to_install[*]}"
+
+    # Consolidate package manager commands to reduce repetition
+    local cmd=()
+    case "$pm" in
+        "pacman") cmd=(sudo pacman -S --noconfirm) ;;
+        "yay") cmd=(yay -S --noconfirm) ;;
+        "apt") 
+            sudo apt-get update >/dev/null 2>&1
+            cmd=(sudo apt-get install -y) 
+            ;;
+        *)
+            log_error "Unsupported package manager: $pm"
+            return 1
+            ;;
+    esac
+
+    # Execute batch installation
+    local install_success=false
+    if "${cmd[@]}" "${packages_to_install[@]}"; then
+        install_success=true
+    fi
+
+    # Check installation results - create status arrays for all packages
+    local failed_packages=() successful_packages=()
+    
+    for package in "${packages_to_install[@]}"; do
+        if is_package_installed "$package" "$pm"; then
+            successful_packages+=("$package")
         else
             failed_packages+=("$package")
         fi
     done
 
-    if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        log_warn "Failed to install packages: ${failed_packages[*]}"
-        log_info "Successfully installed: $success_count/${#packages[@]} packages"
-        return 1
+    # Report results with improved edge case handling
+    if [[ "$install_success" == "true" ]]; then
+        log_success "Successfully installed ${#packages_to_install[@]} packages via $pm"
+        return 0
+    else
+        # Batch installation command failed - analyze what actually happened
+        if [[ ${#successful_packages[@]} -gt 0 ]]; then
+            log_info "Successfully installed (${#successful_packages[@]}): ${successful_packages[*]}"
+        fi
+        
+        if [[ ${#failed_packages[@]} -gt 0 ]]; then
+            log_error "Failed to install (${#failed_packages[@]}): ${failed_packages[*]}"
+            log_error "Batch installation via $pm failed"
+            return 1
+        else
+            # Edge case: All packages were actually installed despite batch command failure
+            log_warn "Installation command reported failure, but all packages were installed successfully"
+            log_success "All ${#packages_to_install[@]} packages are now installed via $pm"
+            return 0
+        fi
     fi
-
-    log_success "Successfully installed all $success_count packages"
-    return 0
 }
 
 # Check if a package is installed

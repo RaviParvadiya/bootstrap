@@ -4,155 +4,93 @@
       "name": "Hyprland Window Manager",
       "description": "Wayland compositor with advanced features",
       "category": "window_manager",
-      "packages": {
-        "arch": ["hyprland", "xdg-desktop-portal-hyprland", "qt5-wayland", "qt6-wayland"],
-        "ubuntu": ["build-essential", "cmake", "meson", "ninja-build", "libwayland-dev", "wayland-protocols", "libdrm-dev", "libegl1-mesa-dev", "libgles2-mesa-dev", "libgbm-dev", "libinput-dev", "libxkbcommon-dev", "libudev-dev", "libpixman-1-dev", "libseat-dev", "libxcb-dri3-dev", "libxcb-present-dev", "libxcb-composite0-dev", "libxcb-render-util0-dev", "libxcb-ewmh-dev", "libxcb-icccm4-dev", "libxcb-res0-dev", "libxcb-xinput-dev", "libtomlplusplus-dev", "libzip-dev", "librsvg2-dev", "libmagic-dev"]
-      },
       "dependencies": [],
-      "optional_dependencies": ["waybar", "wofi", "swaync"],
-
-      "post_install": ["configure_hyprland_session", "setup_wayland_env"],
-      "hardware_requirements": ["gpu_acceleration"]
+      "hardware_requirements": [
+        "gpu_acceleration"
+      ]
     },
     "waybar": {
       "name": "Waybar Status Bar",
       "description": "Highly customizable Wayland bar",
       "category": "status_bar",
-      "packages": {
-        "arch": ["waybar"],
-        "ubuntu": ["waybar"]
-      },
-      "dependencies": ["hyprland"],
-
-      "post_install": ["configure_waybar"]
+      "dependencies": [
+        "hyprland"
+      ]
     },
     "wofi": {
       "name": "Wofi Application Launcher",
       "description": "Wayland-native application launcher",
       "category": "launcher",
-      "packages": {
-        "arch": ["wofi"],
-        "ubuntu": ["wofi"]
-      },
-      "dependencies": ["hyprland"],
-
-      "post_install": ["configure_wofi"]
+      "dependencies": [
+        "hyprland"
+      ]
     },
     "swaync": {
       "name": "SwayNC Notification Center",
       "description": "Notification daemon for Wayland",
       "category": "notifications",
-      "packages": {
-        "arch": ["swaync"],
-        "ubuntu": ["swaync"]
-      },
-      "dependencies": ["hyprland"],
-
-      "post_install": ["configure_swaync"]
+      "dependencies": [
+        "hyprland"
+      ]
     },
     "alacritty": {
       "name": "Alacritty Terminal",
       "description": "GPU-accelerated terminal emulator",
       "category": "terminal",
-      "packages": {
-        "arch": ["alacritty"],
-        "ubuntu": ["alacritty"]
-      },
-      "dependencies": [],
-
-      "post_install": ["configure_alacritty"]
+      "dependencies": []
     },
     "kitty": {
       "name": "Kitty Terminal",
       "description": "Fast, feature-rich terminal emulator",
       "category": "terminal",
-      "packages": {
-        "arch": ["kitty"],
-        "ubuntu": ["kitty"]
-      },
-      "dependencies": [],
-
-      "post_install": ["configure_kitty"]
+      "dependencies": []
     },
     "tmux": {
       "name": "Tmux Terminal Multiplexer",
       "description": "Terminal session manager",
       "category": "terminal_tools",
-      "packages": {
-        "arch": ["tmux"],
-        "ubuntu": ["tmux"]
-      },
-      "dependencies": [],
-      "post_install": ["configure_tmux", "install_tmux_plugins"]
+      "dependencies": []
     },
     "zsh": {
       "name": "Zsh Shell",
       "description": "Extended Bourne shell with improvements",
       "category": "shell",
-      "packages": {
-        "arch": ["zsh", "zsh-completions", "zsh-syntax-highlighting", "zsh-autosuggestions"],
-        "ubuntu": ["zsh", "zsh-syntax-highlighting", "zsh-autosuggestions"]
-      },
-      "dependencies": [],
-      "post_install": ["configure_zsh", "set_default_shell"]
+      "dependencies": []
     },
     "starship": {
       "name": "Starship Prompt",
       "description": "Cross-shell prompt with customization",
       "category": "shell_tools",
-      "packages": {
-        "arch": ["starship"],
-        "ubuntu": ["starship"]
-      },
-      "dependencies": ["zsh"],
-      "post_install": ["configure_starship"]
+      "dependencies": [
+        "zsh"
+      ]
     },
     "neovim": {
       "name": "Neovim Editor",
       "description": "Hyperextensible Vim-based text editor",
       "category": "editor",
-      "packages": {
-        "arch": ["neovim", "python-pynvim", "nodejs", "npm", "ripgrep", "fd"],
-        "ubuntu": ["neovim", "python3-neovim", "nodejs", "npm", "ripgrep", "fd-find"]
-      },
-      "dependencies": [],
-
-      "post_install": ["configure_neovim", "install_nvim_plugins"]
+      "dependencies": []
     },
     "git": {
       "name": "Git Version Control",
       "description": "Distributed version control system",
       "category": "dev_tools",
-      "packages": {
-        "arch": ["git", "git-lfs"],
-        "ubuntu": ["git", "git-lfs"]
-      },
-      "dependencies": [],
-      "post_install": ["configure_git"]
+      "dependencies": []
     },
     "docker": {
       "name": "Docker Container Platform",
       "description": "Containerization platform",
       "category": "dev_tools",
-      "packages": {
-        "arch": ["docker", "docker-compose"],
-        "ubuntu": ["docker.io", "docker-compose"]
-      },
       "dependencies": [],
-
-      "post_install": ["configure_docker", "add_user_to_docker_group"],
-      "services": ["docker"]
+      "services": [
+        "docker"
+      ]
     },
     "languages": {
       "name": "Programming Languages",
       "description": "Common programming language runtimes",
       "category": "dev_tools",
-      "packages": {
-        "arch": ["python", "python-pip", "nodejs", "npm", "rust", "go"],
-        "ubuntu": ["python3", "python3-pip", "nodejs", "npm", "rustc", "golang-go"]
-      },
-      "dependencies": [],
-      "post_install": ["configure_language_tools"]
+      "dependencies": []
     }
   },
   "categories": {
@@ -187,18 +125,6 @@
     "notifications": {
       "name": "Notification Systems",
       "description": "Desktop notification management"
-    }
-  },
-  "presets": {
-    "hyprland_desktop": {
-      "name": "Hyprland Desktop Environment",
-      "description": "Complete Hyprland desktop with all components",
-      "components": ["hyprland", "waybar", "wofi", "swaync", "kitty", "zsh", "starship", "git"]
-    },
-    "development": {
-      "name": "Development Environment",
-      "description": "Full development setup with tools and editors",
-      "components": ["zsh", "starship", "kitty", "tmux", "neovim", "git", "docker", "languages"]
     }
   }
 }

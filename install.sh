@@ -44,17 +44,12 @@ source "$(dirname "${BASH_SOURCE[0]}")/core/init-paths.sh"
 
 # Global variables
 SELECTED_COMPONENTS=()
-DETECTED_DISTRO=""
 
 # Source core utilities with error handling
 source_with_error_check() {
     local file="$1"
-    if [[ -f "$file" ]]; then
-        source "$file"
-    else
-        log_error "Required file not found: $file"
-        exit 1
-    fi
+    [[ -f "$file" ]] || die "Required file not found: $file"
+    source "$file"
 }
 
 source_with_error_check "$CORE_DIR/common.sh"
@@ -105,10 +100,7 @@ parse_arguments() {
                 ;;
             -a|--all)
                 # Load all available components
-                if ! load_all_components; then
-                    log_error "Failed to load all components"
-                    exit 1
-                fi
+                load_all_components || die "Failed to load all components"
                 shift
                 ;;
 
@@ -132,28 +124,11 @@ parse_arguments() {
 load_all_components() {
     local metadata_file="$DATA_DIR/component-deps.json"
     
-    if [[ ! -f "$metadata_file" ]]; then
-        log_error "Component metadata file not found: $metadata_file"
-        return 1
-    fi
-    
-    # Check if jq is available
-    if ! command -v jq &> /dev/null; then
-        log_error "jq is required for parsing component metadata"
-        log_info "Please install jq: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
-        return 1
-    fi
-    
     log_info "Loading all available components..."
     
     # Parse JSON and get all component names
     local components
-    components=$(jq -r '.components | keys[]' "$metadata_file" 2>/dev/null)
-    
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to parse component metadata JSON"
-        return 1
-    fi
+    components=$(jq -r '.components | keys[]' "$metadata_file")
     
     # Clear existing selection and add all components
     SELECTED_COMPONENTS=()
@@ -164,8 +139,6 @@ load_all_components() {
     
     log_success "Loaded ${#SELECTED_COMPONENTS[@]} components for installation"
     log_info "Selected components: ${SELECTED_COMPONENTS[*]}"
-    
-    return 0
 }
 
 # Main installation orchestrator with comprehensive error handling
@@ -190,13 +163,13 @@ main() {
     if ! detect_distro; then
         die "Failed to detect Linux distribution"
     fi
-    
+
     DETECTED_DISTRO=$(get_distro)
     if [[ -z "$DETECTED_DISTRO" ]]; then
         die "Distribution detection returned empty result"
     fi
     
-    log_info "Detected distribution: $DETECTED_DISTRO $(get_distro_version)"
+    log_success "Detected: ${DETECTED_DISTRO^} ($(get_distro_version))"
     
     # Validate distribution support
     if ! validate_distro_support; then
@@ -213,8 +186,8 @@ main() {
     log_info "Checking dotfiles repository..."
     if [[ -d "$DOTFILES_DIR" ]]; then
         if [[ -d "$DOTFILES_DIR/.git" ]]; then
-            log_info "Dotfiles repository found and is a valid git repository"
-            log_info "Fetching latest changes from remote repository..."
+            log_success "Dotfiles repo found and valid"
+            log_info "Fetching latest changes..."
             
             # Change to dotfiles directory and fetch latest changes
             pushd "$DOTFILES_DIR" > /dev/null
@@ -359,10 +332,7 @@ run_installation() {
 
         return 0
     else
-        log_error "Installation process completed with errors"
-        
-        # Offer recovery options
-        offer_recovery_options
+        log_warn "Installation completed with errors. Check the log for details."
 
         return 1
     fi
@@ -408,7 +378,7 @@ show_installation_summary() {
     echo
     
     echo "System information:"
-    echo "  Distribution: $(get_distro) $(get_distro_version)"
+    echo "  Distribution: ${(get_distro)^} ($(get_distro_version))"
     echo "  Current shell: $SHELL"
     echo
     
@@ -438,63 +408,6 @@ show_installation_summary() {
     echo
 }
 
-# Offer recovery options after failed installation
-offer_recovery_options() {
-    log_section "RECOVERY OPTIONS"
-    
-    echo "The installation encountered errors. What would you like to do?"
-    echo
-    echo "1. Continue anyway (ignore errors)"
-    echo "2. Generate error report and exit"
-    echo "3. Exit"
-    echo
-    
-    local choice
-    read -r -p "Enter your choice (1-3): " choice
-    
-    case "$choice" in
-        1)
-            log_info "Continuing with errors ignored"
-            ;;
-        2)
-            log_info "Generating error report..."
-            local report_file
-            report_file=$(generate_error_report)
-            log_info "Error report generated: $report_file"
-            log_info "Please review the report and try again"
-            exit 1
-            ;;
-        3)
-            log_info "Exiting..."
-            exit 1
-            ;;
-        *)
-            log_warn "Invalid choice, exiting"
-            exit 1
-            ;;
-    esac
-}
-
-# Retry failed operations
-retry_failed_operations() {
-    if [[ ${#FAILED_OPERATIONS[@]} -eq 0 ]]; then
-        log_info "No failed operations to retry"
-        return 0
-    fi
-    
-    log_info "Retrying ${#FAILED_OPERATIONS[@]} failed operations..."
-    
-    # This is a simplified retry - in a full implementation,
-    # we would re-execute the specific failed operations
-    for failed_op in "${FAILED_OPERATIONS[@]}"; do
-        local operation="${failed_op#*|*|}"
-        operation="${operation%%|*}"
-        log_info "Would retry operation: $operation"
-    done
-    
-    log_info "Retry functionality is simplified in this implementation"
-}
-
 # Run validation process with error handling
 run_validation() {
     log_info "Starting validation process..."
@@ -520,24 +433,12 @@ run_validation() {
 list_components() {
     local metadata_file="$DATA_DIR/component-deps.json"
     
-    if [[ ! -f "$metadata_file" ]]; then
-        log_error "Component metadata file not found: $metadata_file"
-        return 1
-    fi
-    
-    # Check if jq is available
-    if ! command -v jq &> /dev/null; then
-        log_error "jq is required for parsing component metadata"
-        log_info "Please install jq: sudo pacman -S jq (Arch) or sudo apt install jq (Ubuntu)"
-        return 1
-    fi
-    
     log_info "Available components:"
     echo
     
     # Parse JSON and display components by category
     local categories
-    categories=$(jq -r '.categories | keys[]' "$metadata_file" 2>/dev/null | sort)
+    categories=$(jq -r '.categories | keys[]' "$metadata_file" | sort)
     
     while IFS= read -r category; do
         [[ -z "$category" ]] && continue
@@ -577,7 +478,7 @@ list_components() {
 }
 
 # Error handling
-trap 'log_error "Script interrupted"; exit 1' INT TERM
+trap 'echo && log_error "Script interrupted"; exit 1' INT TERM
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

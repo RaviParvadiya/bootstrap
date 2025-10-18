@@ -206,58 +206,6 @@ ubuntu_has_amd_gpu() {
     lspci | grep -i "amd\|ati" >/dev/null 2>&1
 }
 
-# Check if package is installed (APT)
-ubuntu_is_apt_package_installed() {
-    local package="$1"
-    dpkg -l "$package" 2>/dev/null | grep -q "^ii"
-}
-
-
-
-# Get installed package version (APT)
-ubuntu_get_apt_package_version() {
-    local package="$1"
-    dpkg -l "$package" 2>/dev/null | awk '/^ii/ {print $3}'
-}
-
-ubuntu_remove_apt_packages() {
-    local packages=("$@")
-    
-    [[ ${#packages[@]} -eq 0 ]] && { log_warn "No packages specified for removal"; return 0; }
-    
-    log_info "Removing APT packages: ${packages[*]}"
-    
-    if ! sudo apt remove -y "${packages[@]}"; then
-        log_error "Failed to remove packages"
-        return 1
-    fi
-    
-    log_success "Packages removed"
-}
-
-
-
-ubuntu_clean_package_cache() {
-    log_info "Cleaning package cache"
-    
-    sudo apt autoremove -y
-    sudo apt autoclean
-    
-    log_success "Package cache cleaned"
-}
-
-# Update all package managers
-ubuntu_update_all_packages() {
-    log_info "Updating all package managers..."
-    
-    # Update APT packages
-    log_info "Updating APT packages..."
-    sudo apt update && sudo apt upgrade -y
-
-    log_success "All package managers updated"
-    return 0
-}
-
 # Export functions for external use
 export -f ubuntu_install_apt_packages
 
@@ -267,10 +215,3 @@ export -f ubuntu_install_packages_from_list
 export -f ubuntu_has_nvidia_gpu
 export -f ubuntu_has_intel_gpu
 export -f ubuntu_has_amd_gpu
-export -f ubuntu_is_apt_package_installed
-
-export -f ubuntu_get_apt_package_version
-export -f ubuntu_remove_apt_packages
-
-export -f ubuntu_clean_package_cache
-export -f ubuntu_update_all_packages

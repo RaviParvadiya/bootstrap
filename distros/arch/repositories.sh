@@ -178,4 +178,4 @@ arch_check_repository_status() {
 }
 
 # Export essential functions
-export -f arch_setup_repositories arch_enable_multilib arch_update_package_database
+export -f arch_setup_repositories

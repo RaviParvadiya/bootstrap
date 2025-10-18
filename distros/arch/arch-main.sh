@@ -75,13 +75,10 @@ arch_main_install() {
         fi
     done
     
-    # Configure services (but don't enable them automatically)
+    # Configure services
     arch_configure_services "${selected_components[@]}"
     
     log_success "Arch Linux installation process completed"
-    
-    # Show summary
-    arch_show_installation_summary "${selected_components[@]}"
 }
 
 # Update Arch Linux system
@@ -95,7 +92,6 @@ arch_update_system() {
     fi
     
     log_success "System updated successfully"
-    return 0
 }
 
 # Configure hardware-specific settings
@@ -104,7 +100,8 @@ arch_configure_hardware() {
     
     # Check for NVIDIA GPU and configure if packages are installed
     if detect_nvidia_gpu; then
-        if ask_yes_no "NVIDIA GPU detected. Would you like to configure NVIDIA drivers?"; then
+        log_info "NVIDIA GPU detected"
+        if ask_yes_no "Would you like to configure NVIDIA drivers?"; then
             if ! configure_nvidia; then
                 log_warn "NVIDIA configuration failed, continuing with other components"
             fi
@@ -115,8 +112,6 @@ arch_configure_hardware() {
     
     # Future hardware configurations can be added here
     # e.g., AMD GPU, Intel GPU, specific laptop models, etc.
-    
-    return 0
 }
 
 # Install component packages and configurations
@@ -156,26 +151,6 @@ arch_install_component() {
     fi
     
     return 0
-}
-
-# Show installation summary
-arch_show_installation_summary() {
-    local installed_components=("$@")
-    
-    log_info "=== Installation Summary ==="
-    log_info "Distribution: Arch Linux"
-    log_info "Installed components:"
-    
-    for component in "${installed_components[@]}"; do
-        log_info "  - $component"
-    done
-    
-    log_info ""
-    log_info "Next steps:"
-    log_info "1. Review installed services with: systemctl list-unit-files --state=disabled"
-    log_info "2. Enable desired services manually with: systemctl enable <service>"
-    log_info "3. Reboot or restart your session to apply all changes"
-    log_info "4. Check configuration files in your dotfiles directory"
 }
 
 # Export main function for external use

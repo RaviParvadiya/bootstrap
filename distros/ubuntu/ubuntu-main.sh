@@ -65,9 +65,6 @@ ubuntu_main_install() {
     ubuntu_configure_services "${selected_components[@]}"
     
     log_success "Ubuntu Hyprland environment installation completed"
-    
-    # Show summary
-    ubuntu_show_installation_summary "${selected_components[@]}"
 }
 
 # Update Ubuntu system

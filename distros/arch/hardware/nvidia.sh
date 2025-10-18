@@ -18,26 +18,18 @@ NVIDIA_SERVICES=(
 
 # Check if NVIDIA GPU is present
 detect_nvidia_gpu() {
-    if lspci | grep -i nvidia &> /dev/null; then
-        log_info "NVIDIA GPU detected"
-        return 0
-    else
-        log_info "No NVIDIA GPU detected"
-        return 1
-    fi
+    lspci | grep -i nvidia
 }
 
 # Verify NVIDIA packages are installed
 verify_nvidia_packages() {
-    log_info "Verifying NVIDIA packages are installed..."
-    
-    # Check for either nvidia-dkms or nvidia-open-dkms
-    if ! pacman -Qi nvidia-dkms &> /dev/null; then
-        log_error "NVIDIA driver packages not found. Please ensure NVIDIA packages are installed first."
+    if ! pacman -Qi nvidia-dkms &>/dev/null && ! pacman -Qi nvidia-open-dkms &>/dev/null; then
+        log_error "NVIDIA packages not installed. Please install them before running configuration."
         return 1
     fi
-    
-    log_info "NVIDIA packages verified"
+
+    log_info "NVIDIA driver packages verified"
+
     return 0
 }
 
@@ -153,53 +145,33 @@ configure_nvidia_kernel_params() {
 # Main NVIDIA configuration function
 configure_nvidia() {
     log_info "Starting NVIDIA GPU configuration..."
-    
-    # Check if NVIDIA GPU is present
-    if ! detect_nvidia_gpu; then
-        log_warn "No NVIDIA GPU detected, skipping NVIDIA configuration"
+
+    # Skip if already configured
+    if is_nvidia_configured; then
+        log_info "NVIDIA is already configured — skipping configuration steps"
         return 0
     fi
     
     # Verify NVIDIA packages are installed
-    if ! verify_nvidia_packages; then
-        log_error "NVIDIA packages not installed"
-        return 1
-    fi
+    verify_nvidia_packages || return 1
     
     # Configure kernel modules
-    if ! configure_nvidia_modules; then
-        log_error "Failed to configure NVIDIA kernel modules"
-        return 1
-    fi
+    configure_nvidia_modules || { log_error "Failed to configure NVIDIA kernel modules"; return 1; }
     
     # Configure modprobe settings
-    if ! configure_nvidia_modprobe; then
-        log_error "Failed to configure NVIDIA modprobe settings"
-        return 1
-    fi
+    configure_nvidia_modprobe || { log_error "Failed to configure NVIDIA modprobe settings"; return 1; }
     
     # Rebuild initramfs
-    if ! rebuild_initramfs; then
-        log_error "Failed to rebuild initramfs"
-        return 1
-    fi
+    rebuild_initramfs || { log_error "Failed to rebuild initramfs"; return 1; }
     
     # Configure services
-    if ! configure_nvidia_services; then
-        log_error "Failed to configure NVIDIA services"
-        return 1
-    fi
+    configure_nvidia_services || { log_error "Failed to configure NVIDIA services"; return 1; }
     
     # Configure kernel parameters for MUX switch support
-    if ! configure_nvidia_kernel_params; then
-        log_error "Failed to configure NVIDIA kernel parameters"
-        return 1
-    fi
+    configure_nvidia_kernel_params || { log_error "Failed to configure NVIDIA kernel parameters"; return 1; }
     
     log_success "NVIDIA GPU configuration completed successfully"
-    
-    # Inform user about reboot requirement
-    log_info "NVIDIA configuration complete. A system reboot is recommended to apply all changes."
+    log_info "A system reboot is recommended to apply all changes."
     
     return 0
 }
@@ -217,9 +189,7 @@ is_nvidia_configured() {
     fi
     
     # Check if modprobe is configured
-    if [[ ! -f /etc/modprobe.d/nvidia.conf ]]; then
-        return 1
-    fi
+    [[ -f /etc/modprobe.d/nvidia.conf ]] || return 1
     
     return 0
 }
@@ -227,4 +197,3 @@ is_nvidia_configured() {
 # Export functions for use by other modules
 export -f configure_nvidia
 export -f detect_nvidia_gpu
-export -f is_nvidia_configured
