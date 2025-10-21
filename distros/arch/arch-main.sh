@@ -51,7 +51,7 @@ arch_main_install() {
     local user_preferences=""
     
     # Ask user about optional package categories
-    if ask_yes_no "Would you like to install gaming packages?"; then
+    if ask_yes_no "Would you like to install gaming packages?" "n"; then
         user_preferences="gaming"
     fi
     
@@ -68,7 +68,6 @@ arch_main_install() {
     
     # Install selected components
     for component in "${selected_components[@]}"; do
-        log_info "Installing component: $component"
         if ! arch_install_component "$component"; then
             log_warn "Failed to install component: $component"
             # Continue with other components
@@ -77,8 +76,6 @@ arch_main_install() {
     
     # Configure services
     arch_configure_services "${selected_components[@]}"
-    
-    log_success "Arch Linux installation process completed"
 }
 
 # Update Arch Linux system
@@ -96,8 +93,6 @@ arch_update_system() {
 
 # Configure hardware-specific settings
 arch_configure_hardware() {
-    log_info "Configuring hardware-specific settings..."
-    
     # Check for NVIDIA GPU and configure if packages are installed
     if detect_nvidia_gpu; then
         log_info "NVIDIA GPU detected"
@@ -117,8 +112,6 @@ arch_configure_hardware() {
 # Install component packages and configurations
 arch_install_component() {
     local component="$1"
-    
-    log_info "Installing Arch component: $component"
     
     # Try different possible locations for the component
     local possible_locations=(

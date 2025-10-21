@@ -110,16 +110,18 @@ install_zinit() {
 
 # Configure Zsh with dotfiles
 configure_zsh() {
-    [[ ! -d "$DOTFILES_DIR/zsh" ]] && { log_error "Missing zsh dotfiles: $DOTFILES_DIR/zsh"; return 1; }
+    [[ ! -d "$DOTFILES_DIR/zshrc" ]] && { log_error "Missing zsh dotfiles: $DOTFILES_DIR/zshrc"; return 1; }
     
     install_zinit || return 1
     
     # Stow Zsh configuration
     log_info "Applying Zsh configuration..."
-    (cd "$DOTFILES_DIR" && stow --target="$HOME" zsh) || {
-        log_error "Failed to apply Zsh configuration"
-        return 1
-    }
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" zshrc 2>/dev/null); then
+        log_warn "Configuration conflicts detected for zsh"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt zshrc)
+        fi
+    fi
     
     # Create history file directory if needed
     local histfile_dir="$HOME"
@@ -225,7 +227,7 @@ install_zsh() {
     configure_zsh || return 1
     validate_zsh_installation
 
-    ask_yes_no "Set Zsh as default shell?" "y" && set_zsh_as_default
+    ask_yes_no "Set Zsh as default shell?" "n" && set_zsh_as_default
     ask_yes_no "Initialize Zsh plugins now?" "y" && initialize_zsh_plugins
     
     log_success "Zsh setup complete — restart shell to apply"

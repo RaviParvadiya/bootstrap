@@ -51,9 +51,11 @@ configure_waybar() {
     
     # Stow Waybar configuration
     log_info "Applying Waybar configuration..."
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" waybar); then
-        log_error "Failed to stow Waybar configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" waybar 2>/dev/null); then
+        log_warn "Configuration conflicts detected for waybar"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt waybar)
+        fi
     fi
     
     # Validate configuration files

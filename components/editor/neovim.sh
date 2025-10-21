@@ -77,11 +77,16 @@ install_language_servers() {
 
 # Configure Neovim with dotfiles
 configure_neovim() {
-    [[ ! -d "$DOTFILES_DIR/neovim" ]] && { log_error "Missing neovim dotfiles directory: $DOTFILES_DIR/neovim"; return 1; }
+    [[ ! -d "$DOTFILES_DIR/nvim" ]] && { log_error "Missing neovim dotfiles directory: $DOTFILES_DIR/nvim"; return 1; }
     
     # Stow Neovim configuration
     log_info "Applying Neovim configuration..."
-    (cd "$DOTFILES_DIR" && stow --target="$HOME" neovim) || log_error "Failed to stow Neovim configuration"
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" nvim 2>/dev/null); then
+        log_warn "Configuration conflicts detected for neovim"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt nvim)
+        fi
+    fi
     
     log_success "Neovim configuration applied"
 }
@@ -147,7 +152,7 @@ install_neovim() {
     configure_neovim || return 1
     
     ask_yes_no "Install language servers?" "y" && install_language_servers
-    ask_yes_no "Set Neovim as default editor?" "y" && set_neovim_as_default
+    ask_yes_no "Set Neovim as default editor?" "n" && set_neovim_as_default
     ask_yes_no "Initialize plugins now?" "y" && initialize_neovim_plugins
 
     validate_neovim_installation
@@ -162,7 +167,7 @@ uninstall_neovim() {
     distro=$(get_distro)
     
     # Unstow configuration
-    [[ -d "$DOTFILES_DIR/neovim" ]] && (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete neovim)
+    [[ -d "$DOTFILES_DIR/nvim" ]] && (cd "$DOTFILES_DIR" && stow --target="$HOME" --delete nvim)
     
     # Remove packages
     case "$distro" in
@@ -185,4 +190,4 @@ uninstall_neovim() {
 }
 
 # Export essential functions
-[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_neovim configure_neovim
+[[ "${BASH_SOURCE[0]}" != "${0}" ]] && export -f install_neovim

@@ -45,9 +45,11 @@ configure_kitty() {
     
     # Stow Kitty configuration
     log_info "Applying Kitty configuration..."
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" kitty); then
-        log_error "Failed to stow Kitty configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" kitty 2>/dev/null); then
+        log_warn "Configuration conflicts detected for kitty"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt kitty)
+        fi
     fi
     
     log_success "Kitty configuration applied"
@@ -108,7 +110,7 @@ install_kitty() {
     configure_kitty || return 1
     validate_kitty_installation || return 1
     
-    ask_yes_no "Set Kitty as default terminal?" "y" && set_kitty_as_default
+    ask_yes_no "Set Kitty as default terminal?" "n" && set_kitty_as_default
     
     log_success "Kitty setup complete"
 }

@@ -51,9 +51,11 @@ configure_wofi() {
   
     # Stow Wofi configuration
     log_info "Applying Wofi configuration..."
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" wofi); then
-        log_error "Failed to stow Wofi configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" wofi 2>/dev/null); then
+        log_warn "Configuration conflicts detected for wofi"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt wofi)
+        fi
     fi
     
     log_success "Wofi configuration applied"
@@ -163,7 +165,7 @@ install_wofi() {
     install_wofi_packages || return 1
     configure_wofi || return 1
     
-    ask_yes_no "Create Wofi helper scripts?" "y" && setup_wofi_scripts
+    ask_yes_no "Create Wofi helper scripts?" "n" && setup_wofi_scripts
 
     validate_wofi_installation
     

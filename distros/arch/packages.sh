@@ -120,14 +120,15 @@ arch_install_packages_by_category() {
     local arch_list="$data_dir/arch-packages.lst"
     local aur_list="$data_dir/aur-packages.lst"
     
-    log_info "Installing $category packages (conditions: $conditions)"
-    
     case "$category" in
         "base"|"system")
+            log_info "Installing $category packages (conditions: $conditions)"
             arch_install_from_package_list "$arch_list" "pacman" "$conditions"
             ;;
         "aur")
             arch_ensure_aur_helper || return 1
+            
+            log_info "Installing $category packages (conditions: $conditions)"
             arch_install_from_package_list "$aur_list" "aur" "$conditions"
             ;;
         "all")

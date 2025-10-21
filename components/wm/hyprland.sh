@@ -18,7 +18,7 @@ declare -A HYPRLAND_PACKAGES=(
 
 # Dependencies for Hyprland
 declare -A HYPRLAND_DEPS=(
-    ["arch"]="wayland wlroots"
+    ["arch"]="wayland"
     ["ubuntu"]="wayland-protocols libwayland-dev libxkbcommon-dev libegl1-mesa-dev libgles2-mesa-dev libdrm-dev libxkbcommon-x11-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinput-dev libxcb-image0-dev libxcb-shm0-dev libxcb-util-dev libxcb-keysyms1-dev libpixman-1-dev libcairo2-dev libpango1.0-dev"
 )
 
@@ -77,9 +77,11 @@ configure_hyprland() {
     # Stow main Hyprland configuration
     if [[ -d "$DOTFILES_DIR/hyprland" ]]; then
         log_info "Applying Hyprland configuration..."
-        if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" hyprland); then
-            log_error "Failed to stow Hyprland configuration"
-            return 1
+        if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" hyprland 2>/dev/null); then
+            log_warn "Configuration conflicts detected for hyprland"
+            if ask_yes_no "Overwrite existing files?" "y"; then
+                (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt hyprland)
+            fi
         fi
     else
         log_error "Missing hyprland dotfiles directory: $DOTFILES_DIR/hyprland"
@@ -89,8 +91,8 @@ configure_hyprland() {
     # Stow additional Hyprland components if they exist
     for component in hyprmocha hyprlock hyprpaper backgrounds; do
         if [[ -d "$DOTFILES_DIR/$component" ]]; then
-            log_info "Applying $component configuration with stow..."
-            (cd "$DOTFILES_DIR" && stow --target="$HOME" "$component") || log_warn "Failed to stow $component configuration"
+            log_info "Applying $component configuration..."
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt "$component") || log_warn "Failed to stow $component configuration"
         fi
     done
     

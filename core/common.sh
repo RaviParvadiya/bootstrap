@@ -268,10 +268,7 @@ install_packages() {
     done
 
     # Exit early if nothing to install
-    if [[ ${#packages_to_install[@]} -eq 0 ]]; then
-        log_success "All ${#packages[@]} packages are already installed"
-        return 0
-    fi
+    [[ ${#packages_to_install[@]} -eq 0 ]] && return 0
 
     log_info "Installing ${#packages_to_install[@]} packages: ${packages_to_install[*]}"
 
@@ -319,7 +316,6 @@ install_packages() {
         
         if [[ ${#failed_packages[@]} -gt 0 ]]; then
             log_error "Failed to install (${#failed_packages[@]}): ${failed_packages[*]}"
-            log_error "Batch installation via $pm failed"
             return 1
         else
             # Edge case: All packages were actually installed despite batch command failure

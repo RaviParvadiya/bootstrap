@@ -73,10 +73,12 @@ configure_starship() {
     [[ ! -d "$DOTFILES_DIR/starship" ]] && { log_error "Missing Starship dotfiles: $DOTFILES_DIR/starship"; return 1; }
 
     log_info "Applying Starship configuration..."
-    (cd "$DOTFILES_DIR" && stow --target="$HOME" starship) || {
-        log_error "Failed to apply Starship configuration"
-        return 1
-    }
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" starship 2>/dev/null); then
+        log_warn "Configuration conflicts detected for starship"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt starship)
+        fi
+    fi
 
     log_success "Starship configuration applied"
 }

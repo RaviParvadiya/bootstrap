@@ -66,9 +66,11 @@ configure_tmux() {
     
     # Stow Tmux configuration
     log_info "Applying Tmux configuration..."
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" tmux); then
-        log_error "Failed to stow Tmux configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" tmux 2>/dev/null); then
+        log_warn "Configuration conflicts detected for tmux"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt tmux)
+        fi
     fi
     
     log_success "Tmux configuration applied"
@@ -160,7 +162,7 @@ fi'
 install_tmux() {
     log_section "Installing Tmux Terminal Multiplexer"
 
-    install_tmux_binary || return 1
+    install_tmux_packages || return 1
     install_tpm || return 1
     configure_tmux || return 1
     

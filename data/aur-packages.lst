@@ -2,15 +2,6 @@
 # These packages are only available on Arch Linux through AUR
 # Comments start with #
 
-# --- AUR Helpers ---
-yay
-
-# --- Development Tools ---
-visual-studio-code-bin
-
-# --- Window Manager ---
-pywal-git
-
 # --- System Utilities ---
 optimus-manager-qt|nvidia
 asusctl|asus

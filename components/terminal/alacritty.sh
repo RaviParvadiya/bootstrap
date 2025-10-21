@@ -45,9 +45,11 @@ configure_alacritty() {
     # Stow Alacritty configuration
     log_info "Applying Alacritty configuration..."
 
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" alacritty); then
-        log_error "Failed to stow Alacritty configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" alacritty 2>/dev/null); then
+        log_warn "Configuration conflicts detected for alacritty"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt alacritty)
+        fi
     fi
     
     log_success "Alacritty configuration applied"

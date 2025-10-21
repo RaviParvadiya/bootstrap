@@ -91,8 +91,6 @@ ubuntu_update_system() {
 ubuntu_install_component() {
     local component="$1"
     
-    log_info "Installing Ubuntu component: $component"
-    
     # Try different possible locations for the component
     local possible_locations=(
         "$COMPONENTS_DIR/terminal/$component.sh"

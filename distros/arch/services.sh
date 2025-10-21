@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Arch Linux Service Management
-# Handles systemd service configuration without auto-enabling
+# Handles systemd service configuration
 
 # Initialize all project paths
 source "$(dirname "${BASH_SOURCE[0]}")/../../core/init-paths.sh"
@@ -11,12 +11,12 @@ source "$CORE_DIR/common.sh"
 source "$CORE_DIR/logger.sh"
 source "$CORE_DIR/service-manager.sh"
 
-# Configure services for installed components (but don't enable them)
+# Configure services for installed components
 arch_configure_services() {
     local components=("$@")
     
-    log_info "Configuring Arch Linux services for installed components..."
-    
+    log_info "Configuring Arch Linux services..."
+
     # Configure services for each component
     for component in "${components[@]}"; do
         arch_configure_component_services "$component"
@@ -24,16 +24,12 @@ arch_configure_services() {
     
     # Configure system-wide services
     arch_configure_system_services
-    
-    log_success "Arch Linux service configuration completed"
 }
 
 # Configure services for a specific component
 # Arguments: $1=component_name
 arch_configure_component_services() {
     local component="$1"
-    
-    log_info "Configuring Arch Linux services for component: $component"
     
     case "$component" in
         "hyprland"|"wm")
@@ -42,26 +38,8 @@ arch_configure_component_services() {
         "docker")
             arch_configure_docker_service
             ;;
-        "bluetooth")
-            arch_configure_bluetooth_service
-            ;;
-        "networkmanager")
-            arch_configure_networkmanager_service
-            ;;
-        "sshd"|"ssh")
-            arch_configure_ssh_service
-            ;;
-        "firewall")
-            arch_configure_firewall_service
-            ;;
-        "audio"|"pipewire"|"pulseaudio")
-            arch_configure_audio_services
-            ;;
-        "display")
-            arch_configure_display_manager_services
-            ;;
         *)
-            log_debug "No specific service configuration for Arch component: $component"
+            return 0
             ;;
     esac
 }
@@ -76,6 +54,18 @@ arch_configure_system_services() {
     
     # Package cache cleanup
     # enable_service "paccache.timer" true
+    
+    enable_service "bluetooth" true
+
+    enable_service "sshd" true
+
+    # Firewall service
+    arch_configure_firewall_service
+
+    # Audio services
+    arch_configure_audio_services
+
+    arch_configure_display_manager_services
 }
 
 # Configure Wayland/Hyprland services
@@ -85,7 +75,7 @@ arch_configure_wayland_services() {
     enable_service "xdg-desktop-portal-gtk" true
     
     # Wayland compositor session
-    configure_desktop_integration "hyprland"
+    # configure_desktop_integration "hyprland"
     
     # Configure user groups for Wayland
     local wayland_groups=("video" "input" "render")
@@ -97,21 +87,6 @@ arch_configure_docker_service() {
     enable_service "docker" true
     add_user_to_groups docker
     enable_service "containerd" true
-}
-
-# Configure Bluetooth service
-arch_configure_bluetooth_service() {
-    enable_service "bluetooth" true
-}
-
-# Configure NetworkManager service
-arch_configure_networkmanager_service() {
-    enable_service "NetworkManager" true
-}
-
-# Configure SSH service
-arch_configure_ssh_service() {
-    enable_service "sshd" true
 }
 
 # Configure firewall service

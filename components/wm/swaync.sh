@@ -68,9 +68,11 @@ configure_swaync() {
     
     # Stow SwayNC configuration
     log_info "Applying SwayNC configuration..."
-    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" swaync); then
-        log_error "Failed to stow SwayNC configuration"
-        return 1
+    if ! (cd "$DOTFILES_DIR" && stow --target="$HOME" swaync 2>/dev/null); then
+        log_warn "Configuration conflicts detected for swaync"
+        if ask_yes_no "Overwrite existing files?" "y"; then
+            (cd "$DOTFILES_DIR" && stow --target="$HOME" --adopt swaync)
+        fi
     fi
     
     log_success "SwayNC configuration applied"
