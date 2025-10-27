@@ -120,7 +120,7 @@ arch_setup_chaotic_aur() {
 arch_update_package_database() {
     log_info "Updating package database..."
     
-    if sudo pacman -Sy; then
+    if sudo pacman -Syyu; then
         log_success "Package database updated"
     else
         log_error "Failed to update package database"
